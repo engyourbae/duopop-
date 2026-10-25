@@ -26,8 +26,9 @@ export type Question = ChoiceQuestion | OrderQuestion | EstimateQuestion;
 
 export type Mechanic =
   | 'mcq' | 'tf' | 'chain-tf' | 'era' | 'flag' | 'order' | 'estimate' | 'clues'
+  | 'memorymatch' | 'reflex' | 'tictactoe' | 'connect4' | 'whack' | 'stroop' | 'simon' | 'snake' | 'flappy' | 'catch'
   | 'pair' | 'predict' | 'match' | 'likely' | 'deck' | 'wheel' | 'wordchain' | 'story' | 'wordguess' | 'lovelang';
-export type GameGroup = 'pasangan' | 'pengetahuan' | 'grup';
+export type GameGroup = 'pasangan' | 'pengetahuan' | 'grup' | 'arkade';
 
 export interface GameDef {
   id: string;
