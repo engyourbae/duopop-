@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Field, Header, Tabs, useToast } from '../../components/ui';
+import { Brand } from '../../components/Brand';
 import { useAuth } from './AuthContext';
 
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
@@ -53,8 +54,8 @@ export default function AuthPage() {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   return (
     <div className="page"><Header title={tab === 'masuk' ? 'Masuk' : 'Daftar'} back={() => nav(-1)} />
-      <Button size="lg" variant="accent" onClick={() => void google()} disabled={busy}>Masuk dengan Google</Button>
-      <p className="center muted small">atau pakai email</p>
+      <Button size="lg" className="btn-google" onClick={() => void google()} disabled={busy}><Brand name="google" size={22} />Lanjutkan dengan Google</Button>
+      <div className="or">atau pakai email</div>
       <Tabs tabs={[{ id: 'masuk', label: 'Masuk' }, { id: 'daftar', label: 'Daftar' }]} value={tab} onChange={(t) => { setTab(t); setErrs({}); }} />
       <form onSubmit={submit} noValidate>
         {tab === 'daftar' && <><Field label="Nama tampilan" error={errs.name}><input value={f.name} onChange={set('name')} autoComplete="name" /></Field><Field label="Nama pengguna (untuk dicari teman)" error={errs.handle}><input value={f.handle} onChange={set('handle')} autoCapitalize="none" /></Field></>}
