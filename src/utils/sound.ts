@@ -1,5 +1,6 @@
 import { getProgress } from '../features/progression/store';
 let ctx: AudioContext | null = null;
+export function beep(freq: number, dur: number, delay = 0) { tone(freq, dur, delay); }
 function tone(freq: number, dur: number, delay = 0) {
   const s = getProgress().settings;
   if (!s.sound || typeof window === 'undefined') return;
