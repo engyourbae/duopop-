@@ -4,7 +4,7 @@ Aplikasi PWA game untuk pasangan, teman, dan grup, berbahasa Indonesia.
 Stack: React + TypeScript (strict) + Vite, CSS buatan sendiri, Firebase (Auth + Firestore), service worker kustom, Vitest.
 
 ## Isi aplikasi
-- **36 game** dengan mekanik berbeda (lihat `src/features/games/registry.ts`): 8 game pasangan, 20 game pengetahuan, 8 game grup/pesta.
+- **46 game** dengan mekanik berbeda (lihat `src/features/games/registry.ts`): 8 game pasangan, 20 game pengetahuan, 8 game grup/pesta, dan **10 game arkade/aksi** yang dimainkan dengan gerak, refleks, dan strategi (Pasangan Kartu, Adu Refleks, Tic-Tac-Toe, Empat Sejajar, Pukul Tikus, Tebak Warna, Ikuti Urutan, Ular Lapar, Terbang Melewati Pipa, Tangkap Bintang).
 - **Bank soal**: 283 butir (pilihan ganda, fakta/mitos, kronologi, tebak era, estimasi) + 16 teka-teki bertahap + 40 bendera. Semua berstatus `perlu-tinjauan` (belum diverifikasi ke sumber primer; `sourceUrl` sengaja kosong, tidak ada URL karangan). Lihat bagian *Konten*.
 - **Solo/bergiliran** (1–8 pemain di satu perangkat): bisa offline setelah aplikasi dibuka sekali.
 - **Online** (butuh Firebase): akun, teman, grup + undangan (kode/tautan), ruang multiplayer real-time untuk game berbasis soal.
@@ -36,10 +36,13 @@ Tanpa konfigurasi, aplikasi **tidak** memalsukan login/multiplayer: layar fitur 
 
 **Base path**: workflow mengisi `VITE_BASE=/<nama-repo>/` otomatis. Satu-satunya tempat pengaturan manual adalah variabel `VITE_BASE` (atau `base` di `vite.config.ts`). Default `./` (relatif) dan routing memakai `HashRouter`, sehingga aplikasi tidak rusak di subpath repository maupun saat di-refresh.
 
+## Tampilan
+Desain datar bergaya stiker (krem + tinta, garis tebal, bayangan bergeser, **tanpa gradasi**), font Bricolage Grotesque dan Figtree yang dibundel lokal (jalan offline). Semua popup, daftar pilihan, saklar, konfirmasi, dan lembar berbagi adalah komponen kustom (`src/components/ui.tsx`, `Share.tsx`), bukan dialog bawaan browser. Logo merek (Google, Gmail, WhatsApp, Telegram, Facebook, X) ada di `src/components/Brand.tsx`.
+
 ## Arsitektur singkat
 | Folder | Isi |
 |---|---|
-| `src/features/games` | registry 36 game, `engine.ts` (skor, reducer kuis, level), `mechanics/` (18 mekanik) |
+| `src/features/games` | registry 36 game, `engine.ts` (skor, reducer kuis, level), `mechanics/` (28 mekanik), `logic.ts` (logika papan) |
 | `src/data` | bank soal bertipe + validator, konten pasangan/pesta, daftar negara |
 | `src/features/progression` | XP/level/lencana/streak (localStorage, dedupe sesi, batas XP harian) |
 | `src/features/{auth,friends,groups,multiplayer}` | UI fitur online |

@@ -34,7 +34,9 @@ service cloud.firestore {
 
     // ---- Permintaan pertemanan: id = pengirim_penerima (mencegah ganda) ----
     match /friendRequests/{id} {
-      allow read: if signedIn() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+      // get pada dokumen yang belum ada harus diizinkan (resource == null), kalau tidak pemeriksaan "sudah terkirim?" gagal
+      allow get: if signedIn() && (resource == null || resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+      allow list: if signedIn() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
       allow create: if signedIn() && request.resource.data.from == request.auth.uid && request.resource.data.to != request.auth.uid
         && id == request.auth.uid + '_' + request.resource.data.to
         && !exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(request.resource.data.to));
@@ -68,7 +70,8 @@ service cloud.firestore {
       allow update: if false;
     }
     match /groupInvites/{id} {
-      allow read: if signedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow get: if signedIn() && (resource == null || resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow list: if signedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
       allow create: if signedIn() && request.resource.data.from == request.auth.uid
         && id == request.resource.data.groupId + '_' + request.resource.data.to
         && get(/databases/$(database)/documents/groups/$(request.resource.data.groupId)).data.ownerUid == request.auth.uid;
