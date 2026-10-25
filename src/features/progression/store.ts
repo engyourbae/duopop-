@@ -22,13 +22,13 @@ export const BADGES: { id: string; title: string; desc: string; test: (p: Progre
   { id: 'pasangan', title: 'Pasangan Kompak', desc: 'Mainkan 3 game pasangan.', test: (p) => p.history.filter((h) => ['howwell', 'thisorthat', 'matchmy', 'predict', 'lovelang', 'memory', 'deeptalk', 'likely'].includes(h.gameId)).length >= 3 },
 ];
 export const THEMES = [
-  { id: 'ungu', name: 'Ungu Pop', color: '#7c4dff', min: 1 }, { id: 'pink', name: 'Pink Manis', color: '#ff5c8a', min: 2 },
-  { id: 'teal', name: 'Teal Segar', color: '#12b886', min: 3 }, { id: 'jingga', name: 'Jingga Hangat', color: '#f76707', min: 5 },
+  { id: 'biru', name: 'Biru Tinta', color: '#2a4bff', min: 1 }, { id: 'merah', name: 'Merah Tomat', color: '#e0401f', min: 2 },
+  { id: 'hijau', name: 'Hijau Daun', color: '#0f8f5f', min: 3 }, { id: 'jingga', name: 'Jingga Jeruk', color: '#d9610c', min: 5 },
 ];
 const KEY = 'duopop:v1';
 const fresh = (): Progress => ({
   name: '', xp: 0, xpToday: { date: todayKey(), amount: 0 }, history: [], seen: [], badges: [], streak: { last: null, count: 0, best: 0 },
-  dailyDone: null, onboarded: false, theme: 'ungu', settings: { sound: true, animations: true, theme: 'sistem', shareProfile: true, showOnline: true },
+  dailyDone: null, onboarded: false, theme: 'biru', settings: { sound: true, animations: true, theme: 'sistem', shareProfile: true, showOnline: true },
 });
 function load(): Progress {
   try { const raw = localStorage.getItem(KEY); if (raw) return { ...fresh(), ...(JSON.parse(raw) as Partial<Progress>) }; } catch { /* abaikan */ }
