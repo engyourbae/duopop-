@@ -80,8 +80,29 @@ export const GAMES: GameDef[] = [
     tagline: 'Dua tim berebut poin lewat tantangan seru.', rules: ['Tim A dan Tim B bergantian.', 'Tantangan diselesaikan = 1 poin.', 'Tim dengan poin terbanyak menang.'] }),
   g({ id: 'kuisgrup', title: 'Kuis Grup', group: 'grup', mechanic: 'mcq', icon: 'users', color: '#845ef7', multiplayer: true, minPlayers: 2, maxPlayers: 8,
     tagline: 'Kuis campuran untuk ramai-ramai.', rules: ['Pemain menjawab bergiliran.', 'Skor ditampilkan terus.', 'Pemenang dirayakan di akhir.'] }),
+  // ===== Arkade & aksi (dimainkan dengan gerak, refleks, dan strategi) =====
+  g({ id: 'memorymatch', title: 'Pasangan Kartu', group: 'arkade', mechanic: 'memorymatch', icon: 'album', color: '#e03131',
+    tagline: 'Balik kartu, cari pasangannya. Bergiliran!', rules: ['Balik dua kartu per giliran.', 'Kalau cocok, kamu dapat poin dan jalan lagi.', 'Pemain dengan pasangan terbanyak menang.'] }),
+  P({ id: 'reflex', title: 'Adu Refleks', group: 'arkade', mechanic: 'reflex', icon: 'bolt', color: '#fab005',
+    tagline: 'Siapa yang menyentuh layar paling cepat?', rules: ['Taruh ponsel di tengah, masing-masing satu sisi.', 'Tunggu layar berubah hijau, lalu sentuh sisimu secepatnya.', 'Menyentuh sebelum hijau = kalah ronde itu.'] }),
+  P({ id: 'tictactoe', title: 'Tic-Tac-Toe', group: 'arkade', mechanic: 'tictactoe', icon: 'x', color: '#1c7ed6',
+    tagline: 'Tiga sejajar menang. Klasik untuk berdua.', rules: ['Bergantian menaruh X dan O.', 'Tiga sejajar mendatar, menurun, atau miring menang.', 'Pemula giliran bertukar tiap ronde.'] }),
+  P({ id: 'connect4', title: 'Empat Sejajar', group: 'arkade', mechanic: 'connect4', icon: 'grid', color: '#d9480f',
+    tagline: 'Jatuhkan cakram, buat empat sejajar.', rules: ['Pilih kolom untuk menjatuhkan cakram.', 'Empat sejajar ke arah mana pun menang.', 'Papan penuh = seri.'] }),
+  g({ id: 'whack', title: 'Pukul Tikus', group: 'arkade', mechanic: 'whack', icon: 'hammer', color: '#8a5a2b',
+    tagline: 'Ketuk tikus yang muncul sebelum kabur!', rules: ['Tikus muncul acak di 9 lubang.', 'Ketuk secepatnya untuk dapat poin.', 'Makin lama makin cepat.'] }),
+  g({ id: 'stroop', title: 'Tebak Warna', group: 'arkade', mechanic: 'stroop', icon: 'sparkle', color: '#7048e8',
+    tagline: 'Pilih WARNA tinta, bukan tulisannya!', rules: ['Sebuah kata warna tampil dengan tinta berbeda.', 'Pilih warna tintanya, bukan arti katanya.', 'Salah mengurangi 1 poin.'] }),
+  g({ id: 'simon', title: 'Ikuti Urutan', group: 'arkade', mechanic: 'simon', icon: 'bell', color: '#0ca678',
+    tagline: 'Hafalkan nyala warna dan ulangi urutannya.', rules: ['Perhatikan urutan pad yang menyala.', 'Ulangi urutan yang sama.', 'Urutan bertambah satu tiap ronde.'] }),
+  g({ id: 'snake', title: 'Ular Lapar', group: 'arkade', mechanic: 'snake', icon: 'chain', color: '#2f9e44',
+    tagline: 'Makan sebanyak mungkin tanpa menabrak.', rules: ['Geser jari atau pakai tombol arah.', 'Makan apel agar memanjang.', 'Menabrak dinding atau badan sendiri = selesai.'] }),
+  g({ id: 'flappy', title: 'Terbang Melewati Pipa', group: 'arkade', mechanic: 'flappy', icon: 'bird', color: '#f08c00',
+    tagline: 'Ketuk untuk mengepak, lolos dari pipa.', rules: ['Ketuk layar untuk melompat.', 'Lewati celah di antara pipa.', 'Menabrak = selesai.'] }),
+  g({ id: 'catch', title: 'Tangkap Bintang', group: 'arkade', mechanic: 'catch', icon: 'star', color: '#e8590c',
+    tagline: 'Geser keranjang, tangkap bintang, hindari bom.', rules: ['Geser jari kiri-kanan untuk menggerakkan keranjang.', 'Bintang +1, bom mengurangi nyawa.', 'Kamu punya 3 nyawa.'] }),
 ];
 
 export const gameById = (id: string) => GAMES.find((x) => x.id === id);
-export const GROUP_LABEL = { pasangan: 'Pasangan', pengetahuan: 'Pengetahuan', grup: 'Grup & Pesta' } as const;
+export const GROUP_LABEL = { pasangan: 'Pasangan', pengetahuan: 'Pengetahuan', grup: 'Grup & Pesta', arkade: 'Arkade & Aksi' } as const;
 export const isRoomGame = (g: GameDef) => !!g.multiplayer;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Badge, Button, Card, EmptyState, Header, useToast } from '../../components/ui';
+import { Badge, Button, Card, EmptyState, Header, useConfirm, useToast } from '../../components/ui';
 import { Icon } from '../../components/Icon';
 import { BADGES, claimDaily, getProgress, recordResult, useProgress } from '../progression/store';
 import { rankPlayers, xpForResult } from './engine';
@@ -8,6 +8,8 @@ import { gameById, GROUP_LABEL } from './registry';
 import { QuizMech, OrderMech, EstimateMech, CluesMech } from './mechanics/Quiz';
 import { PairMech, PredictMech, LoveLangMech, DeckMech } from './mechanics/Social';
 import { WheelMech, WordChainMech, StoryMech, WordGuessMech } from './mechanics/Party';
+import { Connect4Mech, MemoryMech, ReflexMech, TicTacToeMech } from './mechanics/Board';
+import { CatchMech, FlappyMech, SimonMech, SnakeMech, StroopMech, WhackMech } from './mechanics/Arcade';
 import type { MechProps, Outcome } from './mechanics/types';
 import type { GameDef, GameResult } from '../../types';
 import { todayKey, uid } from '../../utils/rng';
@@ -17,6 +19,14 @@ import { isFirebaseConfigured } from '../../lib/firebase/config';
 interface Cfg { count: number; secs: number; counts: number[]; secsOpts: number[] | null }
 export function defaultsFor(g: GameDef): Cfg {
   switch (g.mechanic) {
+    case 'memorymatch': return { count: 8, secs: 0, counts: [6, 8, 10], secsOpts: null };
+    case 'reflex': return { count: 5, secs: 0, counts: [3, 5, 7], secsOpts: null };
+    case 'tictactoe': return { count: 3, secs: 0, counts: [1, 3, 5], secsOpts: null };
+    case 'connect4': return { count: 1, secs: 0, counts: [1, 3], secsOpts: null };
+    case 'whack': return { count: 1, secs: 30, counts: [1], secsOpts: [20, 30, 45] };
+    case 'stroop': return { count: 1, secs: 30, counts: [1], secsOpts: [20, 30, 45] };
+    case 'catch': return { count: 1, secs: 45, counts: [1], secsOpts: [30, 45, 60] };
+    case 'simon': case 'snake': case 'flappy': return { count: 1, secs: 0, counts: [1], secsOpts: null };
     case 'order': return { count: 5, secs: 0, counts: [3, 5, 8], secsOpts: null };
     case 'estimate': return { count: 8, secs: 0, counts: [5, 8, 16], secsOpts: null };
     case 'clues': return { count: 6, secs: 0, counts: [4, 6, 8], secsOpts: null };
@@ -38,6 +48,8 @@ const MECH: Record<string, (p: MechProps) => ReactElement | null> = {
   mcq: QuizMech, tf: QuizMech, 'chain-tf': QuizMech, era: QuizMech, flag: QuizMech, order: OrderMech, estimate: EstimateMech, clues: CluesMech,
   pair: PairMech, match: PairMech, likely: PairMech, predict: PredictMech, deck: DeckMech, wheel: WheelMech, wordchain: WordChainMech,
   story: StoryMech, wordguess: WordGuessMech, lovelang: LoveLangMech,
+  memorymatch: MemoryMech, reflex: ReflexMech, tictactoe: TicTacToeMech, connect4: Connect4Mech,
+  whack: WhackMech, stroop: StroopMech, simon: SimonMech, snake: SnakeMech, flappy: FlappyMech, catch: CatchMech,
 };
 
 export default function GamePage() {
@@ -46,6 +58,7 @@ export default function GamePage() {
   const nav = useNavigate();
   const prog = useProgress();
   const toast = useToast();
+  const ask = useConfirm();
   const [phase, setPhase] = useState<'setup' | 'play' | 'result'>('setup');
   const [names, setNames] = useState<string[]>([]);
   const [cfg, setCfg] = useState<{ count: number; secs: number } | null>(null);
@@ -74,7 +87,7 @@ export default function GamePage() {
     setOut(o);
     if (!recorded.current) {
       recorded.current = true;
-      let xp = xpForResult(o.correct, o.total);
+      let xp = o.xp !== undefined ? Math.max(0, Math.min(100, Math.round(o.xp))) : xpForResult(o.correct, o.total);
       if (daily) { if (practice || !claimDaily()) xp = 0; else xp += 30; }
       const res: GameResult = { sessionId: session.id, gameId: game.id, at: Date.now(), players: names.map((n, i) => ({ name: n, score: o.scores[i] ?? 0 })), correct: o.correct, total: o.total, xp };
       const r = recordResult(res);
@@ -89,7 +102,7 @@ export default function GamePage() {
     return (
       <div className="page">
         <Header title={game.title} back={() => nav('/game')} />
-        <div className="hero" style={{ background: `linear-gradient(135deg, ${game.color}, var(--pink))` }}><Badge color="rgba(0,0,0,.25)">{GROUP_LABEL[game.group]}</Badge><h2 style={{ marginTop: 8 }}>{game.tagline}</h2></div>
+        <div className="hero"><Badge>{GROUP_LABEL[game.group]}</Badge><h2 style={{ marginTop: 8 }}>{game.tagline}</h2></div>
         <Card><h3>Cara bermain</h3><ol style={{ paddingLeft: 20, marginBottom: 0 }}>{game.rules.map((r, i) => <li key={i}>{r}</li>)}</ol></Card>
         {doneToday && <div className="expl">Tantangan hari ini sudah kamu selesaikan. Kamu masih bisa berlatih (tanpa XP).</div>}
         <Card>
@@ -101,7 +114,7 @@ export default function GamePage() {
                 <button key={n} className={`chip ${names.length === n ? 'on' : ''}`} onClick={() => setNames(Array.from({ length: n }, (_, i) => names[i] ?? `Pemain ${i + 1}`))}>{n}</button>))}
             </div>)}
           {names.map((n, i) => <label key={i} className="field gap"><span>{game.id === 'tim' ? `Nama tim ${i + 1}` : `Nama pemain ${i + 1}`}</span><input value={n} maxLength={20} onChange={(e) => setN(i, e.target.value)} /></label>)}
-          {d.counts.length > 1 && <div className="row wrap gap"><span className="small">{game.mechanic === 'deck' || game.mechanic === 'wheel' ? 'Jumlah kartu/putaran:' : 'Jumlah soal/ronde:'}</span>{d.counts.map((c) => <button key={c} className={`chip ${cfg.count === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, count: c })}>{c}</button>)}</div>}
+          {d.counts.length > 1 && <div className="row wrap gap"><span className="small">{game.mechanic === 'deck' || game.mechanic === 'wheel' ? 'Jumlah kartu/putaran:' : game.mechanic === 'memorymatch' ? 'Jumlah pasangan:' : game.group === 'arkade' ? 'Jumlah ronde:' : 'Jumlah soal/ronde:'}</span>{d.counts.map((c) => <button key={c} className={`chip ${cfg.count === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, count: c })}>{c}</button>)}</div>}
           {d.secsOpts && <div className="row wrap gap"><span className="small">Waktu (detik):</span>{d.secsOpts.map((c) => <button key={c} className={`chip ${cfg.secs === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, secs: c })}>{c}</button>)}</div>}
         </Card>
         <Button size="lg" icon="play" onClick={() => { setNames(names.map((n, i) => n.trim() || `Pemain ${i + 1}`)); start(); }}>{doneToday ? 'Berlatih' : 'Mulai main'}</Button>
@@ -114,7 +127,7 @@ export default function GamePage() {
     const M = MECH[game.mechanic] as (p: MechProps) => ReactElement | null;
     return (
       <div className="page">
-        <Header title={game.title} back={() => { if (confirm('Keluar dari permainan? Kemajuan ronde ini tidak disimpan.')) setPhase('setup'); }} />
+        <Header title={game.title} back={() => { void ask({ title: 'Keluar dari permainan?', text: 'Kemajuan ronde ini tidak disimpan.', ok: 'Keluar', danger: true }).then((y) => { if (y) setPhase('setup'); }); }} />
         <M key={session.id} game={game} players={names} seed={session.seed} count={cfg.count} secs={cfg.secs || 20} onDone={finish} />
       </div>
     );
@@ -125,7 +138,7 @@ export default function GamePage() {
     <div className="page">
       <Header title="Hasil" />
       <div className="hero center"><div style={{ fontSize: '3rem' }}>🏆</div><h2>{ranked.length > 1 ? (tie ? 'Seri! Kalian sama kuat.' : `${ranked[0]?.name} menang!`) : 'Permainan selesai!'}</h2>
-        <p>{out?.correct} dari {out?.total} berhasil{xpGot > 0 ? ` · +${xpGot} XP` : ''}</p></div>
+        <p>{out?.headline ?? `${out?.correct} dari ${out?.total} berhasil`}{xpGot > 0 ? ` · +${xpGot} XP` : ''}</p></div>
       {out?.summary}
       {ranked.length > 1 && ranked.map((p, i) => <div key={i} className={`score-row ${i === 0 && !tie ? 'top' : ''}`}><span>{i + 1}. {p.name}</span><span>{p.score}</span></div>)}
       {ranked.length === 1 && <div className="score-row top"><span>{ranked[0]?.name}</span><span>{ranked[0]?.score} poin</span></div>}
