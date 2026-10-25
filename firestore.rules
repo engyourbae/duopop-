@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // ---- Profil publik ----
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if isSelf(uid) && request.resource.data.uid == uid
+        && request.resource.data.handle is string && request.resource.data.handle.matches('^[a-z0-9_]{3,20}$')
+        && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 40;
+      allow update: if isSelf(uid) && request.resource.data.uid == uid && request.resource.data.handle == resource.data.handle;
+      allow delete: if false;
+
+      match /friends/{friendUid} {
+        allow read: if isSelf(uid);
+        // Pemilik boleh menulis jika ada permintaan dari/ke dirinya; penerima boleh menulis sisi lainnya
+        allow create: if (isSelf(uid) && exists(/databases/$(database)/documents/friendRequests/$(friendUid + '_' + uid)))
+                      || (isSelf(friendUid) && exists(/databases/$(database)/documents/friendRequests/$(uid + '_' + friendUid)));
+        allow delete: if isSelf(uid) || isSelf(friendUid);
+        allow update: if false;
+      }
+      match /history/{id} {
+        allow read, create: if isSelf(uid);
+        allow update, delete: if false;
+      }
+    }
+    match /handles/{h} {
+      allow read: if signedIn();
+      allow create: if signedIn() && !exists(/databases/$(database)/documents/handles/$(h)) && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ---- Permintaan pertemanan: id = pengirim_penerima (mencegah ganda) ----
+    match /friendRequests/{id} {
+      allow read: if signedIn() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.from == request.auth.uid && request.resource.data.to != request.auth.uid
+        && id == request.auth.uid + '_' + request.resource.data.to
+        && !exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(request.resource.data.to));
+      allow update: if false;
+      allow delete: if signedIn() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+    }
+
+    // ---- Grup ----
+    match /groups/{gid} {
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.members == [request.auth.uid] && request.resource.data.max <= 12;
+      // Pemilik: kelola anggota/kode. Pengguna lain: hanya menambahkan dirinya sendiri (maks. kapasitas).
+      allow update: if signedIn() && (
+        (request.auth.uid == resource.data.ownerUid && request.resource.data.ownerUid == resource.data.ownerUid)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberNames'])
+            && request.auth.uid in request.resource.data.members
+            && !(request.auth.uid in resource.data.members)
+            && request.resource.data.members.size() == resource.data.members.size() + 1
+            && request.resource.data.members.size() <= resource.data.max)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
+            && request.auth.uid in resource.data.members && !(request.auth.uid in request.resource.data.members)));
+      allow delete: if signedIn() && request.auth.uid == resource.data.ownerUid;
+    }
+    // Kode grup hanya bisa di-get (tidak bisa di-list) sehingga tidak dapat ditebak massal
+    match /groupCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow update: if false;
+    }
+    match /groupInvites/{id} {
+      allow read: if signedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.from == request.auth.uid
+        && id == request.resource.data.groupId + '_' + request.resource.data.to
+        && get(/databases/$(database)/documents/groups/$(request.resource.data.groupId)).data.ownerUid == request.auth.uid;
+      allow delete: if signedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow update: if false;
+    }
+
+    // ---- Ruang permainan ----
+    match /rooms/{code} {
+      // get terbuka untuk pengguna masuk (perlu untuk bergabung via kode); list tidak diizinkan
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.hostUid == request.auth.uid && request.resource.data.status == 'lobby'
+        && request.resource.data.players.keys().hasOnly([request.auth.uid]);
+      allow update: if signedIn() && (
+        // host mengatur status/ronde
+        (request.auth.uid == resource.data.hostUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'round', 'starts']))
+        // pemain bergabung / keluar: hanya mengubah entri dirinya sendiri
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players'])
+            && request.resource.data.players.diff(resource.data.players).affectedKeys().hasOnly([request.auth.uid])
+            && resource.data.status == 'lobby' && request.resource.data.players.size() <= 8));
+      allow delete: if false;
+
+      // Jawaban: create-only, id = ronde_uid, hanya saat ruang 'playing', hanya untuk ronde berjalan
+      match /answers/{aid} {
+        allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/rooms/$(code)).data.players.keys();
+        allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+          && aid == string(request.resource.data.round) + '_' + request.auth.uid
+          && request.resource.data.keys().hasOnly(['uid', 'round', 'choice', 'at'])
+          && request.resource.data.at == request.time
+          && get(/databases/$(database)/documents/rooms/$(code)).data.status == 'playing'
+          && get(/databases/$(database)/documents/rooms/$(code)).data.round == request.resource.data.round
+          && request.auth.uid in get(/databases/$(database)/documents/rooms/$(code)).data.players.keys();
+        allow update, delete: if false;
+      }
+    }
+  }
+}
