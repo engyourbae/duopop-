@@ -51,6 +51,9 @@ const P: Record<string, string> = {
   repeat: 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3',
   lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
   mail: 'M3 5h18v14H3zM3 6l9 7 9-7',
+  bird: 'M3 15c4 1 7-1 9-5 1 2 3 3 6 3l3-1-2 4c-2 4-6 6-10 6-4 0-6-3-6-7zM17 9h.01',
+  hammer: 'M14 4l6 6-3 3-6-6zM12 8L4 16l4 4 8-8',
+  chevron: 'M6 9l6 6 6-6',
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14',
 };
 export type IconName = keyof typeof P | string;
@@ -62,17 +65,16 @@ export function Icon({ name, size = 22, className }: { name: IconName; size?: nu
     </svg>
   );
 }
-export function Logo({ size = 40, text = true }: { size?: number; text?: boolean }) {
+export function Logo({ size = 40, text = true, light = false }: { size?: number; text?: boolean; light?: boolean }) {
   return (
     <span className="logo" aria-label="DUOPOP">
       <svg width={size} height={size} viewBox="0 0 512 512" aria-hidden="true">
-        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#7c4dff" /><stop offset="1" stopColor="#ff5c8a" /></linearGradient></defs>
-        <rect width="512" height="512" rx="112" fill="url(#lg)" />
-        <circle cx="200" cy="256" r="104" fill="#fff" opacity=".95" />
-        <circle cx="312" cy="256" r="104" fill="#ffc83d" opacity=".92" />
-        <path d="M256 208a60 60 0 0 1 0 96a60 60 0 0 1 0-96z" fill="#ff5c8a" />
+        <rect width="512" height="512" rx="112" fill="#2a4bff" />
+        <circle cx="200" cy="256" r="104" fill="#f2eadb" />
+        <circle cx="312" cy="256" r="104" fill="#ffc414" />
+        <path d="M256 168.4A104 104 0 0 1 256 343.6A104 104 0 0 1 256 168.4Z" fill="#e0401f" />
       </svg>
-      {text && <span className="logo-text">DUO<b>POP</b></span>}
+      {text && <span className="logo-text" style={light ? { color: '#fff' } : undefined}>duo<b>pop</b></span>}
     </span>
   );
 }

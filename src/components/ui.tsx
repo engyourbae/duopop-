@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Icon } from './Icon';
 
 export function Button({ variant = 'primary', size = 'md', icon, children, className = '', ...rest }:
@@ -63,4 +63,48 @@ export function Field({ label, error, children }: { label: string; error?: strin
 }
 export function Header({ title, back, right }: { title: string; back?: () => void; right?: ReactNode }) {
   return <header className="page-head">{back ? <button className="icon-btn" onClick={back} aria-label="Kembali"><Icon name="back" /></button> : <span />}<h1>{title}</h1><span className="head-right">{right}</span></header>;
+}
+
+/** Pengganti confirm() bawaan browser. */
+interface ConfirmOpts { title: string; text?: string; ok?: string; danger?: boolean }
+const ConfirmCtx = createContext<(o: ConfirmOpts) => Promise<boolean>>(() => Promise.resolve(false));
+export const useConfirm = () => useContext(ConfirmCtx);
+export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const [o, setO] = useState<ConfirmOpts | null>(null);
+  const res = useRef<(v: boolean) => void>(() => undefined);
+  const ask = useCallback((opts: ConfirmOpts) => new Promise<boolean>((r) => { res.current = r; setO(opts); }), []);
+  const close = (v: boolean) => { setO(null); res.current(v); };
+  return (
+    <ConfirmCtx.Provider value={ask}>
+      {children}
+      <Modal open={!!o} title={o?.title ?? ''} onClose={() => close(false)}>
+        {o?.text && <p>{o.text}</p>}
+        <div className="row gap"><Button variant="ghost" className="grow" onClick={() => close(false)}>Batal</Button><Button variant={o?.danger ? 'danger' : 'primary'} className="grow" onClick={() => close(true)}>{o?.ok ?? 'Ya'}</Button></div>
+      </Modal>
+    </ConfirmCtx.Provider>
+  );
+}
+/** Pengganti <select> bawaan: tombol + daftar pilihan kustom. */
+export function Select({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const cur = options.find((x) => x.value === value);
+  return (
+    <div className="field">
+      <span>{label}</span>
+      <button type="button" className="select-btn" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(true)}>{cur?.label ?? 'Pilih…'}<Icon name="chevron" size={18} /></button>
+      <Modal open={open} title={label} onClose={() => setOpen(false)}>
+        <div role="listbox" aria-label={label}>
+          {options.map((x) => <button key={x.value} role="option" aria-selected={x.value === value} className={`opt ${x.value === value ? 'sel' : ''}`} onClick={() => { onChange(x.value); setOpen(false); }}>{x.value === value && <Icon name="check" size={18} />}{x.label}</button>)}
+        </div>
+      </Modal>
+    </div>
+  );
+}
+/** Pengganti checkbox bawaan. */
+export function Switch({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} className="switch-row" onClick={() => onChange(!checked)}>
+      <span className="grow">{label}</span><span className={`switch ${checked ? 'on' : ''}`}><span className="knob" /></span>
+    </button>
+  );
 }
