@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Button, Card, EmptyState, Field, Header, Modal, useToast } from '../../components/ui';
+import { Button, Card, EmptyState, Field, Header, Modal, useConfirm, useToast } from '../../components/ui';
+import { ShareSheet } from '../../components/Share';
+import { explainError } from '../../utils/errors';
 import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
 import type { Group, GroupInvite } from '../../services/social';
@@ -10,6 +12,8 @@ function Inner() {
   const { me } = useAuth();
   const { code: codeParam } = useParams();
   const toast = useToast();
+  const ask = useConfirm();
+  const [shareOpen, setShareOpen] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [invites, setInvites] = useState<GroupInvite[]>([]);
   const [friends, setFriends] = useState<{ uid: string; name: string }[]>([]);
@@ -24,14 +28,14 @@ function Inner() {
   }, [me?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
   const cur = sel ? groups.find((g) => g.id === sel.id) ?? null : null;
   if (!me) return null;
-  const run = async (f: (s: typeof import('../../services/social')) => Promise<unknown>, ok?: string) => { try { await f(await import('../../services/social')); if (ok) toast(ok, 'ok'); } catch { toast('Aksi gagal. Periksa koneksi.', 'err'); } };
+  const run = async (f: (s: typeof import('../../services/social')) => Promise<unknown>, ok?: string) => { try { await f(await import('../../services/social')); if (ok) toast(ok, 'ok'); } catch (e) { toast(explainError(e), 'err'); } };
   const create = () => { if (name.trim().length < 2) { toast('Nama grup minimal 2 karakter.', 'err'); return; } void run((s) => s.createGroup(me, name), 'Grup dibuat').then(() => setName('')); };
   const join = async () => {
     try {
       const s = await import('../../services/social'); const r = await s.joinGroup(me, code);
       const m = { ok: 'Berhasil bergabung', 'not-found': 'Kode tidak ditemukan.', expired: 'Kode sudah kedaluwarsa.', full: 'Grup sudah penuh.', already: 'Kamu sudah ada di grup ini.' }[r];
       toast(m, r === 'ok' ? 'ok' : 'err'); if (r === 'ok') setCode('');
-    } catch { toast('Gagal bergabung.', 'err'); }
+    } catch (e) { toast(explainError(e), 'err'); }
   };
   const owner = cur?.ownerUid === me.uid;
   const link = cur ? `${location.origin}${location.pathname}#/grup/gabung/${cur.code}` : '';
@@ -46,17 +50,18 @@ function Inner() {
       <Modal open={!!cur} title={cur?.name ?? ''} onClose={() => setSel(null)}>
         {cur && <>
           <p className="muted small center">Kode undangan</p><div className="code">{cur.code}</div>
-          <div className="row"><Button size="sm" variant="soft" className="grow" onClick={() => { void navigator.clipboard?.writeText(link).then(() => toast('Tautan disalin', 'ok')).catch(() => toast('Tidak bisa menyalin', 'err')); }}>Salin tautan</Button>
+          <div className="row"><Button size="sm" variant="soft" className="grow" icon="share" onClick={() => setShareOpen(true)}>Bagikan</Button>
             {owner && <Button size="sm" variant="ghost" className="grow" onClick={() => void run((s) => s.regenerateCode(cur), 'Kode baru dibuat')}>Kode baru</Button>}</div>
           <h3 className="gap">Anggota</h3>
           {cur.members.map((u) => <div key={u} className="list-item"><div className="avatar">{(cur.memberNames[u] ?? '?').slice(0, 1).toUpperCase()}</div><div className="grow">{cur.memberNames[u] ?? 'Pemain'}{u === cur.ownerUid ? ' · Pemilik' : ''}</div>
             {owner && u !== me.uid && <Button size="sm" variant="ghost" onClick={() => void run((s) => s.kickMember(cur, u), 'Anggota dikeluarkan')}>Keluarkan</Button>}</div>)}
           {owner && friends.filter((f) => !cur.members.includes(f.uid)).length > 0 && <><h3 className="gap">Undang teman</h3>
             {friends.filter((f) => !cur.members.includes(f.uid)).map((f) => <div key={f.uid} className="list-item"><div className="grow">{f.name}</div><Button size="sm" onClick={() => void run((s) => s.inviteFriend(me, cur, f.uid), 'Undangan terkirim')}>Undang</Button></div>)}</>}
-          <div className="row gap">{owner ? <Button variant="danger" onClick={() => { if (confirm('Hapus grup ini?')) void run((s) => s.deleteGroup(cur), 'Grup dihapus').then(() => setSel(null)); }}>Hapus grup</Button> :
-            <Button variant="ghost" onClick={() => { if (confirm('Keluar dari grup?')) void run((s) => s.leaveGroup(cur, me.uid), 'Kamu keluar dari grup').then(() => setSel(null)); }}>Keluar grup</Button>}</div>
+          <div className="row gap">{owner ? <Button variant="danger" onClick={() => { void ask({ title: 'Hapus grup ini?', text: 'Semua anggota akan kehilangan grup.', ok: 'Hapus', danger: true }).then((y) => { if (y) void run((s) => s.deleteGroup(cur), 'Grup dihapus').then(() => setSel(null)); }); }}>Hapus grup</Button> :
+            <Button variant="ghost" onClick={() => { void ask({ title: 'Keluar dari grup?', ok: 'Keluar', danger: true }).then((y) => { if (y) void run((s) => s.leaveGroup(cur, me.uid), 'Kamu keluar dari grup').then(() => setSel(null)); }); }}>Keluar grup</Button>}</div>
         </>}
       </Modal>
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} text={`Gabung grup DUOPOP-ku "${cur?.name ?? ''}"!`} url={link} />
     </div>
   );
 }
