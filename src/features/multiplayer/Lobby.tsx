@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
-import { Button, Card, Header, Field, useToast } from '../../components/ui';
+import { Button, Card, Header, Field, Select, useToast } from '../../components/ui';
+import { explainError } from '../../utils/errors';
 import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
 import { GAMES } from '../games/registry';
@@ -26,7 +27,7 @@ function LobbyInner() {
   const create = async () => {
     setBusy(true);
     try { const r = await import('../../services/rooms'); const c = await r.createRoom(me, gid, count, secs); nav(`/ruang/${c}`); }
-    catch { toast('Gagal membuat ruang. Periksa koneksi dan Security Rules.', 'err'); } finally { setBusy(false); }
+    catch (e) { toast(explainError(e), 'err'); } finally { setBusy(false); }
   };
   const join = async () => {
     if (code.trim().length < 4) { toast('Masukkan kode ruang.', 'err'); return; }
@@ -36,14 +37,14 @@ function LobbyInner() {
       const res = await r.joinRoom(me, code);
       if (res === 'ok') nav(`/ruang/${code.trim().toUpperCase()}`);
       else toast(res === 'not-found' ? 'Kode ruang tidak ditemukan.' : res === 'started' ? 'Permainan sudah dimulai.' : 'Ruang sudah penuh.', 'err');
-    } catch { toast('Gagal bergabung. Coba lagi.', 'err'); } finally { setBusy(false); }
+    } catch (e) { toast(explainError(e), 'err'); } finally { setBusy(false); }
   };
   return (
     <div className="page">
       <Header title="Lobi Online" back={() => nav(-1)} />
       {!online && <div className="expl bad">Kamu sedang offline. Multiplayer membutuhkan koneksi real-time.</div>}
       <Card><h3>Buat ruang</h3>
-        <Field label="Game"><select value={gid} onChange={(e) => setGid(e.target.value)}>{rooms.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}</select></Field>
+        <Select label="Game" value={gid} onChange={setGid} options={rooms.map((g) => ({ value: g.id, label: g.title }))} />
         <div className="row wrap"><span className="small">Soal:</span>{[5, 10, 15].map((c) => <button key={c} className={`chip ${count === c ? 'on' : ''}`} onClick={() => setCount(c)}>{c}</button>)}
           <span className="small">Detik:</span>{[10, 15, 25].map((c) => <button key={c} className={`chip ${secs === c ? 'on' : ''}`} onClick={() => setSecs(c)}>{c}</button>)}</div>
         <Button size="lg" className="gap" onClick={create} disabled={busy || !online}>Buat ruang baru</Button></Card>

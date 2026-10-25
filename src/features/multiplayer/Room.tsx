@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, ErrorState, Header, Spinner, useToast } from '../../components/ui';
+import { ShareSheet } from '../../components/Share';
+import { explainError } from '../../utils/errors';
 import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
 import { buildItems, xpForResult } from '../games/engine';
@@ -22,6 +24,7 @@ function RoomInner() {
   const [answers, setAnswers] = useState<RoomAnswer[]>([]);
   const [err, setErr] = useState('');
   const [now, setNow] = useState(Date.now());
+  const [shareOpen, setShareOpen] = useState(false);
   const [mine, setMine] = useState<Record<number, number>>({});
   const advancing = useRef<number | null>(null);
   const saved = useRef(false);
@@ -70,13 +73,14 @@ function RoomInner() {
   if (!room.players[me.uid]) return <ErrorState text="Kamu belum bergabung di ruang ini. Masukkan kodenya di Lobi." onRetry={() => nav(`/lobi/${code}`)} />;
   const link = `${location.origin}${location.pathname}#/lobi/${room.code}`;
   const ranked = uids.map((u) => ({ uid: u, name: room.players[u]?.name ?? '?', score: scores[u] ?? 0 })).sort((a, b) => b.score - a.score);
-  const act = async (f: () => Promise<unknown>) => { try { await f(); } catch { toast('Aksi gagal. Coba lagi.', 'err'); } };
+  const act = async (f: () => Promise<unknown>) => { try { await f(); } catch (e) { toast(explainError(e), 'err'); } };
   if (room.status === 'lobby') {
     return (
       <div className="page"><Header title="Ruang Menunggu" back={() => nav('/lobi')} />
         <Card className="center"><p className="muted">Kode ruang · {game?.title}</p><div className="code">{room.code}</div>
           <div className="row"><Button variant="soft" icon="copy" className="grow" onClick={() => { void navigator.clipboard?.writeText(room.code).then(() => toast('Kode disalin', 'ok')).catch(() => toast('Tidak bisa menyalin', 'err')); }}>Salin kode</Button>
-            <Button variant="soft" icon="share" className="grow" onClick={() => { if (navigator.share) void navigator.share({ title: 'DUOPOP', text: `Gabung ruang DUOPOP: ${room.code}`, url: link }).catch(() => undefined); else void navigator.clipboard?.writeText(link).then(() => toast('Tautan disalin', 'ok')); }}>Bagikan</Button></div></Card>
+            <Button variant="soft" icon="share" className="grow" onClick={() => setShareOpen(true)}>Bagikan</Button></div></Card>
+        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} text={`Gabung ruang DUOPOP-ku! Kode: ${room.code}`} url={link} />
         <h3>Pemain ({uids.length})</h3>
         {uids.map((u) => <div key={u} className="score-row"><span>{room.players[u]?.name}{u === room.hostUid ? ' · Host' : ''}{u === me.uid ? ' (kamu)' : ''}</span></div>)}
         <div className="row gap"><Button variant="ghost" onClick={() => void act(async () => { const r = await import('../../services/rooms'); await r.leaveRoom(code, me.uid); nav('/lobi'); })}>Keluar</Button>
