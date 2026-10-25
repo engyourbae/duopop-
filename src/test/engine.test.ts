@@ -41,6 +41,6 @@ describe('pembuat soal', () => {
       for (const i of it) { expect(i.correct).toBeGreaterThanOrEqual(0); expect(i.correct).toBeLessThan(i.options.length); expect(new Set(i.options).size).toBe(i.options.length); }
     }
   });
-  it('registry: 36 game, id unik, 6 inti', () => { expect(GAMES.length).toBe(36); expect(new Set(GAMES.map((g) => g.id)).size).toBe(36); expect(GAMES.filter((g) => g.core).length).toBe(6); });
+  it('registry: 46 game, id unik, 6 inti', () => { expect(GAMES.length).toBe(46); expect(new Set(GAMES.map((g) => g.id)).size).toBe(46); expect(GAMES.filter((g) => g.core).length).toBe(6); });
   it('rng deterministik', () => { const a = rng(seedFrom('x')), b = rng(seedFrom('x')); expect([a(), a()]).toEqual([b(), b()]); });
 });

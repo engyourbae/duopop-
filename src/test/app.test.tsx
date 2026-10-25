@@ -17,9 +17,9 @@ describe('navigasi & halaman penting', () => {
     patchProgress({ onboarded: false }); render(<App />);
     expect(await screen.findByText('Play Closer, Know More')).toBeInTheDocument();
   });
-  it('daftar game memuat semua 36 game dan pencarian bekerja', async () => {
+  it('daftar game memuat semua 46 game dan pencarian bekerja', async () => {
     go('#/game'); render(<App />);
-    expect((await screen.findAllByLabelText(/^Buka /)).length).toBe(36);
+    expect((await screen.findAllByLabelText(/^Buka /)).length).toBe(46);
     fireEvent.change(screen.getByLabelText('Cari game'), { target: { value: 'kronologi' } });
     expect(screen.getAllByLabelText(/^Buka /).length).toBe(1);
     fireEvent.change(screen.getByLabelText('Cari game'), { target: { value: 'zzzz' } });
