@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { Icon } from '../components/Icon';
-import { Spinner, ToastProvider } from '../components/ui';
+import { ConfirmProvider, Spinner, ToastProvider } from '../components/ui';
 import { AuthProvider } from '../features/auth/AuthContext';
 import { useProgress } from '../features/progression/store';
 import { useOnline } from '../hooks/useOnline';
@@ -36,7 +36,7 @@ function Gate() { const p = useProgress(); return p.onboarded ? <Home /> : <Navi
 
 export default function App() {
   return (
-    <AuthProvider><ToastProvider><HashRouter>
+    <AuthProvider><ToastProvider><ConfirmProvider><HashRouter>
       <Routes>
         <Route path="/mulai" element={<Splash />} />
         <Route element={<Shell />}>
@@ -61,6 +61,6 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
-    </HashRouter></ToastProvider></AuthProvider>
+    </HashRouter></ConfirmProvider></ToastProvider></AuthProvider>
   );
 }

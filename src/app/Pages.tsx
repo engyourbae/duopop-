@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Badge, Button, Card, EmptyState, Field, Header, ProgressBar, Tabs, useToast } from '../components/ui';
+import { Badge, Button, Card, EmptyState, Field, Header, ProgressBar, Switch, Tabs, useConfirm, useToast } from '../components/ui';
 import { Icon, Logo } from '../components/Icon';
 import { GAMES, GROUP_LABEL } from '../features/games/registry';
 import { levelInfo } from '../features/games/engine';
@@ -12,13 +12,14 @@ import { useOnline } from '../hooks/useOnline';
 import { QUESTION_COUNT } from '../features/games/engine';
 import type { GameDef, GameGroup } from '../types';
 
+export const toneOf = (id: string) => `t${[...id].reduce((n, c) => n + c.charCodeAt(0), 0) % 5}`;
 export function GameCard({ g }: { g: GameDef }) {
   const nav = useNavigate();
   return (
     <button className="gcard" onClick={() => nav(`/game/${g.id}`)} aria-label={`Buka ${g.title}`}>
-      <div className="gic" style={{ background: g.color }}><Icon name={g.icon} /></div>
+      <div className={`gic ${toneOf(g.id)}`}><Icon name={g.icon} /></div>
       <h3>{g.title}</h3><p>{g.tagline}</p>
-      {g.core && <Badge color={g.color}>Inti</Badge>}
+      {g.core && <Badge>Inti</Badge>}
     </button>
   );
 }
@@ -33,7 +34,7 @@ export function Splash() {
     { icon: 'users', title: 'Main bareng', text: 'Duel bergiliran di satu ponsel, atau ruang online dengan kode undangan.' },
   ];
   const done = () => { patchProgress({ onboarded: true }); nav('/', { replace: true }); };
-  if (step < 0) return <div className="splash"><div className="center"><Logo size={96} /><p style={{ opacity: 0.9, marginTop: 8 }}>Play Closer, Know More</p></div></div>;
+  if (step < 0) return <div className="splash"><div className="center"><Logo size={96} light /><p style={{ opacity: 0.95, marginTop: 8, fontWeight: 700 }}>Play Closer, Know More</p></div></div>;
   const s = slides[step] as (typeof slides)[number];
   return (
     <div className="app page center">
@@ -51,14 +52,16 @@ export function Home() {
   const li = levelInfo(p.xp);
   const doneToday = p.dailyDone === todayKey();
   const core = GAMES.filter((g) => g.core);
-  const rec = GAMES.filter((g) => !g.core).filter((_, i) => (i + new Date().getDate()) % 4 === 0).slice(0, 4);
+  const rec = GAMES.filter((g) => !g.core && g.group !== 'arkade').filter((_, i) => (i + new Date().getDate()) % 4 === 0).slice(0, 4);
   return (
     <div className="page">
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 16 }}><Logo /><Link to="/notifikasi" className="icon-btn" aria-label="Notifikasi"><Icon name="bell" /></Link></div>
       <div className="hero"><h2>Halo{p.name ? `, ${p.name}` : ''}!</h2><p>Level {li.level} · {p.xp} XP · Streak {p.streak.count} hari</p><ProgressBar value={li.pct} label="Kemajuan level" /></div>
-      <Link to="/game/harian" style={{ textDecoration: 'none' }}><Card className="row" onClick={undefined}><div className="gic" style={{ background: '#f76707' }}><Icon name="sun" /></div><div className="grow"><b>Tantangan Harian</b><div className="small muted">{doneToday ? 'Selesai hari ini — sampai jumpa besok!' : '6 soal baru menantimu'}</div></div><Icon name="play" /></Card></Link>
+      <Link to="/game/harian" style={{ textDecoration: 'none' }}><Card className="row" onClick={undefined}><div className="gic t2"><Icon name="sun" /></div><div className="grow"><b>Tantangan Harian</b><div className="small muted">{doneToday ? 'Selesai hari ini — sampai jumpa besok!' : '6 soal baru menantimu'}</div></div><Icon name="play" /></Card></Link>
       <h2 className="gap">Game inti</h2>
       <div className="grid">{core.map((g) => <GameCard key={g.id} g={g} />)}</div>
+      <h2 className="gap">Arkade &amp; aksi</h2>
+      <div className="grid">{GAMES.filter((g) => g.group === 'arkade').slice(0, 4).map((g) => <GameCard key={g.id} g={g} />)}</div>
       <h2 className="gap">Rekomendasi hari ini</h2>
       <div className="grid">{rec.map((g) => <GameCard key={g.id} g={g} />)}</div>
       <Link to="/game"><Button variant="soft" size="lg" className="gap">Lihat semua {GAMES.length} game</Button></Link>
@@ -72,7 +75,7 @@ export function Games() {
   const list = GAMES.filter((g) => (tab === 'semua' || g.group === tab) && g.title.toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="page"><Header title="Game" />
-      <Tabs tabs={[{ id: 'semua', label: 'Semua' }, ...(['pasangan', 'pengetahuan', 'grup'] as GameGroup[]).map((id) => ({ id, label: GROUP_LABEL[id] }))]} value={tab} onChange={setTab} />
+      <Tabs tabs={[{ id: 'semua', label: 'Semua' }, ...(['pasangan', 'pengetahuan', 'grup', 'arkade'] as GameGroup[]).map((id) => ({ id, label: GROUP_LABEL[id] }))]} value={tab} onChange={setTab} />
       <input className="input" placeholder="Cari game…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Cari game" style={{ marginBottom: 12 }} />
       {list.length === 0 ? <EmptyState icon="search" title="Tidak ada game" text="Coba kata kunci lain." /> : <div className="grid">{list.map((g) => <GameCard key={g.id} g={g} />)}</div>}
     </div>
@@ -91,7 +94,7 @@ export function Profile() {
         <h2>{me?.displayName ?? (p.name || 'Tamu')}</h2><p className="muted small">{me ? `@${me.handle}` : 'Mode tamu — progres tersimpan di perangkat ini'}</p>
         <p>Level {li.level}</p><ProgressBar value={li.pct} label="Progres level" /><p className="small muted">{li.into}/{li.need} XP ke level berikutnya</p></Card>
       {!me && <Card><Field label="Nama panggilan"><input value={name} maxLength={20} onChange={(e) => setName(e.target.value)} /></Field><Button size="sm" onClick={() => { patchProgress({ name: name.trim() }); toast('Nama disimpan', 'ok'); }}>Simpan</Button></Card>}
-      <Card><h3>Tema profil</h3><div className="row wrap gap">{THEMES.map((t) => { const ok = li.level >= t.min; return <button key={t.id} className={`chip ${p.theme === t.id ? 'on' : ''}`} disabled={!ok} style={ok ? undefined : { opacity: 0.5 }} onClick={() => patchProgress({ theme: t.id })}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: t.color, marginRight: 6 }} />{t.name}{ok ? '' : ` (Lv ${t.min})`}</button>; })}</div></Card>
+      <Card><h3>Tema profil</h3><div className="row wrap gap">{THEMES.map((t) => { const ok = li.level >= t.min; return <button key={t.id} className={`chip ${p.theme === t.id ? 'on' : ''}`} disabled={!ok} style={ok ? undefined : { opacity: 0.5 }} onClick={() => patchProgress({ theme: t.id })}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: t.color, marginRight: 6, border: '2px solid var(--edge)' }} />{t.name}{ok ? '' : ` (Lv ${t.min})`}</button>; })}</div></Card>
       <div className="grid"><Link to="/statistik" style={{ textDecoration: 'none' }}><Button variant="soft" size="lg" icon="trophy">Statistik</Button></Link><Link to="/riwayat" style={{ textDecoration: 'none' }}><Button variant="soft" size="lg" icon="clock">Riwayat</Button></Link>
         <Link to="/teman" style={{ textDecoration: 'none' }}><Button variant="soft" size="lg" icon="users">Teman</Button></Link><Link to="/grup" style={{ textDecoration: 'none' }}><Button variant="soft" size="lg" icon="users">Grup</Button></Link></div>
       <div className="gap">{me ? <Button variant="ghost" icon="logout" onClick={() => void signOut()}>Keluar</Button> : configured ? <Link to="/masuk"><Button size="lg">Masuk / Daftar</Button></Link> : <p className="muted small center">Login belum aktif (Firebase belum dikonfigurasi).</p>}</div>
@@ -152,9 +155,9 @@ export function Settings() {
   const p = useProgress();
   const toast = useToast();
   const { me, configured } = useAuth();
+  const ask = useConfirm();
   const s = p.settings;
-  const Row = ({ label, k }: { label: string; k: 'sound' | 'animations' | 'shareProfile' | 'showOnline' }) => (
-    <label className="list-item"><span className="grow">{label}</span><input type="checkbox" checked={s[k]} onChange={(e) => patchSettings({ [k]: e.target.checked })} style={{ width: 24, height: 24 }} /></label>);
+  const Row = ({ label, k }: { label: string; k: 'sound' | 'animations' | 'shareProfile' | 'showOnline' }) => <Switch label={label} checked={s[k]} onChange={(v) => patchSettings({ [k]: v })} />;
   return (
     <div className="page"><Header title="Pengaturan" back={() => history.back()} />
       <Card><h3>Tampilan & suara</h3>
@@ -162,7 +165,7 @@ export function Settings() {
         <Row label="Efek suara" k="sound" /><Row label="Animasi" k="animations" /></Card>
       <Card><h3>Privasi</h3><Row label="Bisa ditemukan lewat pencarian teman" k="shareProfile" /><Row label="Tampilkan status online" k="showOnline" />
         <p className="small muted">{configured && me ? 'Pengaturan privasi disimpan di perangkat ini; pencarian teman tetap hanya menampilkan nama tampilan dan nama pengguna.' : 'Berlaku saat kamu masuk dengan akun.'}</p></Card>
-      <Card><h3>Data lokal</h3><Button variant="danger" onClick={() => { if (confirm('Hapus semua progres di perangkat ini?')) { resetProgress(); toast('Progres dihapus', 'ok'); } }}>Hapus progres</Button></Card>
+      <Card><h3>Data lokal</h3><Button variant="danger" onClick={() => { void ask({ title: 'Hapus semua progres?', text: 'XP, level, dan riwayat di perangkat ini akan hilang.', ok: 'Hapus', danger: true }).then((y) => { if (y) { resetProgress(); toast('Progres dihapus', 'ok'); } }); }}>Hapus progres</Button></Card>
     </div>
   );
 }
@@ -171,7 +174,7 @@ export function Help() {
   const online = useOnline();
   return (
     <div className="page"><Header title="Bantuan" back={() => history.back()} />
-      <div className="center gap"><Logo size={64} /><p className="muted">Versi 1.0.0 · Play Closer, Know More</p></div>
+      <div className="center gap"><Logo size={64} /><p className="muted">Versi 1.1.0 · Play Closer, Know More</p></div>
       <Card><h3>Cara kerja</h3><p>Game <b>solo/bergiliran</b> dimainkan di satu perangkat dan bisa offline setelah aplikasi dibuka sekali. <b>Akun, teman, grup, dan ruang online</b> memerlukan internet dan konfigurasi Firebase.</p></Card>
       <Card><h3>Tentang konten</h3><p>Bank berisi {QUESTION_COUNT} pertanyaan berbahasa Indonesia. Semuanya berstatus <b>perlu tinjauan</b> — belum diverifikasi ke sumber primer — jadi gunakan sebagai hiburan dan pembelajaran awal.</p></Card>
       <Card><h3>Love Language Quiz</h3><p>Hanya refleksi ringan, bukan diagnosis psikologis.</p></Card>
