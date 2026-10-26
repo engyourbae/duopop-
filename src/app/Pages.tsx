@@ -10,6 +10,7 @@ import { isFirebaseConfigured } from '../lib/firebase/config';
 import { todayKey } from '../utils/rng';
 import { useOnline } from '../hooks/useOnline';
 import { QUESTION_COUNT } from '../features/games/engine';
+import { initial } from '../utils/presence';
 import type { GameDef, GameGroup } from '../types';
 
 export const toneOf = (id: string) => `t${[...id].reduce((n, c) => n + c.charCodeAt(0), 0) % 5}`;
@@ -90,8 +91,8 @@ export function Profile() {
   const [name, setName] = useState(p.name);
   return (
     <div className="page"><Header title="Profil" right={<Link to="/pengaturan" className="icon-btn" aria-label="Pengaturan"><Icon name="cog" /></Link>} />
-      <Card className="center"><div className="avatar" style={{ margin: '0 auto 8px', width: 72, height: 72, fontSize: '1.8rem' }}>{(me?.displayName ?? p.name ?? 'P').slice(0, 1).toUpperCase() || 'P'}</div>
-        <h2>{me?.displayName ?? (p.name || 'Tamu')}</h2><p className="muted small">{me ? `@${me.handle}` : 'Mode tamu — progres tersimpan di perangkat ini'}</p>
+      <Card className="center"><div className="avatar" style={{ margin: '0 auto 8px', width: 72, height: 72, fontSize: '1.8rem' }}>{initial(me?.displayName ?? p.name ?? 'P')}</div>
+        <h2>{me?.displayName ?? (p.name || 'Tamu')}</h2><p className="muted small">{me ? 'Hanya @username ini yang terlihat orang lain. Nama Google-mu disembunyikan.' : 'Mode tamu — progres tersimpan di perangkat ini'}</p>
         <p>Level {li.level}</p><ProgressBar value={li.pct} label="Progres level" /><p className="small muted">{li.into}/{li.need} XP ke level berikutnya</p></Card>
       {!me && <Card><Field label="Nama panggilan"><input value={name} maxLength={20} onChange={(e) => setName(e.target.value)} /></Field><Button size="sm" onClick={() => { patchProgress({ name: name.trim() }); toast('Nama disimpan', 'ok'); }}>Simpan</Button></Card>}
       <Card><h3>Tema profil</h3><div className="row wrap gap">{THEMES.map((t) => { const ok = li.level >= t.min; return <button key={t.id} className={`chip ${p.theme === t.id ? 'on' : ''}`} disabled={!ok} style={ok ? undefined : { opacity: 0.5 }} onClick={() => patchProgress({ theme: t.id })}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: t.color, marginRight: 6, border: '2px solid var(--edge)' }} />{t.name}{ok ? '' : ` (Lv ${t.min})`}</button>; })}</div></Card>
@@ -157,12 +158,14 @@ export function Settings() {
   const { me, configured } = useAuth();
   const ask = useConfirm();
   const s = p.settings;
-  const Row = ({ label, k }: { label: string; k: 'sound' | 'animations' | 'shareProfile' | 'showOnline' }) => <Switch label={label} checked={s[k]} onChange={(v) => patchSettings({ [k]: v })} />;
+  const Row = ({ label, k }: { label: string; k: 'music' | 'sound' | 'animations' | 'shareProfile' | 'showOnline' }) => <Switch label={label} checked={s[k]} onChange={(v) => patchSettings({ [k]: v })} />;
   return (
     <div className="page"><Header title="Pengaturan" back={() => history.back()} />
       <Card><h3>Tampilan & suara</h3>
         <div className="row wrap gap">{(['sistem', 'terang', 'gelap'] as const).map((t) => <button key={t} className={`chip ${s.theme === t ? 'on' : ''}`} onClick={() => patchSettings({ theme: t })}>Tema {t}</button>)}</div>
-        <Row label="Efek suara" k="sound" /><Row label="Animasi" k="animations" /></Card>
+        <Row label="Musik latar" k="music" /><Row label="Efek suara" k="sound" />
+        <h3 className="gap">Jeda penjelasan setelah menjawab</h3>
+        <div className="row wrap gap">{[4, 6, 10, 0].map((v) => <button key={v} className={`chip ${(s.pause ?? 6) === v ? 'on' : ''}`} onClick={() => patchSettings({ pause: v })}>{v === 0 ? 'Manual' : `${v} detik`}</button>)}</div><Row label="Animasi" k="animations" /></Card>
       <Card><h3>Privasi</h3><Row label="Bisa ditemukan lewat pencarian teman" k="shareProfile" /><Row label="Tampilkan status online" k="showOnline" />
         <p className="small muted">{configured && me ? 'Pengaturan privasi disimpan di perangkat ini; pencarian teman tetap hanya menampilkan nama tampilan dan nama pengguna.' : 'Berlaku saat kamu masuk dengan akun.'}</p></Card>
       <Card><h3>Data lokal</h3><Button variant="danger" onClick={() => { void ask({ title: 'Hapus semua progres?', text: 'XP, level, dan riwayat di perangkat ini akan hilang.', ok: 'Hapus', danger: true }).then((y) => { if (y) { resetProgress(); toast('Progres dihapus', 'ok'); } }); }}>Hapus progres</Button></Card>

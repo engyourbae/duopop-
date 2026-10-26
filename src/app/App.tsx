@@ -1,10 +1,13 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { HashRouter, NavLink, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { ConfirmProvider, Spinner, ToastProvider } from '../components/ui';
 import { AuthProvider } from '../features/auth/AuthContext';
 import { useProgress } from '../features/progression/store';
 import { useOnline } from '../hooks/useOnline';
+import { useMusic } from '../hooks/useMusic';
+import { unlockMusic } from '../utils/music';
+import { GlobalWatchers } from '../features/multiplayer/Invite';
 import { Games, Help, HistoryPage, Home, NotFound, Notifications, OfflinePage, Profile, Settings, Splash, Stats } from './Pages';
 
 const GamePage = lazy(() => import('../features/games/GamePage'));
@@ -17,6 +20,9 @@ const RoomPage = lazy(() => import('../features/multiplayer/Room'));
 function Shell() {
   const p = useProgress();
   const online = useOnline();
+  const loc = useLocation();
+  useMusic(loc.pathname.startsWith('/game/') || loc.pathname.startsWith('/ruang/') ? null : 'lobi');
+  useEffect(() => { const f = () => unlockMusic(); window.addEventListener('pointerdown', f, { once: true }); return () => window.removeEventListener('pointerdown', f); }, []);
   useEffect(() => {
     const dark = p.settings.theme === 'gelap' || (p.settings.theme === 'sistem' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
     document.documentElement.dataset.theme = dark ? 'gelap' : 'terang';
@@ -27,6 +33,7 @@ function Shell() {
   return (
     <>
       {!online && <div className="offline-bar" role="status">Offline — game solo tetap bisa dimainkan</div>}
+      <GlobalWatchers />
       <main className="app"><Suspense fallback={<Spinner />}><Outlet /></Suspense></main>
       <nav className="nav" aria-label="Navigasi utama"><div className="nav-in">{nav.map(([to, ic, l]) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}><Icon name={ic} /><span>{l}</span></NavLink>)}</div></nav>
     </>
