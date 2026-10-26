@@ -3,15 +3,132 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>DUOPOP — Play Closer, Know More</title>
+<meta name="description" content="DUOPOP: 55 game seru untuk pasangan, teman, dan grup — kuis pengetahuan, chemistry, arkade, dan mabar online. Main solo atau bareng, gratis, bisa dipasang seperti aplikasi." />
+<meta name="keywords" content="game pasangan, kuis pengetahuan, mabar online, game couple, kuis Indonesia, PWA, DUOPOP" />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://engyourbae.github.io/duopop-/" />
 <meta name="theme-color" content="#2a4bff" />
-<meta name="description" content="DUOPOP — Play Closer, Know More. Game pasangan, teman, dan grup." />
+<meta name="color-scheme" content="light dark" />
+<meta name="application-name" content="DUOPOP" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="DUOPOP" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="format-detection" content="telephone=no" />
+<!-- Open Graph (WhatsApp, Facebook, Telegram, Discord) -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="DUOPOP" />
+<meta property="og:locale" content="id_ID" />
+<meta property="og:url" content="https://komlaps2a-svg.github.io/duopop-/" />
+<meta property="og:title" content="DUOPOP — Play Closer, Know More" />
+<meta property="og:description" content="55 game untuk pasangan, teman, dan grup: kuis, chemistry, arkade, dan mabar online. Ayo main bareng!" />
+<meta property="og:image" content="https://komlaps2a-svg.github.io/duopop-/og-image.png" />
+<meta property="og:image:secure_url" content="https://komlaps2a-svg.github.io/duopop-/og-image.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Logo DUOPOP: dua lingkaran beririsan dengan tulisan Play Closer, Know More" />
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="DUOPOP — Play Closer, Know More" />
+<meta name="twitter:description" content="55 game untuk pasangan, teman, dan grup. Main solo atau mabar online." />
+<meta name="twitter:image" content="https://komlaps2a-svg.github.io/duopop-/og-image.png" />
+<meta name="twitter:image:alt" content="Logo DUOPOP" />
 <link rel="manifest" href="./manifest.webmanifest" />
 <link rel="icon" type="image/svg+xml" href="./icon.svg" />
 <link rel="apple-touch-icon" href="./icon-192.png" />
-<title>DUOPOP — Play Closer, Know More</title>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"DUOPOP","alternateName":"DUOPOP — Play Closer, Know More","url":"https://komlaps2a-svg.github.io/duopop-/","applicationCategory":"GameApplication","operatingSystem":"Web, Android, iOS","inLanguage":"id","image":"https://komlaps2a-svg.github.io/duopop-/og-image.png","description":"Game untuk pasangan, teman, dan grup: kuis, chemistry, arkade, dan mabar online.","offers":{"@type":"Offer","price":"0","priceCurrency":"IDR"}}</script>
+<style>
+html,body{margin:0;background:#f2eadb}
+#root:empty{display:none}
+/* ===== Layar loading (juga dipakai komponen LoadingScreen) ===== */
+.ld-root{position:fixed;inset:0;z-index:9999;background:#2a4bff;color:#fff;display:grid;place-items:center;overflow:hidden;font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif}
+.ld-root.leave{animation:ldOut .45s ease forwards;pointer-events:none}
+.ld-wrap{text-align:center;position:relative;z-index:2;padding:24px;max-width:340px;width:100%}
+.ld-logo{width:200px;height:auto;display:block;margin:0 auto 14px;overflow:visible}
+.ld-a{animation:ldA .9s cubic-bezier(.2,.9,.3,1) .15s both}
+.ld-b{animation:ldB .9s cubic-bezier(.2,.9,.3,1) .15s both}
+.ld-lens{transform-box:fill-box;transform-origin:center;animation:ldPop .5s cubic-bezier(.3,1.6,.5,1) 1s both}
+.ld-word{font-size:3rem;font-weight:800;letter-spacing:-.03em;line-height:1;margin:0 0 6px}
+.ld-l{display:inline-block;animation:ldL .5s cubic-bezier(.3,1.5,.5,1) both;animation-delay:calc(1.1s + var(--i) * .07s)}
+.ld-l.y{color:#ffc414}
+.ld-tag{margin:0 0 26px;font-weight:700;opacity:0;animation:ldFade .6s ease 1.7s forwards}
+.ld-bar{height:16px;border:2px solid #17140e;border-radius:99px;background:#fff;overflow:hidden;box-shadow:3px 3px 0 #17140e}
+.ld-fill{height:100%;background:#ffc414;border-right:2px solid #17140e;width:0;transition:width .12s linear}
+.ld-fill.auto{animation:ldBar 2.6s ease-out forwards}
+.ld-tip{margin:14px 0 0;font-size:.9rem;min-height:2.4em;opacity:.95}
+.ld-btn{margin-top:14px;min-height:52px;width:100%;border:2px solid #17140e;border-radius:14px;background:#ffc414;color:#17140e;font:inherit;font-weight:800;font-size:1.05rem;cursor:pointer;box-shadow:4px 4px 0 #17140e;animation:ldPulse 1.2s ease-in-out infinite}
+.ld-btn:active{transform:translate(4px,4px);box-shadow:none}
+.ld-sh{position:absolute;border:2px solid #17140e;animation:ldFloat 6s ease-in-out infinite;z-index:1}
+.ld-sh.s1{width:46px;height:46px;border-radius:50%;background:#ffc414;left:8%;top:12%}
+.ld-sh.s2{width:34px;height:34px;background:#e0401f;right:10%;top:20%;animation-delay:-2s;border-radius:8px;transform:rotate(12deg)}
+.ld-sh.s3{width:60px;height:60px;border-radius:50%;background:#f2eadb;left:14%;bottom:12%;animation-delay:-4s}
+.ld-sh.s4{width:30px;height:30px;background:#ff9ec0;right:16%;bottom:16%;animation-delay:-1s;border-radius:6px}
+.ld-sh.s5{width:22px;height:22px;border-radius:50%;background:#0f8f5f;right:34%;top:8%;animation-delay:-3s}
+.ld-err{margin-top:18px;background:#fffaf0;color:#17140e;border:2px solid #17140e;border-radius:14px;padding:14px;text-align:left;box-shadow:4px 4px 0 #17140e}
+.ld-err[hidden]{display:none}
+.ld-err b{display:block;margin-bottom:6px}.ld-err p{margin:0 0 10px;font-size:.88rem}.ld-err small{display:block;margin-top:8px;opacity:.7;word-break:break-all}
+.ld-err button{min-height:46px;width:100%;border:2px solid #17140e;border-radius:12px;background:#2a4bff;color:#fff;font:inherit;font-weight:800;cursor:pointer}
+@keyframes ldA{from{transform:translateX(-64px);opacity:0}to{transform:none;opacity:1}}
+@keyframes ldB{from{transform:translateX(64px);opacity:0}to{transform:none;opacity:1}}
+@keyframes ldPop{from{transform:scale(0)}to{transform:scale(1)}}
+@keyframes ldL{from{transform:translateY(-34px) scale(.4);opacity:0}to{transform:none;opacity:1}}
+@keyframes ldFade{to{opacity:1}}
+@keyframes ldBar{from{width:3%}to{width:88%}}
+@keyframes ldPulse{50%{transform:scale(1.03)}}
+@keyframes ldFloat{50%{transform:translateY(-14px) rotate(8deg)}}
+@keyframes ldOut{to{opacity:0;transform:translateY(-8%)}}
+@media (prefers-reduced-motion:reduce){.ld-root *,.ld-root{animation-duration:.01s!important;animation-delay:0s!important}}
+</style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <!-- Layar loading statis: tampil seketika sebelum JavaScript siap. Diganti otomatis oleh React. -->
+  <div class="ld-root" id="boot" role="status" aria-live="polite">
+    <span class="ld-sh s1"></span><span class="ld-sh s2"></span><span class="ld-sh s3"></span><span class="ld-sh s4"></span><span class="ld-sh s5"></span>
+    <div class="ld-wrap">
+      <svg class="ld-logo" viewBox="0 0 154 100" aria-hidden="true"><circle class="ld-a" cx="50" cy="50" r="50" fill="#f2eadb"/><circle class="ld-b" cx="104" cy="50" r="50" fill="#ffc414"/><path class="ld-lens" d="M77 7.9A50 50 0 0 1 77 92.1A50 50 0 0 1 77 7.9Z" fill="#e0401f"/></svg>
+      <h1 class="ld-word" aria-label="duopop"><span class="ld-l" style="--i:0">d</span><span class="ld-l" style="--i:1">u</span><span class="ld-l" style="--i:2">o</span><span class="ld-l y" style="--i:3">p</span><span class="ld-l y" style="--i:4">o</span><span class="ld-l y" style="--i:5">p</span></h1>
+      <p class="ld-tag">Play Closer, Know More</p>
+      <div class="ld-bar"><div class="ld-fill auto"></div></div>
+      <p class="ld-tip">Memuat DUOPOP…</p>
+      <div class="ld-err" id="boot-err" hidden>
+        <b>Aplikasi belum bisa dibuka</b>
+        <p id="boot-msg">Berkas lama mungkin tersimpan di cache perangkatmu.</p>
+        <button type="button" onclick="duopopReset()">Bersihkan cache &amp; muat ulang</button>
+        <small id="boot-url"></small>
+      </div>
+      <noscript><p>DUOPOP membutuhkan JavaScript. Aktifkan JavaScript lalu muat ulang.</p></noscript>
+    </div>
+  </div>
+</div>
+<script>
+/* Pemulihan: jika aplikasi gagal dimuat (cache lama, berkas 404, galat), tampilkan penjelasan + tombol perbaikan, bukan layar putih. */
+(function () {
+  function reset() {
+    var jobs = [];
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+    if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+    Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });
+  }
+  window.duopopReset = reset;
+  function show(msg) {
+    if (window.__duopopBooted) return;
+    var e = document.getElementById('boot-err'); if (!e) return;
+    e.hidden = false;
+    var m = document.getElementById('boot-msg'); if (m && msg) m.textContent = msg;
+    var u = document.getElementById('boot-url'); if (u) u.textContent = location.href;
+  }
+  window.addEventListener('error', function (ev) {
+    if (window.__duopopBooted) return;
+    var t = ev && ev.target;
+    if (t && (t.src || t.href)) show('Berkas gagal dimuat: ' + String(t.src || t.href).split('/').slice(-2).join('/'));
+    else show('Terjadi galat: ' + (ev && ev.message ? ev.message : 'tidak diketahui'));
+  }, true);
+  setTimeout(function () { show('Memuat terlalu lama. Berkas lama mungkin tersimpan di cache perangkatmu.'); }, 10000);
+})();
+</script>
 <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

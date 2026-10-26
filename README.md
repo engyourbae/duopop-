@@ -52,6 +52,11 @@ Hanya **@username** yang terlihat pengguna lain. Nama Google/akun tidak disimpan
 ## Musik
 Musik latar disintesis dengan WebAudio (tanpa berkas audio): satu lagu untuk lobi, satu untuk game, satu untuk arkade. Bisa dimatikan di Pengaturan.
 
+## Layar loading, meta tag, dan layar putih
+- **Layar loading**: logo beranimasi (dua lingkaran bertemu, irisan merah muncul, huruf melompat), bilah kemajuan, tips, dan **jingle pembuka + musik latar**. Browser hanya mengizinkan suara setelah sentuhan pertama, jadi bila audio belum diizinkan muncul tombol **Ketuk untuk mulai**. Tampil sekali per sesi; layar statis di `index.html` muncul seketika sebelum JavaScript siap.
+- **Meta tag** (judul, deskripsi, Open Graph, Twitter Card, JSON-LD, ikon, tema) ada di `index.html`; gambar pratinjau `public/og-image.png` (1200×630). Catatan: bagian `#/game` pada tautan tidak dibaca oleh WhatsApp/Facebook, jadi semua tautan DUOPOP menampilkan kartu pratinjau yang sama.
+- **Bila muncul layar putih**: `index.html` kini menampilkan panel "Aplikasi belum bisa dibuka" dengan tombol *Bersihkan cache & muat ulang* jika aplikasi gagal start dalam 10 detik atau ada berkas yang gagal dimuat; galat render ditangkap `ErrorBoundary`. Service worker mengambil HTML terbaru langsung dari jaringan agar tidak merujuk berkas lama yang sudah dihapus. Cek manual: tab Actions harus hijau, Settings → Pages → Source = GitHub Actions, dan buka `/duopop-/assets/` lewat tab Network (F12) untuk melihat berkas mana yang 404.
+
 ## Tampilan
 Desain datar bergaya stiker (krem + tinta, garis tebal, bayangan bergeser, **tanpa gradasi**), font Bricolage Grotesque dan Figtree yang dibundel lokal (jalan offline). Semua popup, daftar pilihan, saklar, konfirmasi, dan lembar berbagi adalah komponen kustom (`src/components/ui.tsx`, `Share.tsx`), bukan dialog bawaan browser. Logo merek (Google, Gmail, WhatsApp, Telegram, Facebook, X) ada di `src/components/Brand.tsx`.
 
