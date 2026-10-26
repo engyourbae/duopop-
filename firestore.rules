@@ -95,18 +95,58 @@ service cloud.firestore {
             && resource.data.status == 'lobby' && request.resource.data.players.size() <= 8));
       allow delete: if false;
 
-      // Jawaban: create-only, id = ronde_uid, hanya saat ruang 'playing', hanya untuk ronde berjalan
+      // Jawaban: create-only, id = ronde_uid, hanya saat ruang 'playing'. Game papan boleh memakai nomor langkah sebagai ronde.
       match /answers/{aid} {
         allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/rooms/$(code)).data.players.keys();
         allow create: if signedIn() && request.resource.data.uid == request.auth.uid
           && aid == string(request.resource.data.round) + '_' + request.auth.uid
-          && request.resource.data.keys().hasOnly(['uid', 'round', 'choice', 'at'])
+          && request.resource.data.keys().hasOnly(['uid', 'round', 'choice', 'at', 'text'])
+          && request.resource.data.choice is int && request.resource.data.round is int
+          && (!('text' in request.resource.data) || (request.resource.data.text is string && request.resource.data.text.size() <= 140))
           && request.resource.data.at == request.time
           && get(/databases/$(database)/documents/rooms/$(code)).data.status == 'playing'
-          && get(/databases/$(database)/documents/rooms/$(code)).data.round == request.resource.data.round
+          && (get(/databases/$(database)/documents/rooms/$(code)).data.gameId in ['tictactoe', 'connect4']
+              || get(/databases/$(database)/documents/rooms/$(code)).data.round == request.resource.data.round)
           && request.auth.uid in get(/databases/$(database)/documents/rooms/$(code)).data.players.keys();
         allow update, delete: if false;
       }
+      // Skor akhir pemain pada game adu-skor (create-only, satu per pemain)
+      match /scores/{uid} {
+        allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/rooms/$(code)).data.players.keys();
+        allow create: if isSelf(uid) && request.resource.data.uid == uid
+          && request.resource.data.keys().hasOnly(['uid', 'score', 'at']) && request.resource.data.score is int
+          && request.resource.data.score >= 0 && request.resource.data.score <= 1000000
+          && request.resource.data.at == request.time
+          && get(/databases/$(database)/documents/rooms/$(code)).data.status == 'playing'
+          && uid in get(/databases/$(database)/documents/rooms/$(code)).data.players.keys();
+        allow update, delete: if false;
+      }
+    }
+
+    // ---- Antrean pencarian lawan acak (doc id = uid) ----
+    match /matchQueue/{uid} {
+      allow read: if signedIn();
+      allow create: if isSelf(uid) && request.resource.data.uid == uid && request.resource.data.status == 'waiting';
+      // pemilik mengubah dirinya; pencari lain hanya boleh menandai "matched" + kode ruang pada entri yang masih menunggu
+      allow update: if isSelf(uid) || (signedIn() && resource.data.status == 'waiting' && request.resource.data.status == 'matched'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'roomCode']));
+      allow delete: if isSelf(uid);
+    }
+    // ---- Presensi: hanya teman yang boleh melihat (get per teman), tidak bisa di-list ----
+    match /presence/{uid} {
+      allow get: if signedIn() && (isSelf(uid) || exists(/databases/$(database)/documents/users/$(uid)/friends/$(request.auth.uid)));
+      allow list: if false;
+      allow create, update: if isSelf(uid) && request.resource.data.uid == uid;
+      allow delete: if isSelf(uid);
+    }
+    // ---- Undangan bermain: id = pengirim_penerima; pengirim harus host ruang tersebut ----
+    match /roomInvites/{id} {
+      allow get: if signedIn() && (resource == null || resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow list: if signedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow create, update: if signedIn() && request.resource.data.from == request.auth.uid && id == request.auth.uid + '_' + request.resource.data.to
+        && request.resource.data.to != request.auth.uid
+        && get(/databases/$(database)/documents/rooms/$(request.resource.data.code)).data.hostUid == request.auth.uid;
+      allow delete: if signedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
     }
   }
 }

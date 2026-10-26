@@ -4,7 +4,7 @@ Aplikasi PWA game untuk pasangan, teman, dan grup, berbahasa Indonesia.
 Stack: React + TypeScript (strict) + Vite, CSS buatan sendiri, Firebase (Auth + Firestore), service worker kustom, Vitest.
 
 ## Isi aplikasi
-- **46 game** dengan mekanik berbeda (lihat `src/features/games/registry.ts`): 8 game pasangan, 20 game pengetahuan, 8 game grup/pesta, dan **10 game arkade/aksi** yang dimainkan dengan gerak, refleks, dan strategi (Pasangan Kartu, Adu Refleks, Tic-Tac-Toe, Empat Sejajar, Pukul Tikus, Tebak Warna, Ikuti Urutan, Ular Lapar, Terbang Melewati Pipa, Tangkap Bintang).
+- **55 game** dengan mekanik berbeda (lihat `src/features/games/registry.ts`): 8 game pasangan, 20 game pengetahuan, 8 game grup/pesta, dan **10 game arkade/aksi** yang dimainkan dengan gerak, refleks, dan strategi (Pasangan Kartu, Adu Refleks, Tic-Tac-Toe, Empat Sejajar, Pukul Tikus, Tebak Warna, Ikuti Urutan, Ular Lapar, Terbang Melewati Pipa, Tangkap Bintang).
 - **Bank soal**: 283 butir (pilihan ganda, fakta/mitos, kronologi, tebak era, estimasi) + 16 teka-teki bertahap + 40 bendera. Semua berstatus `perlu-tinjauan` (belum diverifikasi ke sumber primer; `sourceUrl` sengaja kosong, tidak ada URL karangan). Lihat bagian *Konten*.
 - **Solo/bergiliran** (1–8 pemain di satu perangkat): bisa offline setelah aplikasi dibuka sekali.
 - **Online** (butuh Firebase): akun, teman, grup + undangan (kode/tautan), ruang multiplayer real-time untuk game berbasis soal.
@@ -36,6 +36,22 @@ Tanpa konfigurasi, aplikasi **tidak** memalsukan login/multiplayer: layar fitur 
 
 **Base path**: workflow mengisi `VITE_BASE=/<nama-repo>/` otomatis. Satu-satunya tempat pengaturan manual adalah variabel `VITE_BASE` (atau `base` di `vite.config.ts`). Default `./` (relatif) dan routing memakai `HashRouter`, sehingga aplikasi tidak rusak di subpath repository maupun saat di-refresh.
 
+## Main online (Mabar) untuk semua game
+Setiap game bisa dimainkan online lewat **Lobi → Main Online**:
+- **Cari lawan acak**: masuk antrean `matchQueue` dan dipertemukan otomatis dengan pemain online yang mencari game yang sama (tanpa kode). Penjodohan memakai transaksi Firestore agar dua pencari tidak bentrok.
+- **Ajak teman online**: buat ruang, lalu undang teman yang sedang online (presensi `presence`, detak 30 detik); undangan muncul langsung sebagai pop-up di layar teman. Anggota grup juga bisa diajak bermain sekaligus dari halaman Grup, dan undangan grup juga muncul langsung.
+- Kode ruang tetap ada sebagai cara ketiga.
+Tiga cara bermain online (`src/features/multiplayer/rounds.ts`): **ronde sinkron** (kuis, pilih bersama, Siapa Paling Mungkin, tebak jawaban, kartu, roda, tebak kata, cerita, sambung kata), **papan bergiliran** (Tic-Tac-Toe, Empat Sejajar), dan **adu skor** (semua game arkade, kronologi, estimasi, petunjuk, dll.: semua bermain bersamaan lalu skor dibandingkan).
+
+## Level, soal tak terbatas, dan jeda penjelasan
+Game kuis punya mode **Santai**, **Level 1–10** (komposisi dan tingkat kesulitan naik, waktu per soal turun, lulus bila benar ≥ 70% untuk membuka level berikutnya), dan **Tanpa batas** (3 nyawa). Soal yang belum pernah dilihat selalu didahulukan. Selain bank soal, ada generator tak terbatas (hitungan, ibu kota dunia, provinsi, unsur kimia). Setelah menjawab ada jeda penjelasan 4/6/10 detik atau manual (Pengaturan).
+
+## Privasi nama
+Hanya **@username** yang terlihat pengguna lain. Nama Google/akun tidak disimpan di profil publik, daftar teman, grup, maupun ruang; profil lama dimigrasi otomatis saat login.
+
+## Musik
+Musik latar disintesis dengan WebAudio (tanpa berkas audio): satu lagu untuk lobi, satu untuk game, satu untuk arkade. Bisa dimatikan di Pengaturan.
+
 ## Tampilan
 Desain datar bergaya stiker (krem + tinta, garis tebal, bayangan bergeser, **tanpa gradasi**), font Bricolage Grotesque dan Figtree yang dibundel lokal (jalan offline). Semua popup, daftar pilihan, saklar, konfirmasi, dan lembar berbagi adalah komponen kustom (`src/components/ui.tsx`, `Share.tsx`), bukan dialog bawaan browser. Logo merek (Google, Gmail, WhatsApp, Telegram, Facebook, X) ada di `src/components/Brand.tsx`.
 
@@ -54,6 +70,8 @@ Dipilih Firestore `onSnapshot` (bukan Realtime Database) agar satu layanan dan s
 
 ### Keterbatasan keamanan yang jujur
 - Bank soal dikirim ke browser (bundel statis GitHub Pages), jadi pemain yang membuka DevTools bisa melihat kunci jawaban. Memperbaikinya membutuhkan Cloud Functions + penyimpanan kunci di server (belum dibuat; tidak ada Cloud Functions di proyek ini).
+- Undangan bermain (`roomInvites`) hanya mensyaratkan pengirim adalah host ruang tersebut, sehingga undangan ke non-teman (misalnya sesama anggota grup) mungkin; rules tidak bisa memeriksa keanggotaan grup bersama.
+- Game adu-skor dimainkan di perangkat masing-masing dan skor akhir dikirim oleh klien (dibatasi 0–1.000.000, satu kali per pemain); pemain yang memodifikasi klien bisa memalsukan skor di ruang online.
 - Rules membatasi tiap pemain hanya menulis jawabannya sendiri, sekali per ronde, tetapi batas waktu jawaban ditegakkan di sisi klien dan saat penghitungan skor, bukan di rules.
 - Kedaluwarsa kode grup dicek di klien; rules menegakkan kapasitas dan "hanya menambah diri sendiri".
 - XP/level bersifat lokal (per perangkat) dan hanya memengaruhi kosmetik; tidak ada papan peringkat global yang bisa dicurangi.
