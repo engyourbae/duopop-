@@ -15,7 +15,7 @@ describe('navigasi & halaman penting', () => {
   });
   it('belum onboarding diarahkan ke layar mulai', async () => {
     patchProgress({ onboarded: false }); render(<App />);
-    expect(await screen.findByText('Play Closer, Know More')).toBeInTheDocument();
+    expect(await screen.findByText('Kenali lebih dekat')).toBeInTheDocument();
   });
   it('daftar game memuat semua game dan pencarian bekerja', async () => {
     go('#/game'); render(<App />);
