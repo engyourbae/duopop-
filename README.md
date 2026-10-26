@@ -52,6 +52,10 @@ Hanya **@username** yang terlihat pengguna lain. Nama Google/akun tidak disimpan
 ## Musik
 Musik latar disintesis dengan WebAudio (tanpa berkas audio): satu lagu untuk lobi, satu untuk game, satu untuk arkade. Bisa dimatikan di Pengaturan.
 
+## Status online, volume musik, dan Security Rules
+- Status **Online/Offline** teman memakai detak presensi tiap 30 detik dengan **jam server** (bukan jam HP), jadi tidak terpengaruh jam perangkat yang meleset. Agar terbaca, **kedua** pengguna harus memakai versi terbaru dan `firestore.rules` terbaru harus sudah di-**Publish**; bila ditolak, ruang tunggu menampilkan petunjuknya.
+- Musik dibuat prosedural (piano elektrik, pad, petikan, bass, drum berayun, gaung, dan melodi yang berubah tiap putaran), lewat kompresor + saturasi lembut agar tidak pecah. Volume: Pelan / Sedang / Keras di Pengaturan.
+
 ## Layar loading, meta tag, dan layar putih
 - **Layar loading**: logo beranimasi (dua lingkaran bertemu, irisan merah muncul, huruf melompat), bilah kemajuan, tips, dan **jingle pembuka + musik latar**. Browser hanya mengizinkan suara setelah sentuhan pertama, jadi bila audio belum diizinkan muncul tombol **Ketuk untuk mulai**. Tampil sekali per sesi; layar statis di `index.html` muncul seketika sebelum JavaScript siap.
 - **Meta tag** (judul, deskripsi, Open Graph, Twitter Card, JSON-LD, ikon, tema) ada di `index.html`; gambar pratinjau `public/og-image.png` (1200×630). Catatan: bagian `#/game` pada tautan tidak dibaca oleh WhatsApp/Facebook, jadi semua tautan DUOPOP menampilkan kartu pratinjau yang sama.
