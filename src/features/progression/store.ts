@@ -3,12 +3,13 @@ import type { GameResult } from '../../types';
 import { levelInfo } from '../games/engine';
 import { todayKey } from '../../utils/rng';
 
-export interface Settings { sound: boolean; animations: boolean; theme: 'terang' | 'gelap' | 'sistem'; shareProfile: boolean; showOnline: boolean }
+export interface Settings { music: boolean; pause: number; sound: boolean; animations: boolean; theme: 'terang' | 'gelap' | 'sistem'; shareProfile: boolean; showOnline: boolean }
 export interface Progress {
   name: string; xp: number; xpToday: { date: string; amount: number };
   history: GameResult[]; seen: string[]; badges: string[];
   streak: { last: string | null; count: number; best: number }; dailyDone: string | null;
   onboarded: boolean; theme: string; settings: Settings;
+  seenQ: string[]; levels: Record<string, number>;
 }
 export const DAILY_XP_CAP = 600;
 export const BADGES: { id: string; title: string; desc: string; test: (p: Progress) => boolean }[] = [
@@ -28,7 +29,7 @@ export const THEMES = [
 const KEY = 'duopop:v1';
 const fresh = (): Progress => ({
   name: '', xp: 0, xpToday: { date: todayKey(), amount: 0 }, history: [], seen: [], badges: [], streak: { last: null, count: 0, best: 0 },
-  dailyDone: null, onboarded: false, theme: 'biru', settings: { sound: true, animations: true, theme: 'sistem', shareProfile: true, showOnline: true },
+  dailyDone: null, seenQ: [], levels: {}, onboarded: false, theme: 'biru', settings: { music: true, pause: 6, sound: true, animations: true, theme: 'sistem', shareProfile: true, showOnline: true },
 });
 function load(): Progress {
   try { const raw = localStorage.getItem(KEY); if (raw) return { ...fresh(), ...(JSON.parse(raw) as Partial<Progress>) }; } catch { /* abaikan */ }
@@ -45,6 +46,10 @@ export const getProgress = () => state;
 export function useProgress(): Progress { return useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f); }; }, () => state); }
 export function patchProgress(p: Partial<Progress>) { commit({ ...state, ...p }); }
 export function patchSettings(s: Partial<Settings>) { commit({ ...state, settings: { ...state.settings, ...s } }); }
+/** Menandai soal yang sudah dilihat agar soal baru didahulukan pada sesi berikutnya. */
+export function markSeen(ids: string[]) { commit({ ...state, seenQ: [...new Set([...state.seenQ, ...ids])].slice(-3000) }); }
+/** Level tertinggi yang lulus per game (membuka level berikutnya). */
+export function unlockLevel(gameId: string, level: number) { if ((state.levels[gameId] ?? 0) >= level) return; commit({ ...state, levels: { ...state.levels, [gameId]: level } }); }
 export function resetProgress() { commit(fresh()); }
 
 /** Mencatat hasil sesi. XP hanya diberikan sekali per sessionId dan dibatasi per hari. Mengembalikan XP yang diberikan. */
