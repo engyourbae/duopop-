@@ -21,24 +21,24 @@ export function watchAuth(cb: (u: AppUser | null) => void): () => void { return 
 
 export const validHandle = (h: string) => /^[a-z0-9_]{3,20}$/.test(h);
 
-/** Memesan nama pengguna dan membuat profil publik (atomik). Melempar 'handle-taken' bila sudah dipakai. */
-export async function claimProfile(uid: string, displayName: string, handle: string): Promise<void> {
+/** Memesan username dan membuat profil publik (atomik). Nama publik = @username; nama asli/Google tidak disimpan. */
+export async function claimProfile(uid: string, handle: string): Promise<void> {
   const h = handle.trim().toLowerCase();
   if (!validHandle(h)) throw new Error('invalid-handle');
   await runTransaction(db(), async (tx) => {
     const hRef = doc(db(), 'handles', h);
     if ((await tx.get(hRef)).exists()) throw new Error('handle-taken');
     tx.set(hRef, { uid });
-    tx.set(doc(db(), 'users', uid), { uid, displayName: displayName.trim(), handle: h, handleLower: h, discoverable: true, createdAt: serverTimestamp() });
+    tx.set(doc(db(), 'users', uid), { uid, displayName: `@${h}`, handle: h, handleLower: h, discoverable: true, createdAt: serverTimestamp() });
   });
 }
-export async function register(email: string, password: string, displayName: string, handle: string): Promise<void> {
+export async function register(email: string, password: string, handle: string): Promise<void> {
   const h = handle.trim().toLowerCase();
   if (!validHandle(h)) throw new Error('invalid-handle');
   const cred = await createUserWithEmailAndPassword(auth(), email.trim(), password);
   try {
-    await updateProfile(cred.user, { displayName: displayName.trim() });
-    await claimProfile(cred.user.uid, displayName, h);
+    await updateProfile(cred.user, { displayName: `@${h}` });
+    await claimProfile(cred.user.uid, h);
   } catch (e) {
     await cred.user.delete().catch(() => undefined); // batalkan akun setengah jadi
     throw e;

@@ -4,7 +4,7 @@ import { makeCode } from '../utils/rng';
 
 export interface Me { uid: string; displayName: string; handle?: string | null }
 export interface PublicUser { uid: string; displayName: string; handle: string }
-export interface FriendRequest { id: string; from: string; to: string; fromName: string; fromHandle: string; toName: string }
+export interface FriendRequest { id: string; from: string; to: string; fromName: string; fromHandle: string; toName: string; toHandle?: string }
 export interface Group { id: string; name: string; ownerUid: string; members: string[]; memberNames: Record<string, string>; code: string; max: number }
 export interface GroupInvite { id: string; groupId: string; groupName: string; from: string; fromName: string; to: string }
 type Unsub = () => void;
@@ -13,6 +13,8 @@ export async function myProfile(uid: string): Promise<PublicUser | null> {
   const s = await getDoc(doc(db(), 'users', uid));
   return s.exists() ? (s.data() as PublicUser) : null;
 }
+/** Menyamakan nama publik dengan @username (menyembunyikan nama asli/Google). */
+export const syncDisplayName = (uid: string, handle: string) => updateDoc(doc(db(), 'users', uid), { displayName: `@${handle}` });
 export async function searchUsers(prefix: string, selfUid: string): Promise<PublicUser[]> {
   const p = prefix.trim().toLowerCase().replace(/^@/, '');
   if (p.length < 2) return [];
@@ -29,7 +31,7 @@ export async function sendFriendRequest(me: Me & { handle: string }, target: Pub
   if (reverse.exists()) { await acceptRequest(me, reverse.data() as FriendRequest); return 'accepted'; }
   const ref = doc(db(), 'friendRequests', `${me.uid}_${target.uid}`);
   if ((await getDoc(ref)).exists()) return 'pending';
-  await setDoc(ref, { from: me.uid, to: target.uid, fromName: me.displayName, fromHandle: me.handle, toName: target.displayName, createdAt: serverTimestamp() });
+  await setDoc(ref, { from: me.uid, to: target.uid, fromName: me.displayName, fromHandle: me.handle, toName: target.displayName, toHandle: target.handle, createdAt: serverTimestamp() });
   return 'sent';
 }
 export async function acceptRequest(me: Me, r: Pick<FriendRequest, 'from' | 'to' | 'fromName' | 'fromHandle' | 'toName'>): Promise<void> {
