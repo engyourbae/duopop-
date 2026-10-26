@@ -27,15 +27,13 @@ export function GameCard({ g }: { g: GameDef }) {
 
 export function Splash() {
   const nav = useNavigate();
-  const [step, setStep] = useState(-1);
-  useEffect(() => { const t = setTimeout(() => setStep(0), 1200); return () => clearTimeout(t); }, []);
+  const [step, setStep] = useState(0);
   const slides = [
     { icon: 'heart', title: 'Kenali lebih dekat', text: 'Game pasangan untuk saling tahu dan ngobrol lebih dalam.' },
     { icon: 'brain', title: 'Tahu lebih banyak', text: 'Kuis sejarah, budaya, sains, dan logika dalam Bahasa Indonesia.' },
     { icon: 'users', title: 'Main bareng', text: 'Duel bergiliran di satu ponsel, atau ruang online dengan kode undangan.' },
   ];
   const done = () => { patchProgress({ onboarded: true }); nav('/', { replace: true }); };
-  if (step < 0) return <div className="splash"><div className="center"><Logo size={96} light /><p style={{ opacity: 0.95, marginTop: 8, fontWeight: 700 }}>Play Closer, Know More</p></div></div>;
   const s = slides[step] as (typeof slides)[number];
   return (
     <div className="app page center">

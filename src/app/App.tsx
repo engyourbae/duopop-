@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { Icon } from '../components/Icon';
 import { ConfirmProvider, Spinner, ToastProvider } from '../components/ui';
@@ -8,6 +8,8 @@ import { useOnline } from '../hooks/useOnline';
 import { useMusic } from '../hooks/useMusic';
 import { unlockMusic } from '../utils/music';
 import { GlobalWatchers } from '../features/multiplayer/Invite';
+import { LoadingScreen, wasLoaded } from '../components/LoadingScreen';
+import { markBooted } from '../utils/recover';
 import { Games, Help, HistoryPage, Home, NotFound, Notifications, OfflinePage, Profile, Settings, Splash, Stats } from './Pages';
 
 const GamePage = lazy(() => import('../features/games/GamePage'));
@@ -21,6 +23,11 @@ function Shell() {
   const p = useProgress();
   const online = useOnline();
   const loc = useLocation();
+  useEffect(() => {
+    const t: [string, string][] = [['/game/', 'Main'], ['/game', 'Semua Game'], ['/lobi', 'Main Online'], ['/ruang', 'Ruang Main'], ['/teman', 'Teman'], ['/grup', 'Grup'], ['/profil', 'Profil'], ['/statistik', 'Statistik'], ['/riwayat', 'Riwayat'], ['/notifikasi', 'Notifikasi'], ['/pengaturan', 'Pengaturan'], ['/bantuan', 'Bantuan'], ['/masuk', 'Masuk']];
+    const hit = t.find(([p]) => loc.pathname.startsWith(p));
+    document.title = hit ? `${hit[1]} — DUOPOP` : 'DUOPOP — Play Closer, Know More';
+  }, [loc.pathname]);
   useMusic(loc.pathname.startsWith('/game/') || loc.pathname.startsWith('/ruang/') ? null : 'lobi');
   useEffect(() => { const f = () => unlockMusic(); window.addEventListener('pointerdown', f, { once: true }); return () => window.removeEventListener('pointerdown', f); }, []);
   useEffect(() => {
@@ -42,8 +49,11 @@ function Shell() {
 function Gate() { const p = useProgress(); return p.onboarded ? <Home /> : <Navigate to="/mulai" replace />; }
 
 export default function App() {
+  const [loaded, setLoaded] = useState(wasLoaded);
+  useEffect(() => { markBooted(); }, []);
   return (
     <AuthProvider><ToastProvider><ConfirmProvider><HashRouter>
+      {!loaded && <LoadingScreen onDone={() => setLoaded(true)} />}
       <Routes>
         <Route path="/mulai" element={<Splash />} />
         <Route element={<Shell />}>
