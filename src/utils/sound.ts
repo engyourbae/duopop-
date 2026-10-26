@@ -11,7 +11,7 @@ function tone(freq: number, dur: number, delay = 0) {
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.frequency.value = freq; o.type = 'sine';
     g.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
-    g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + delay + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + delay + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + dur);
     o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime + delay); o.stop(ctx.currentTime + delay + dur + 0.05);
   } catch { /* audio tidak tersedia */ }
