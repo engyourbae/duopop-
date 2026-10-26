@@ -86,3 +86,26 @@ export const loveQuiz: { a: [string, LoveKey]; b: [string, LoveKey] }[] = [
   { a: ['Perjalanan berdua lebih berkesan dibanding barang.', 'waktu'], b: ['Barang pilihan yang tepat sangat berkesan.', 'hadiah'] },
   { a: ['Sentuhan di bahu saat aku sedih membantu.', 'sentuhan'], b: ['Ada yang mengurus sesuatu untukku saat sedih membantu.', 'bantuan'] },
 ];
+
+/** Chemistry Meter — pernyataan; jawaban sama = poin kecocokan. */
+export const chemistryBank: { q: string; o: string[] }[] = [
+  'Aku lebih suka rencana matang daripada spontan.', 'Aku nyaman bercerita soal perasaan sejak awal kenal.', 'Akhir pekan paling baik dihabiskan berdua saja.',
+  'Aku mudah memaafkan setelah bertengkar.', 'Aku suka dikejutkan hal kecil.', 'Aku lebih suka diskusi langsung daripada memberi kode.',
+  'Uang sebaiknya ditabung dulu sebelum dipakai bersenang-senang.', 'Aku butuh waktu sendiri secara rutin.', 'Aku suka mencoba makanan baru.',
+  'Pertemanan pasangan sebaiknya kenal baik satu sama lain.', 'Aku lebih suka liburan petualangan daripada santai.', 'Aku cepat bangun dan semangat di pagi hari.',
+  'Aku suka berbagi kabar kecil sepanjang hari.', 'Hadiah bermakna lebih penting daripada hadiah mahal.', 'Aku nyaman berbeda pendapat dengan orang terdekat.',
+  'Aku suka merencanakan masa depan jauh ke depan.', 'Aku lebih suka rumah rapi setiap saat.', 'Aku suka melakukan hobi bersama pasangan.',
+  'Aku mudah merasa canggung pada orang baru.', 'Aku lebih suka mendengar daripada banyak bicara.',
+].map((q) => ({ q, o: ['Sangat setuju', 'Setuju', 'Kurang setuju', 'Tidak setuju'] }));
+/** Jujur atau Tantangan — kartu bertanda. */
+export const truthDare: string[] = [
+  'Jujur: Apa hal kecil dariku yang diam-diam kamu sukai?', 'Jujur: Kapan kamu pertama kali merasa nyaman denganku?', 'Jujur: Apa kebiasaan burukmu yang belum kamu akui?',
+  'Jujur: Apa momen paling memalukan yang pernah kamu alami?', 'Jujur: Hal apa yang membuatmu iri pada orang lain?', 'Jujur: Apa mimpimu yang belum pernah kamu ceritakan?',
+  'Jujur: Siapa orang yang paling kamu kagumi dan kenapa?', 'Jujur: Apa ketakutan terbesarmu saat ini?', 'Jujur: Barang apa yang ingin kamu beli tapi malu mengakuinya?',
+  'Jujur: Apa kebohongan kecil terakhir yang kamu ucapkan?', 'Jujur: Apa yang ingin kamu ubah dari hari ini?', 'Jujur: Lagu apa yang diam-diam kamu suka tapi malu mengakui?',
+  'Jujur: Apa hal paling spontan yang pernah kamu lakukan?', 'Jujur: Apa yang paling kamu syukuri minggu ini?', 'Jujur: Ceritakan satu kenangan masa kecil yang masih kamu ingat jelas.',
+  'Tantangan: Puji pemain di sebelahmu dengan tiga kalimat tulus.', 'Tantangan: Tirukan suara hewan pilihan temanmu selama 10 detik.', 'Tantangan: Nyanyikan satu bait lagu pilihan kelompok.',
+  'Tantangan: Ceritakan kisah lucu dalam 30 detik tanpa jeda.', 'Tantangan: Joget bebas selama 15 detik.', 'Tantangan: Bicara dengan logat daerah lain selama satu menit.',
+  'Tantangan: Buat slogan iklan untuk benda di dekatmu.', 'Tantangan: Tebak apa makanan favorit pemain lain.', 'Tantangan: Berikan satu pelukan atau tos hangat kepada pemain pilihanmu.',
+  'Tantangan: Tulis satu pesan manis untuk seseorang yang kamu sayangi sekarang.', 'Tantangan: Pasang ekspresi paling aneh selama 10 detik.',
+];
