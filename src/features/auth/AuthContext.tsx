@@ -21,8 +21,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (dead) return;
           if (!u) { setMe(null); setLoading(false); return; }
           let handle = '';
-          try { handle = (await s.myProfile(u.uid))?.handle ?? ''; } catch { /* offline */ }
-          if (!dead) { setMe({ uid: u.uid, displayName: u.displayName, handle, email: u.email }); setLoading(false); }
+          try {
+            const prof = await s.myProfile(u.uid);
+            handle = prof?.handle ?? '';
+            if (prof && handle && prof.displayName !== `@${handle}`) void s.syncDisplayName(u.uid, handle).catch(() => undefined); // sembunyikan nama asli lama
+          } catch { /* offline */ }
+          // Nama Google/akun asli TIDAK pernah dipakai di aplikasi; hanya @username.
+          if (!dead) { setMe({ uid: u.uid, displayName: handle ? `@${handle}` : 'Pemain', handle, email: u.email }); setLoading(false); }
         });
       } catch { setLoading(false); }
     })();

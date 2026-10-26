@@ -10,7 +10,7 @@ export default function AuthPage() {
   const nav = useNavigate();
   const toast = useToast();
   const [tab, setTab] = useState<'masuk' | 'daftar'>('masuk');
-  const [f, setF] = useState({ email: '', pw: '', name: '', handle: '' });
+  const [f, setF] = useState({ email: '', pw: '', handle: '' });
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   if (!configured) return <div className="page"><Header title="Masuk" back={() => nav(-1)} /><EmptyState icon="lock" title="Akun belum diaktifkan" text="Firebase belum dikonfigurasi, jadi login dan fitur online dinonaktifkan. Kamu tetap bisa bermain solo tanpa akun." action={<Link to="/game"><Button>Main sekarang</Button></Link>} /></div>;
@@ -18,10 +18,10 @@ export default function AuthPage() {
     const save = async (ev: FormEvent) => {
       ev.preventDefault();
       setBusy(true);
-      try { const a = await import('../../services/auth'); await a.claimProfile(me.uid, me.displayName, f.handle); refresh(); toast('Profil dilengkapi. Selamat bermain!', 'ok'); nav('/'); }
+      try { const a = await import('../../services/auth'); await a.claimProfile(me.uid, f.handle); refresh(); toast('Profil dilengkapi. Selamat bermain!', 'ok'); nav('/'); }
       catch (e) { const a = await import('../../services/auth'); toast(a.mapAuthError(a.errCode(e)), 'err'); } finally { setBusy(false); }
     };
-    return (<div className="page"><Header title="Satu langkah lagi" /><p className="muted">Halo, {me.displayName}! Pilih nama pengguna agar temanmu bisa menemukanmu.</p>
+    return (<div className="page"><Header title="Satu langkah lagi" /><p className="muted">Pilih nama pengguna agar temanmu bisa menemukanmu. Hanya @username ini yang terlihat orang lain; nama Google-mu tetap tersembunyi.</p>
       <form onSubmit={save} noValidate><Field label="Nama pengguna"><input value={f.handle} onChange={(e) => setF({ ...f, handle: e.target.value.toLowerCase() })} autoCapitalize="none" placeholder="mis. joe_duopop" /></Field>
         <Button size="lg" type="submit" disabled={busy || f.handle.trim().length < 3}>{busy ? 'Menyimpan…' : 'Simpan'}</Button></form></div>);
   }
@@ -31,7 +31,6 @@ export default function AuthPage() {
     if (!emailOk(f.email)) e.email = 'Format email tidak valid.';
     if (f.pw.length < 6) e.pw = 'Kata sandi minimal 6 karakter.';
     if (tab === 'daftar') {
-      if (f.name.trim().length < 2) e.name = 'Nama minimal 2 karakter.';
       if (!/^[a-z0-9_]{3,20}$/.test(f.handle.trim().toLowerCase())) e.handle = 'Nama pengguna 3–20 karakter: huruf, angka, garis bawah.';
     }
     setErrs(e); return Object.keys(e).length === 0;
@@ -42,7 +41,7 @@ export default function AuthPage() {
     setBusy(true);
     try {
       const a = await import('../../services/auth');
-      if (tab === 'masuk') await a.login(f.email, f.pw); else await a.register(f.email, f.pw, f.name, f.handle);
+      if (tab === 'masuk') await a.login(f.email, f.pw); else await a.register(f.email, f.pw, f.handle);
       refresh(); toast(tab === 'masuk' ? 'Berhasil masuk' : 'Akun dibuat. Selamat bermain!', 'ok'); nav('/');
     } catch (e) { const a = await import('../../services/auth'); toast(a.mapAuthError(a.errCode(e)), 'err'); } finally { setBusy(false); }
   };
@@ -58,7 +57,7 @@ export default function AuthPage() {
       <div className="or">atau pakai email</div>
       <Tabs tabs={[{ id: 'masuk', label: 'Masuk' }, { id: 'daftar', label: 'Daftar' }]} value={tab} onChange={(t) => { setTab(t); setErrs({}); }} />
       <form onSubmit={submit} noValidate>
-        {tab === 'daftar' && <><Field label="Nama tampilan" error={errs.name}><input value={f.name} onChange={set('name')} autoComplete="name" /></Field><Field label="Nama pengguna (untuk dicari teman)" error={errs.handle}><input value={f.handle} onChange={set('handle')} autoCapitalize="none" /></Field></>}
+        {tab === 'daftar' && <><Field label="Nama pengguna (satu-satunya nama yang terlihat orang lain)" error={errs.handle}><input value={f.handle} onChange={set('handle')} autoCapitalize="none" /></Field></>}
         <Field label="Email" error={errs.email}><input type="email" value={f.email} onChange={set('email')} autoComplete="email" /></Field>
         <Field label="Kata sandi" error={errs.pw}><input type="password" value={f.pw} onChange={set('pw')} autoComplete={tab === 'masuk' ? 'current-password' : 'new-password'} /></Field>
         <Button size="lg" type="submit" disabled={busy}>{busy ? 'Memproses…' : tab === 'masuk' ? 'Masuk' : 'Buat akun'}</Button>
