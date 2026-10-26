@@ -1,7 +1,7 @@
 import type { GameDef } from '../../types';
 
 const g = (d: Omit<GameDef, 'minPlayers' | 'maxPlayers' | 'offline'> & Partial<Pick<GameDef, 'minPlayers' | 'maxPlayers'>>): GameDef =>
-  ({ minPlayers: 1, maxPlayers: 4, offline: true, ...d });
+  ({ minPlayers: 1, maxPlayers: 4, offline: true, multiplayer: true, ...d });
 const P = (d: Parameters<typeof g>[0]) => g({ minPlayers: 2, maxPlayers: 2, ...d });
 
 export const GAMES: GameDef[] = [
@@ -80,6 +80,24 @@ export const GAMES: GameDef[] = [
     tagline: 'Dua tim berebut poin lewat tantangan seru.', rules: ['Tim A dan Tim B bergantian.', 'Tantangan diselesaikan = 1 poin.', 'Tim dengan poin terbanyak menang.'] }),
   g({ id: 'kuisgrup', title: 'Kuis Grup', group: 'grup', mechanic: 'mcq', icon: 'users', color: '#845ef7', multiplayer: true, minPlayers: 2, maxPlayers: 8,
     tagline: 'Kuis campuran untuk ramai-ramai.', rules: ['Pemain menjawab bergiliran.', 'Skor ditampilkan terus.', 'Pemenang dirayakan di akhir.'] }),
+  P({ id: 'chemistry', title: 'Chemistry Meter', group: 'pasangan', mechanic: 'match', bank: 'chemistryBank', icon: 'heart', color: '#e64980',
+    tagline: 'Seberapa sejalan pandangan kalian? Lihat persentasenya.', rules: ['Pernyataan muncul, kalian menjawab diam-diam.', 'Jawaban sama = kecocokan bertambah.', 'Lihat persentase chemistry di akhir lalu ngobrol soal bedanya.'] }),
+  g({ id: 'truthdare', title: 'Jujur atau Tantangan', group: 'pasangan', mechanic: 'deck', bank: 'truthDare', icon: 'dice', color: '#f59f00', minPlayers: 2, maxPlayers: 8,
+    tagline: 'Jawab jujur atau lakukan tantangannya.', rules: ['Kartu Jujur atau Tantangan muncul bergiliran.', 'Pemain giliran menjawab atau melakukan tantangan.', 'Boleh lewati kartu yang tidak nyaman.'] }),
+  g({ id: 'ekonomi', title: 'Ekonomi & Keuangan', group: 'pengetahuan', mechanic: 'mcq', categories: ['ekonomi'], icon: 'target', color: '#0ca678',
+    tagline: 'Dari ekonomi syariah sampai literasi keuangan.', rules: ['Pertanyaan akad, zakat, inflasi, dan pasar modal.', 'Baca penjelasan setelah menjawab.', 'Naik level untuk soal yang lebih sulit.'] }),
+  g({ id: 'kesehatan', title: 'Tubuh & Kesehatan', group: 'pengetahuan', mechanic: 'mcq', categories: ['kesehatan'], icon: 'heart', color: '#e03131',
+    tagline: 'Kenali tubuh dan kebiasaan sehat.', rules: ['Gizi, organ, dan pencegahan penyakit.', 'Penjelasan singkat tiap soal.', 'Cocok dimainkan ramai-ramai.'] }),
+  g({ id: 'bahasa', title: 'Kuis Bahasa Indonesia', group: 'pengetahuan', mechanic: 'mcq', categories: ['bahasa'], icon: 'abc', color: '#1971c2',
+    tagline: 'Kata baku, majas, peribahasa, dan sastra.', rules: ['Pilih bentuk yang paling tepat.', 'Pelajari alasan di penjelasan.', 'Level naik makin menantang.'] }),
+  g({ id: 'hitung', title: 'Hitung Cepat', group: 'pengetahuan', mechanic: 'mcq', bank: 'gen:math', icon: 'target', color: '#f08c00',
+    tagline: 'Soal hitungan tak terbatas yang makin sulit.', rules: ['Soal dibuat otomatis, tidak pernah habis.', 'Level menentukan besar angka dan jenis soal.', 'Cepat dan tepat = poin besar.'] }),
+  g({ id: 'ibukota', title: 'Ibu Kota Dunia', group: 'pengetahuan', mechanic: 'mcq', bank: 'gen:capital', icon: 'globe', color: '#1c7ed6',
+    tagline: '60 negara, soal dua arah, selalu diacak.', rules: ['Tebak ibu kota atau negaranya.', 'Urutan soal berbeda tiap main.', 'Cocok untuk mode tanpa batas.'] }),
+  g({ id: 'provinsi', title: 'Provinsi Indonesia', group: 'pengetahuan', mechanic: 'mcq', bank: 'gen:provinsi', icon: 'pin', color: '#e8590c',
+    tagline: '38 provinsi dan ibu kotanya.', rules: ['Tebak ibu kota provinsi atau sebaliknya.', 'Soal diacak dua arah.', 'Hafalkan semuanya!'] }),
+  g({ id: 'unsur', title: 'Tabel Periodik', group: 'pengetahuan', mechanic: 'mcq', bank: 'gen:unsur', icon: 'flask', color: '#7048e8',
+    tagline: 'Kenali lambang dan nama unsur kimia.', rules: ['Tebak nama unsur dari lambangnya.', 'Atau sebaliknya.', 'Belajar sambil bermain.'] }),
   // ===== Arkade & aksi (dimainkan dengan gerak, refleks, dan strategi) =====
   g({ id: 'memorymatch', title: 'Pasangan Kartu', group: 'arkade', mechanic: 'memorymatch', icon: 'album', color: '#e03131',
     tagline: 'Balik kartu, cari pasangannya. Bergiliran!', rules: ['Balik dua kartu per giliran.', 'Kalau cocok, kamu dapat poin dan jalan lagi.', 'Pemain dengan pasangan terbanyak menang.'] }),

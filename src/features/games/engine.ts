@@ -2,6 +2,7 @@ import type { ChoiceQuestion, GameDef, Question } from '../../types';
 import { allQuestions, mythQuestions, eraQuestions, mcqBank, MYTH_OPTIONS } from '../../data/questions';
 import { countries, flagEmoji } from '../../data/content/countries';
 import { rng, seedFrom, shuffle } from '../../utils/rng';
+import { genItems } from '../../data/questions/gen';
 
 /** Item siap-main untuk pilihan ganda; urutan opsi sudah diacak. */
 export interface PlayItem { id: string; prompt: string; options: string[]; correct: number; explanation: string; big?: string }
@@ -24,17 +25,39 @@ export function poolFor(game: GameDef): ChoiceQuestion[] {
   if (game.mechanic === 'tf' || game.mechanic === 'chain-tf') return mythQuestions;
   if (game.mechanic === 'era') return eraQuestions;
   const cats = game.categories;
-  const pool = mcqBank.filter((q) => !cats || cats.includes(q.category));
-  return pool;
+  return mcqBank.filter((q) => !cats || cats.includes(q.category));
 }
 
-export function buildItems(game: GameDef, count: number, seed: string): PlayItem[] {
-  const r = rng(seedFrom(seed));
-  if (game.mechanic === 'flag') return flagItems(r).slice(0, count);
-  if (game.bank === 'daily') {
-    return shuffle(mcqBank, r).slice(0, 6).map((q) => toPlayItem(q, r));
+const DIFF_ORDER = ['mudah', 'sedang', 'sulit'] as const;
+/** Memilih soal: soal belum pernah dilihat didahulukan; pada mode level komposisi kesulitan naik bertahap. */
+export function pickByLevel(pool: ChoiceQuestion[], count: number, level: number | undefined, r: () => number, seen?: Set<string>): ChoiceQuestion[] {
+  const order = (arr: ChoiceQuestion[]) => { const s = shuffle(arr, r); return seen ? [...s.filter((q) => !seen.has(q.id)), ...s.filter((q) => seen.has(q.id))] : s; };
+  let picks: ChoiceQuestion[];
+  if (!level) picks = order(pool).slice(0, count);
+  else {
+    const hardP = Math.min(0.8, Math.max(0, (level - 3) * 0.2)), easyP = Math.max(0, 1 - (level - 1) * 0.3);
+    const nE = Math.round(count * easyP), nH = Math.round(count * hardP), nM = Math.max(0, count - nE - nH);
+    const want = { mudah: nE, sedang: nM, sulit: nH };
+    picks = [];
+    for (const d of DIFF_ORDER) picks.push(...order(pool.filter((q) => q.difficulty === d)).slice(0, want[d]));
+    if (picks.length < count) {
+      const have = new Set(picks.map((q) => q.id)), target = level < 3 ? 0 : level < 6 ? 1 : 2;
+      const rest = order(pool.filter((q) => !have.has(q.id))).sort((x, y) => Math.abs(DIFF_ORDER.indexOf(x.difficulty) - target) - Math.abs(DIFF_ORDER.indexOf(y.difficulty) - target));
+      picks.push(...rest.slice(0, count - picks.length));
+    }
+    picks.sort((x, y) => DIFF_ORDER.indexOf(x.difficulty) - DIFF_ORDER.indexOf(y.difficulty));
   }
-  return shuffle(poolFor(game), r).slice(0, count).map((q) => toPlayItem(q, r));
+  while (picks.length < count && pool.length) picks.push(...shuffle(pool, r).slice(0, count - picks.length)); // soal habis → putar ulang (mode tanpa batas)
+  return picks;
+}
+
+export interface BuildOpts { level?: number; seen?: Set<string> }
+export function buildItems(game: GameDef, count: number, seed: string, opts: BuildOpts = {}): PlayItem[] {
+  const r = rng(seedFrom(seed));
+  if (game.mechanic === 'flag') { const out: PlayItem[] = []; while (out.length < count) out.push(...flagItems(r)); return out.slice(0, count); }
+  if (game.bank === 'daily') return shuffle(mcqBank, r).slice(0, 6).map((q) => toPlayItem(q, r));
+  if (game.bank?.startsWith('gen:')) return genItems(game.bank.slice(4), count, seed, opts.level ?? 1);
+  return pickByLevel(poolFor(game), count, opts.level, r, opts.seen).map((q) => toPlayItem(q, r));
 }
 
 export const QUESTION_COUNT = allQuestions.length;
@@ -59,11 +82,12 @@ export function cluePoints(shown: number, wrongGuesses: number): number {
 export function chainMultiplier(streak: number): number { return 1 + Math.floor(streak / 3) * 0.5; }
 
 // ---------- Mesin kuis (reducer murni, mudah diuji) ----------
-export interface QuizState { index: number; scores: number[]; correct: number; chosen: number | null; streak: number; done: boolean; log: boolean[] }
+export interface QuizState { index: number; scores: number[]; correct: number; chosen: number | null; streak: number; done: boolean; log: boolean[]; wrong: number }
 export type QuizAction = { type: 'answer'; choice: number; timeFrac: number } | { type: 'next' };
-export const initialQuiz = (players: number): QuizState => ({ index: 0, scores: Array(players).fill(0), correct: 0, chosen: null, streak: 0, done: false, log: [] });
+export const initialQuiz = (players: number): QuizState => ({ index: 0, scores: Array(players).fill(0), correct: 0, chosen: null, streak: 0, done: false, log: [], wrong: 0 });
 
-export function quizReducer(s: QuizState, a: QuizAction, items: PlayItem[], chain = false): QuizState {
+/** chain: berhenti pada salah pertama; maxWrong>0: berhenti setelah salah sebanyak itu (mode tanpa batas). */
+export function quizReducer(s: QuizState, a: QuizAction, items: PlayItem[], chain = false, maxWrong = 0): QuizState {
   if (s.done) return s;
   if (a.type === 'answer') {
     if (s.chosen !== null) return s; // cegah jawaban ganda pada ronde yang sama
@@ -74,10 +98,10 @@ export function quizReducer(s: QuizState, a: QuizAction, items: PlayItem[], chai
     const scores = s.scores.slice();
     const streak = ok ? s.streak + 1 : 0;
     scores[turn] = (scores[turn] ?? 0) + Math.round(answerPoints(ok, a.timeFrac) * (chain ? chainMultiplier(s.streak) : 1));
-    return { ...s, chosen: a.choice, scores, streak, correct: s.correct + (ok ? 1 : 0), log: [...s.log, ok] };
+    return { ...s, chosen: a.choice, scores, streak, correct: s.correct + (ok ? 1 : 0), log: [...s.log, ok], wrong: s.wrong + (ok ? 0 : 1) };
   }
   if (s.chosen === null) return s;
-  const lastWrongChain = chain && s.log[s.log.length - 1] === false;
+  const lastWrongChain = (chain && s.log[s.log.length - 1] === false) || (maxWrong > 0 && s.wrong >= maxWrong);
   const next = s.index + 1;
   return { ...s, index: next, chosen: null, done: next >= items.length || lastWrongChain };
 }
