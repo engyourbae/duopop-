@@ -29,7 +29,7 @@ export function MemoryMech({ players, seed, count, onDone }: MechProps) {
       const ns = scores.map((v, k) => (k === turn ? v + 1 : v));
       setTimeout(() => {
         setDone(nd); setScores(ns); setOpen([]); lock.current = false;
-        if (nd.size === deck.length) onDone({ scores: ns, correct: deck.length / 2, total: deck.length / 2, xp: players.length === 1 ? Math.max(10, 60 - Math.max(0, moves + 1 - deck.length / 2) * 3) : undefined });
+        if (nd.size === deck.length) onDone({ scores: ns, correct: deck.length / 2, total: deck.length / 2, raceScore: Math.max(0, 600 - (moves + 1) * 10), xp: players.length === 1 ? Math.max(10, 60 - Math.max(0, moves + 1 - deck.length / 2) * 3) : undefined });
       }, 500);
     } else {
       sfx.wrong();
@@ -51,7 +51,32 @@ export function MemoryMech({ players, seed, count, onDone }: MechProps) {
   );
 }
 
-export function ReflexMech({ players, count, onDone }: MechProps) {
+/** Satu pemain = uji refleks (dipakai pada adu skor online); dua pemain = duel satu layar. */
+export function ReflexMech(p: MechProps) { return p.players.length === 1 ? <ReflexSolo {...p} /> : <ReflexDuel {...p} />; }
+function ReflexSolo({ count, onDone }: MechProps) {
+  const [phase, setPhase] = useState<'idle' | 'wait' | 'go' | 'res'>('idle');
+  const [i, setI] = useState(0);
+  const [times, setTimes] = useState<number[]>([]);
+  const [msg, setMsg] = useState('');
+  const t0 = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const begin = () => { setPhase('wait'); setMsg('Tunggu hijau…'); timer.current = setTimeout(() => { t0.current = performance.now(); setPhase('go'); setMsg('SENTUH!'); }, 1500 + Math.random() * 3000); };
+  const tap = () => {
+    if (phase === 'wait') { clearTimeout(timer.current); record(1000, 'Terlalu cepat! +1000 ms'); }
+    else if (phase === 'go') record(Math.round(performance.now() - t0.current), `${Math.round(performance.now() - t0.current)} ms`);
+  };
+  const record = (ms: number, text: string) => {
+    const all = [...times, ms]; setTimes(all); setMsg(text); setPhase('res'); (ms < 1000 ? sfx.right : sfx.wrong)();
+    if (i + 1 >= count) { const avg = all.reduce((a, b) => a + b, 0) / all.length, score = Math.max(0, Math.round(1000 - avg)); setTimeout(() => onDone({ scores: [score], correct: count, total: count, raceScore: score, headline: `Rata-rata ${Math.round(avg)} ms`, xp: Math.min(100, Math.round(score / 10) + 10) }), 1200); }
+  };
+  return (
+    <div className="center"><p className="muted small">Percobaan {Math.min(i + 1, count)}/{count}</p>
+      <button className={`rhalf ${phase === 'go' ? 'go' : phase === 'wait' ? 'wait' : ''}`} style={{ width: '100%', minHeight: 280 }} onPointerDown={tap} aria-label="Area refleks"><b>{phase === 'idle' ? 'Siap?' : msg}</b></button>
+      {(phase === 'idle' || (phase === 'res' && i + 1 < count)) && <Button size="lg" className="gap" onClick={() => { if (phase === 'res') setI(i + 1); begin(); }}>{phase === 'idle' ? 'Mulai' : 'Berikutnya'}</Button>}</div>
+  );
+}
+function ReflexDuel({ players, count, onDone }: MechProps) {
   const [phase, setPhase] = useState<'idle' | 'wait' | 'go' | 'result'>('idle');
   const [round, setRound] = useState(0);
   const [scores, setScores] = useState<[number, number]>([0, 0]);

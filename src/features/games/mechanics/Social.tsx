@@ -3,7 +3,7 @@ import { Button, ProgressBar } from '../../../components/ui';
 import { useCountdown } from '../../../hooks/useCountdown';
 import { sfx } from '../../../utils/sound';
 import { rng, seedFrom, shuffle } from '../../../utils/rng';
-import { knowMe, likelyBank, loveLangs, loveQuiz, matchBank, memoryLane, deepTalk, thisOrThat, wouldYouRather, type LoveKey } from '../../../data/content/couples';
+import { chemistryBank, knowMe, likelyBank, loveLangs, loveQuiz, matchBank, truthDare, memoryLane, deepTalk, thisOrThat, wouldYouRather, type LoveKey } from '../../../data/content/couples';
 import { rapidFire, challenges } from '../../../data/content/party';
 import { Scoreboard } from './Quiz';
 import { LETTERS, type MechProps } from './types';
@@ -35,7 +35,7 @@ export function PairMech({ game, players, seed, count, onDone }: MechProps) {
   const rounds = useMemo(() => {
     const r = rng(seedFrom(seed));
     if (mode === 'likely') return shuffle(likelyBank, r).slice(0, count).map((t) => ({ q: `Siapa yang paling mungkin ${t}?`, o: players }));
-    if (mode === 'match') return shuffle(matchBank, r).slice(0, count);
+    if (mode === 'match') return shuffle(game.bank === 'chemistryBank' ? chemistryBank : matchBank, r).slice(0, count);
     const bank = game.bank === 'wouldYouRather' ? wouldYouRather : thisOrThat;
     return shuffle(bank, r).slice(0, count).map((p) => ({ q: game.bank === 'wouldYouRather' ? 'Kamu lebih pilih…' : 'Pilih salah satu:', o: [...p] }));
   }, [mode, game.bank, seed, count, players]);
@@ -160,6 +160,7 @@ export function DeckMech({ game, players, seed, count, secs, onDone }: MechProps
     switch (game.bank) {
       case 'memoryLane': return shuffle(memoryLane, r).slice(0, count).map((text) => ({ text }));
       case 'deepTalk': return shuffle(deepTalk.filter((d) => level === 0 || d.level === level), r).slice(0, count).map((d) => ({ text: d.q, tag: ['', 'Ringan', 'Sedang', 'Dalam'][d.level] }));
+      case 'truthDare': return shuffle(truthDare, r).slice(0, count).map((text) => ({ text, tag: text.startsWith('Jujur') ? 'Jujur' : 'Tantangan' }));
       case 'rapidFire': return shuffle(rapidFire, r).slice(0, count).map((text) => ({ text }));
       default: return shuffle(challenges, r).slice(0, count).map((text) => ({ text }));
     }
