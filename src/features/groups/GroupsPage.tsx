@@ -9,6 +9,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useFriendsOnline } from '../multiplayer/Invite';
 import { GAMES } from '../games/registry';
 import { isFresh, ONLINE_TTL } from '../../utils/presence';
+import { serverNow } from '../../utils/clock';
 import { useProgress } from '../progression/store';
 import type { Group, GroupInvite } from '../../services/social';
 
@@ -21,7 +22,7 @@ function Inner() {
   const [shareOpen, setShareOpen] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [invites, setInvites] = useState<GroupInvite[]>([]);
-  const friends = useFriendsOnline(me?.uid);
+  const { friends } = useFriendsOnline(me?.uid);
   const nav = useNavigate();
   const prog = useProgress();
   const [gameSel, setGameSel] = useState('duel');
@@ -69,14 +70,14 @@ function Inner() {
           <div className="row"><Button size="sm" variant="soft" className="grow" icon="share" onClick={() => setShareOpen(true)}>Bagikan</Button>
             {owner && <Button size="sm" variant="ghost" className="grow" onClick={() => void run((s) => s.regenerateCode(cur), 'Kode baru dibuat')}>Kode baru</Button>}</div>
           <h3 className="gap">Anggota</h3>
-          {cur.members.map((u) => <div key={u} className="list-item"><div className="avatar">{initial(cur.memberNames[u] ?? '?')}</div><div className="grow">{cur.memberNames[u] ?? 'Pemain'}{u === cur.ownerUid ? ' · Pemilik' : ''}{u !== me.uid && isFresh(memPres[u], Date.now(), ONLINE_TTL) && <span className="small muted"> <span className="online-dot" />online</span>}</div>
+          {cur.members.map((u) => <div key={u} className="list-item"><div className="avatar">{initial(cur.memberNames[u] ?? '?')}</div><div className="grow">{cur.memberNames[u] ?? 'Pemain'}{u === cur.ownerUid ? ' · Pemilik' : ''}{u !== me.uid && isFresh(memPres[u], serverNow(), ONLINE_TTL) && <span className="small muted"> <span className="online-dot" />online</span>}</div>
             {owner && u !== me.uid && <Button size="sm" variant="ghost" onClick={() => void run((s) => s.kickMember(cur, u), 'Anggota dikeluarkan')}>Keluarkan</Button>}</div>)}
           {owner && friends.filter((f) => !cur.members.includes(f.uid)).length > 0 && <><h3 className="gap">Undang teman</h3>
             {friends.filter((f) => !cur.members.includes(f.uid)).map((f) => <div key={f.uid} className="list-item"><div className="grow"><b>@{f.handle || f.name.replace(/^@/, '')}</b><div className="small muted">{f.online ? <><span className="online-dot" />Online</> : 'Offline'}</div></div><Button size="sm" onClick={() => void run((s) => s.inviteFriend(me, cur, f.uid), f.online ? 'Undangan terkirim (langsung muncul di layarnya)' : 'Undangan terkirim')}>Undang</Button></div>)}</>}
           <h3 className="gap">Mabar bareng grup</h3>
           <p className="small muted">Buat ruang lalu semua anggota yang sedang online langsung diundang.</p>
           <Select label="Game" value={gameSel} onChange={setGameSel} options={GAMES.map((g) => ({ value: g.id, label: g.title }))} />
-          <Button variant="soft" icon="users" onClick={() => void run(async (sv) => { const [rm, on, d] = await Promise.all([import('../../services/rooms'), import('../../services/online'), import('../games/GamePage')]); const g = GAMES.find((x) => x.id === gameSel); const df = g ? d.defaultsFor(g) : { count: 10, secs: 20 }; const c = await rm.createRoom(me, gameSel, df.count, df.secs || 20, prog.settings.pause ?? 6); const online = cur.members.filter((u) => u !== me.uid && isFresh(memPres[u], Date.now(), ONLINE_TTL)); await Promise.all(online.map((u) => on.sendPlayInvite(me, u, c, gameSel).catch(() => undefined))); void sv; toast(online.length ? `${online.length} anggota online diundang` : 'Belum ada anggota online; bagikan kode dari ruang', 'ok'); nav(`/ruang/${c}`); })}>Mulai mabar</Button>
+          <Button variant="soft" icon="users" onClick={() => void run(async (sv) => { const [rm, on, d] = await Promise.all([import('../../services/rooms'), import('../../services/online'), import('../games/GamePage')]); const g = GAMES.find((x) => x.id === gameSel); const df = g ? d.defaultsFor(g) : { count: 10, secs: 20 }; const c = await rm.createRoom(me, gameSel, df.count, df.secs || 20, prog.settings.pause ?? 6); const online = cur.members.filter((u) => u !== me.uid && isFresh(memPres[u], serverNow(), ONLINE_TTL)); await Promise.all(online.map((u) => on.sendPlayInvite(me, u, c, gameSel).catch(() => undefined))); void sv; toast(online.length ? `${online.length} anggota online diundang` : 'Belum ada anggota online; bagikan kode dari ruang', 'ok'); nav(`/ruang/${c}`); })}>Mulai mabar</Button>
           <div className="row gap">{owner ? <Button variant="danger" onClick={() => { void ask({ title: 'Hapus grup ini?', text: 'Semua anggota akan kehilangan grup.', ok: 'Hapus', danger: true }).then((y) => { if (y) void run((s) => s.deleteGroup(cur), 'Grup dihapus').then(() => setSel(null)); }); }}>Hapus grup</Button> :
             <Button variant="ghost" onClick={() => { void ask({ title: 'Keluar dari grup?', ok: 'Keluar', danger: true }).then((y) => { if (y) void run((s) => s.leaveGroup(cur, me.uid), 'Kamu keluar dari grup').then(() => setSel(null)); }); }}>Keluar grup</Button>}</div>
         </>}
