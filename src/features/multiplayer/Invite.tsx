@@ -6,6 +6,7 @@ import { useProgress } from '../progression/store';
 import { gameById } from '../games/registry';
 import { explainError } from '../../utils/errors';
 import { initial, isFresh, ONLINE_TTL } from '../../utils/presence';
+import { serverNow } from '../../utils/clock';
 import type { PlayInvite } from '../../services/online';
 import type { GroupInvite } from '../../services/social';
 
@@ -14,6 +15,9 @@ export interface FriendLite { uid: string; name: string; handle: string }
 export function useFriendsOnline(uid: string | undefined) {
   const [friends, setFriends] = useState<FriendLite[]>([]);
   const [pres, setPres] = useState<Record<string, number>>({});
+  const [denied, setDenied] = useState(false);
+  const [, setTick] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 15000); return () => clearInterval(t); }, []);
   useEffect(() => {
     if (!uid) return;
     let off: (() => void) | undefined, dead = false;
@@ -24,19 +28,19 @@ export function useFriendsOnline(uid: string | undefined) {
   useEffect(() => {
     if (!key) return;
     let off: (() => void) | undefined, dead = false;
-    void import('../../services/online').then((o) => { if (!dead) off = o.watchPresence(key.split(','), setPres); }).catch(() => undefined);
+    void import('../../services/online').then((o) => { if (!dead) off = o.watchPresence(key.split(','), setPres, (c) => { if (c === 'permission-denied') setDenied(true); }); }).catch(() => undefined);
     return () => { dead = true; off?.(); };
   }, [key]);
-  const now = Date.now();
+  const now = serverNow();
   const list = friends.map((f) => ({ ...f, online: isFresh(pres[f.uid], now, ONLINE_TTL) })).sort((a, b) => Number(b.online) - Number(a.online));
-  return list;
+  return { friends: list, denied };
 }
 
 /** Undang teman online langsung ke ruang yang sedang menunggu. */
 export function FriendInviter({ code, gameId }: { code: string; gameId: string }) {
   const { me } = useAuth();
   const toast = useToast();
-  const friends = useFriendsOnline(me?.uid);
+  const { friends, denied } = useFriendsOnline(me?.uid);
   const [sent, setSent] = useState<Record<string, boolean>>({});
   if (!me) return null;
   const invite = async (f: FriendLite) => {
@@ -45,7 +49,7 @@ export function FriendInviter({ code, gameId }: { code: string; gameId: string }
   };
   if (!friends.length) return <p className="muted small">Belum ada teman. Tambahkan teman di tab Teman agar bisa mengundang langsung.</p>;
   return (
-    <div>{friends.map((f) => (
+    <div>{denied && <p className="field-err">Status online tidak terbaca (ditolak aturan keamanan). Publish firestore.rules terbaru di Firebase, lalu muat ulang.</p>}{friends.map((f) => (
       <div key={f.uid} className="list-item"><div className="avatar">{initial(f.handle || f.name)}</div>
         <div className="grow"><b>@{f.handle || f.name.replace(/^@/, '')}</b><div className="small muted">{f.online ? <><span className="online-dot" />Online</> : 'Offline'}</div></div>
         <Button size="sm" disabled={!f.online || sent[f.uid]} onClick={() => void invite(f)}>{sent[f.uid] ? 'Terkirim' : 'Undang'}</Button></div>))}</div>
@@ -64,11 +68,13 @@ export function GlobalWatchers() {
   const showOnline = prog.settings.showOnline !== false;
   useEffect(() => {
     if (!configured || !me?.handle) return;
+    let offClock: (() => void) | undefined;
+    void import('../../services/online').then((o) => { offClock = o.watchOwnClock(me.uid); }).catch(() => undefined);
     const beat = () => { void import('../../services/online').then((o) => o.setPresence(me, showOnline)).catch(() => undefined); };
     beat();
     const t = setInterval(beat, 30000), vis = () => { if (!document.hidden) beat(); };
     document.addEventListener('visibilitychange', vis);
-    return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); };
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); offClock?.(); };
   }, [configured, me?.uid, me?.handle, showOnline]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!configured || !me?.handle) return;
