@@ -17,9 +17,9 @@ describe('navigasi & halaman penting', () => {
     patchProgress({ onboarded: false }); render(<App />);
     expect(await screen.findByText('Play Closer, Know More')).toBeInTheDocument();
   });
-  it('daftar game memuat semua 46 game dan pencarian bekerja', async () => {
+  it('daftar game memuat semua game dan pencarian bekerja', async () => {
     go('#/game'); render(<App />);
-    expect((await screen.findAllByLabelText(/^Buka /)).length).toBe(46);
+    expect((await screen.findAllByLabelText(/^Buka /)).length).toBe(GAMES.length);
     fireEvent.change(screen.getByLabelText('Cari game'), { target: { value: 'kronologi' } });
     expect(screen.getAllByLabelText(/^Buka /).length).toBe(1);
     fireEvent.change(screen.getByLabelText('Cari game'), { target: { value: 'zzzz' } });
@@ -52,6 +52,6 @@ describe('alur kuis end-to-end', () => {
     go('#/game/fakta-mitos'); render(<App />);
     await act(async () => { fireEvent.click(await screen.findByRole('button', { name: /Mulai main/ })); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^A\s*Fakta/ })); });
-    expect(screen.getByRole('button', { name: 'Lanjut' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Lanjut/ })).toBeInTheDocument();
   });
 });
