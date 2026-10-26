@@ -161,7 +161,9 @@ export function Settings() {
     <div className="page"><Header title="Pengaturan" back={() => history.back()} />
       <Card><h3>Tampilan & suara</h3>
         <div className="row wrap gap">{(['sistem', 'terang', 'gelap'] as const).map((t) => <button key={t} className={`chip ${s.theme === t ? 'on' : ''}`} onClick={() => patchSettings({ theme: t })}>Tema {t}</button>)}</div>
-        <Row label="Musik latar" k="music" /><Row label="Efek suara" k="sound" />
+        <Row label="Musik latar" k="music" />
+        <h3 className="gap">Volume musik</h3>
+        <div className="row wrap gap">{[[0.3, 'Pelan'], [0.55, 'Sedang'], [1, 'Keras']].map(([v, t]) => <button key={String(v)} className={`chip ${Math.abs((s.musicVol ?? 0.55) - (v as number)) < 0.05 ? 'on' : ''}`} onClick={() => { patchSettings({ musicVol: v as number }); }}>{String(t)}</button>)}</div><Row label="Efek suara" k="sound" />
         <h3 className="gap">Jeda penjelasan setelah menjawab</h3>
         <div className="row wrap gap">{[4, 6, 10, 0].map((v) => <button key={v} className={`chip ${(s.pause ?? 6) === v ? 'on' : ''}`} onClick={() => patchSettings({ pause: v })}>{v === 0 ? 'Manual' : `${v} detik`}</button>)}</div><Row label="Animasi" k="animations" /></Card>
       <Card><h3>Privasi</h3><Row label="Bisa ditemukan lewat pencarian teman" k="shareProfile" /><Row label="Tampilkan status online" k="showOnline" />
