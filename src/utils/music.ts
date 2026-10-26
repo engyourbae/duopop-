@@ -74,8 +74,18 @@ function apply() {
 }
 /** Pilih lagu (null = biarkan). */
 export function setTrack(t: Track | null) { if (t) { want = t; apply(); } }
-/** Dipanggil pada sentuhan pertama pengguna (kebijakan autoplay browser). */
-export function unlockMusic() { started = true; apply(); }
+/** Dipanggil pada sentuhan pertama pengguna (kebijakan autoplay browser). Aman dipanggil berulang: juga melanjutkan konteks audio yang tertunda. */
+export function unlockMusic() { started = true; if (ctx && ctx.state === 'suspended') void ctx.resume(); apply(); }
+/** true bila audio sudah diizinkan browser dan sedang berjalan. */
+export const audioRunning = () => !!ctx && ctx.state === 'running';
+/** Jingle pembuka singkat (arpeggio naik + akor). */
+export function playIntro() {
+  if (!enabled() || !ensure() || !ctx) return;
+  const t = ctx.currentTime + 0.05;
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => voice(f, t + i * 0.11, 0.3, 'triangle', 0.9));
+  [523.25, 659.25, 783.99].forEach((f) => voice(f, t + 0.52, 1, 'triangle', 0.6));
+  kick(t + 0.52);
+}
 export function refreshMusic() { apply(); }
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
