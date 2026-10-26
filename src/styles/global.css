@@ -132,3 +132,5 @@ textarea.input{padding:12px 14px;min-height:90px}
 .c4head{border:0;background:transparent;color:#fff;font-size:1rem;cursor:pointer;min-height:34px}
 .c4cell{aspect-ratio:1;display:grid;place-items:center}.c4cell.win .disc{outline:3px solid #fff}
 .disc{width:86%;aspect-ratio:1;border-radius:50%;background:var(--paper);border:var(--bw) solid var(--edge)}.disc.d1{background:var(--red)}.disc.d2{background:var(--yellow)}
+
+.online-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);border:var(--bw) solid var(--edge);margin-right:6px;vertical-align:middle}
