@@ -57,7 +57,7 @@ export function LoadingScreen({ onDone, minMs = 2400 }: { onDone: () => void; mi
     <div className={`ld-root ${leaving ? 'leave' : ''}`} role="status" aria-live="polite">
       <span className="ld-sh s1" /><span className="ld-sh s2" /><span className="ld-sh s3" /><span className="ld-sh s4" /><span className="ld-sh s5" />
       <div className="ld-wrap">
-        <img className="ld-logo" src={`${import.meta.env.BASE_URL}icon-512.png`} alt="" aria-hidden="true" style={{ width: 180, height: 180 }} />
+        <img className="ld-logo" src={`${import.meta.env.BASE_URL}icon-512.png`} alt="duopop" aria-label="duopop" style={{ width: 180, height: 180 }} />
         <p className="ld-tag">Play Closer, Know More</p>
         <div className="ld-bar" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Memuat"><div className="ld-fill" style={{ width: `${pct}%` }} /></div>
         {needsTap ? <button className="ld-btn" onClick={() => enter(true)}>Ketuk untuk mulai 🔊</button> : <p className="ld-tip">{ready ? 'Siap!' : tip}</p>}
