@@ -68,12 +68,7 @@ export function Icon({ name, size = 22, className }: { name: IconName; size?: nu
 export function Logo({ size = 40, text = true, light = false }: { size?: number; text?: boolean; light?: boolean }) {
   return (
     <span className="logo" aria-label="DUOPOP">
-      <svg width={size} height={size} viewBox="0 0 512 512" aria-hidden="true">
-        <rect width="512" height="512" rx="112" fill="#2a4bff" />
-        <circle cx="200" cy="256" r="104" fill="#f2eadb" />
-        <circle cx="312" cy="256" r="104" fill="#ffc414" />
-        <path d="M256 168.4A104 104 0 0 1 256 343.6A104 104 0 0 1 256 168.4Z" fill="#e0401f" />
-      </svg>
+      <img src={`${import.meta.env.BASE_URL}icon-192.png`} width={size} height={size} alt="" aria-hidden="true" />
       {text && <span className="logo-text" style={light ? { color: '#fff' } : undefined}>duo<b>pop</b></span>}
     </span>
   );
