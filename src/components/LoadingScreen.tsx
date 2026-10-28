@@ -57,8 +57,7 @@ export function LoadingScreen({ onDone, minMs = 2400 }: { onDone: () => void; mi
     <div className={`ld-root ${leaving ? 'leave' : ''}`} role="status" aria-live="polite">
       <span className="ld-sh s1" /><span className="ld-sh s2" /><span className="ld-sh s3" /><span className="ld-sh s4" /><span className="ld-sh s5" />
       <div className="ld-wrap">
-        <svg className="ld-logo" viewBox="0 0 154 100" aria-hidden="true"><circle className="ld-a" cx="50" cy="50" r="50" fill="#f2eadb" /><circle className="ld-b" cx="104" cy="50" r="50" fill="#ffc414" /><path className="ld-lens" d="M77 7.9A50 50 0 0 1 77 92.1A50 50 0 0 1 77 7.9Z" fill="#e0401f" /></svg>
-        <h1 className="ld-word" aria-label="duopop">{'duopop'.split('').map((c, i) => <span key={i} className={`ld-l ${i > 2 ? 'y' : ''}`} style={{ ['--i' as string]: i }}>{c}</span>)}</h1>
+        <img className="ld-logo" src={`${import.meta.env.BASE_URL}icon-512.png`} alt="" aria-hidden="true" style={{ width: 180, height: 180 }} />
         <p className="ld-tag">Play Closer, Know More</p>
         <div className="ld-bar" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Memuat"><div className="ld-fill" style={{ width: `${pct}%` }} /></div>
         {needsTap ? <button className="ld-btn" onClick={() => enter(true)}>Ketuk untuk mulai 🔊</button> : <p className="ld-tip">{ready ? 'Siap!' : tip}</p>}
