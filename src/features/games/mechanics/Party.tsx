@@ -62,7 +62,7 @@ export function WordChainMech({ players, seed, secs, onDone }: MechProps) {
   const [round, setRound] = useState(0);
   const nextAlive = (from: number, a: boolean[]) => { for (let k = 1; k <= a.length; k++) { const j = (from + k) % a.length; if (a[j]) return j; } return from; };
   const finish = (a: boolean[], c: number[]) => {
-    const w = players[a.findIndex(Boolean)];
+    const first = Math.max(0, a.findIndex(Boolean)), best = a.reduce((b, alive, k) => (alive && (c[k] ?? 0) > (c[b] ?? -1) ? k : b), first), w = players[best];
     onDone({ scores: c, correct: c.reduce((x, y) => x + y, 0), total: Math.max(1, words.length - 1), summary: <p className="center"><b>Pemenang: {w ?? '—'}</b></p> });
   };
   const timeout = () => {
@@ -91,6 +91,7 @@ export function WordChainMech({ players, seed, secs, onDone }: MechProps) {
       </form>
       {err && <p className="field-err" role="alert">{err}</p>}
       <p className="muted small gap">Rantai: {words.join(' → ')}</p>
+      <Button variant="ghost" size="sm" onClick={() => finish(alive, counts)}>Akhiri permainan</Button>
       {players.map((p, k) => <div key={k} className={`score-row ${k === turn ? 'turn' : ''}`}><span>{alive[k] ? '' : '❌ '}{p}</span><span>{counts[k]} kata</span></div>)}
     </div>
   );

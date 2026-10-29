@@ -3,6 +3,7 @@ import { allQuestions, mythQuestions, eraQuestions, mcqBank, MYTH_OPTIONS } from
 import { countries, flagEmoji } from '../../data/content/countries';
 import { rng, seedFrom, shuffle } from '../../utils/rng';
 import { genItems } from '../../data/questions/gen';
+import { fromDatasets } from '../../data/questions/packs';
 
 /** Item siap-main untuk pilihan ganda; urutan opsi sudah diacak. */
 export interface PlayItem { id: string; prompt: string; options: string[]; correct: number; explanation: string; big?: string }
@@ -57,7 +58,8 @@ export function buildItems(game: GameDef, count: number, seed: string, opts: Bui
   if (game.mechanic === 'flag') { const out: PlayItem[] = []; while (out.length < count) out.push(...flagItems(r)); return out.slice(0, count); }
   if (game.bank === 'daily') return shuffle(mcqBank, r).slice(0, 6).map((q) => toPlayItem(q, r));
   if (game.bank?.startsWith('gen:')) return genItems(game.bank.slice(4), count, seed, opts.level ?? 1);
-  return pickByLevel(poolFor(game), count, opts.level, r, opts.seen).map((q) => toPlayItem(q, r));
+  const extra = game.mechanic === 'mcq' || game.mechanic === 'buzzer' ? fromDatasets(game.categories, 240, r) : [];
+  return pickByLevel([...poolFor(game), ...extra], count, opts.level, r, opts.seen).map((q) => toPlayItem(q, r));
 }
 
 export const QUESTION_COUNT = allQuestions.length;

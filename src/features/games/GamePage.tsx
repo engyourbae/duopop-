@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Badge, Button, Card, EmptyState, Header, useConfirm, useToast } from '../../components/ui';
+import { Badge, Button, Card, EmptyState, Header, Select, useConfirm, useToast } from '../../components/ui';
 import { Icon } from '../../components/Icon';
 import { BADGES, claimDaily, getProgress, recordResult, unlockLevel, useProgress } from '../progression/store';
 import { rankPlayers, xpForResult } from './engine';
-import { gameById, GROUP_LABEL } from './registry';
+import { gameById, GROUP_LABEL, withVariant } from './registry';
+import { TurnMech } from './mechanics/Turn';
+import { AnagramMech, BuzzerMech, TapMech, TypingMech, WordleMech } from './mechanics/Skill';
 import { QuizMech, OrderMech, EstimateMech, CluesMech } from './mechanics/Quiz';
 import { PairMech, PredictMech, LoveLangMech, DeckMech } from './mechanics/Social';
 import { WheelMech, WordChainMech, StoryMech, WordGuessMech } from './mechanics/Party';
@@ -21,6 +23,12 @@ import { useMusic } from '../../hooks/useMusic';
 interface Cfg { count: number; secs: number; counts: number[]; secsOpts: number[] | null }
 export function defaultsFor(g: GameDef): Cfg {
   switch (g.mechanic) {
+    case 'rps': return { count: 5, secs: 0, counts: [3, 5, 7], secsOpts: null };
+    case 'uno': case 'gaple': case 'ladder': case 'wordle': return { count: 1, secs: 0, counts: [1], secsOpts: null };
+    case 'typing': return { count: 1, secs: 45, counts: [1], secsOpts: [30, 45, 60] };
+    case 'tapbattle': return { count: 1, secs: 10, counts: [1], secsOpts: [10, 15, 20] };
+    case 'anagram': return { count: 1, secs: 60, counts: [1], secsOpts: [45, 60, 90] };
+    case 'buzzer': return { count: 8, secs: 0, counts: [5, 8, 12], secsOpts: null };
     case 'memorymatch': return { count: 8, secs: 0, counts: [6, 8, 10], secsOpts: null };
     case 'reflex': return { count: 5, secs: 0, counts: [3, 5, 7], secsOpts: null };
     case 'tictactoe': return { count: 3, secs: 0, counts: [1, 3, 5], secsOpts: null };
@@ -51,6 +59,7 @@ export const MECH: Record<string, (p: MechProps) => ReactElement | null> = {
   mcq: QuizMech, tf: QuizMech, 'chain-tf': QuizMech, era: QuizMech, flag: QuizMech, order: OrderMech, estimate: EstimateMech, clues: CluesMech,
   pair: PairMech, match: PairMech, likely: PairMech, predict: PredictMech, deck: DeckMech, wheel: WheelMech, wordchain: WordChainMech,
   story: StoryMech, wordguess: WordGuessMech, lovelang: LoveLangMech,
+  uno: TurnMech, gaple: TurnMech, ladder: TurnMech, rps: PairMech, wordle: WordleMech, typing: TypingMech, tapbattle: TapMech, anagram: AnagramMech, buzzer: BuzzerMech,
   memorymatch: MemoryMech, reflex: ReflexMech, tictactoe: TicTacToeMech, connect4: Connect4Mech,
   whack: WhackMech, stroop: StroopMech, simon: SimonMech, snake: SnakeMech, flappy: FlappyMech, catch: CatchMech,
 };
@@ -71,6 +80,7 @@ export default function GamePage() {
   const [xpGot, setXpGot] = useState(0);
   const [newBadges, setNewBadges] = useState<string[]>([]);
   const [practice, setPractice] = useState(false);
+  const [variant, setVariant] = useState('');
   const [mode, setMode] = useState<'santai' | 'level' | 'endless'>('santai');
   const [level, setLevel] = useState(1);
   const [levelMsg, setLevelMsg] = useState('');
@@ -81,12 +91,14 @@ export default function GamePage() {
     if (!game) return;
     const base = game.id === 'tim' ? ['Tim A', 'Tim B'] : Array.from({ length: Math.max(game.minPlayers, game.id === 'duel' || game.maxPlayers === 1 ? 1 : game.minPlayers) }, (_, i) => (i === 0 && (me?.handle ? me.displayName : prog.name) ? (me?.handle ? me.displayName : prog.name) : `Pemain ${i + 1}`));
     setNames(base); if (d) setCfg({ count: d.count, secs: d.secs });
-    setPhase('setup'); setOut(null); recorded.current = false;
+    setPhase('setup'); setOut(null); recorded.current = false; setVariant(game.variants?.[0]?.id ?? '');
   }, [game?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!game || !d || !cfg) return <EmptyState icon="search" title="Game tidak ditemukan" action={<Link to="/game"><Button>Lihat semua game</Button></Link>} />;
+  const eg = withVariant(game, variant);
   const daily = game.id === 'harian';
   const quizLike = ['mcq', 'tf', 'era', 'flag'].includes(game.mechanic) && !daily;
-  const passedLv = prog.levels?.[game.id] ?? 0;
+  const lvKey = `${game.id}:${variant}`;
+  const passedLv = prog.levels?.[lvKey] ?? 0;
   const lvSecs = Math.max(8, Math.round(22 - level * 1.5));
   const doneToday = daily && prog.dailyDone === todayKey();
   const start = () => {
@@ -101,7 +113,7 @@ export default function GamePage() {
       let xp = o.xp !== undefined ? Math.max(0, Math.min(100, Math.round(o.xp))) : xpForResult(o.correct, o.total);
       if (quizLike && mode === 'level') {
         const ok = o.total > 0 && o.correct / o.total >= 0.7;
-        if (ok) unlockLevel(game.id, level);
+        if (ok) unlockLevel(lvKey, level);
         setLevelMsg(ok ? `Level ${level} lulus! Level ${Math.min(10, level + 1)} terbuka.` : `Level ${level} belum lulus (butuh minimal 70% benar). Coba lagi!`);
       } else setLevelMsg(quizLike && mode === 'endless' ? `Kamu bertahan sampai ${o.correct} jawaban benar sebelum nyawa habis.` : '');
       if (daily) { if (practice || !claimDaily()) xp = 0; else xp += 30; }
@@ -130,6 +142,7 @@ export default function GamePage() {
                 <button key={n} className={`chip ${names.length === n ? 'on' : ''}`} onClick={() => setNames(Array.from({ length: n }, (_, i) => names[i] ?? `Pemain ${i + 1}`))}>{n}</button>))}
             </div>)}
           {names.map((n, i) => <label key={i} className="field gap"><span>{game.id === 'tim' ? `Nama tim ${i + 1}` : `Nama pemain ${i + 1}`}</span><input value={n} maxLength={20} onChange={(e) => setN(i, e.target.value)} /></label>)}
+          {game.variants && game.variants.length > 1 && (game.variants.length > 6 ? <div className="gap"><Select label="Topik / varian" value={variant} onChange={setVariant} options={game.variants.map((v) => ({ value: v.id, label: v.label }))} /></div> : <div className="row wrap gap"><span className="small">Varian:</span>{game.variants.map((v) => <button key={v.id} className={`chip ${variant === v.id ? 'on' : ''}`} onClick={() => setVariant(v.id)}>{v.label}</button>)}</div>)}
           {quizLike && <div className="row wrap gap"><span className="small">Mode:</span>{([['santai', 'Santai'], ['level', 'Level'], ['endless', 'Tanpa batas']] as const).map(([m, t]) => <button key={m} className={`chip ${mode === m ? 'on' : ''}`} onClick={() => setMode(m)}>{t}</button>)}</div>}
           {quizLike && mode === 'level' && <div className="row wrap gap"><span className="small">Level:</span>{Array.from({ length: 10 }, (_, k) => k + 1).map((l) => <button key={l} className={`chip ${level === l ? 'on' : ''}`} disabled={l > passedLv + 1} onClick={() => setLevel(l)}>{l > passedLv + 1 ? `🔒${l}` : l}</button>)}</div>}
           {quizLike && mode === 'level' && <p className="small muted">Level {level}: 10 soal, waktu {lvSecs} detik. Lulus bila benar ≥ 70%. Makin tinggi, makin sulit.</p>}
@@ -138,7 +151,7 @@ export default function GamePage() {
           {d.secsOpts && !(quizLike && mode !== 'santai') && <div className="row wrap gap"><span className="small">Waktu (detik):</span>{d.secsOpts.map((c) => <button key={c} className={`chip ${cfg.secs === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, secs: c })}>{c}</button>)}</div>}
         </Card>
         <Button size="lg" icon="play" onClick={() => { setNames(names.map((n, i) => n.trim() || `Pemain ${i + 1}`)); start(); }}>{doneToday ? 'Berlatih' : 'Mulai main'}</Button>
-        {game.multiplayer && <Link to={`/lobi?game=${game.id}`}><Button size="lg" variant="soft" icon="users" className="gap">Main online dengan teman{isFirebaseConfigured ? '' : ' (butuh Firebase)'}</Button></Link>}
+        {game.multiplayer && <Link to={`/lobi?game=${game.id}&v=${variant}`}><Button size="lg" variant="soft" icon="users" className="gap">Main online dengan teman{isFirebaseConfigured ? '' : ' (butuh Firebase)'}</Button></Link>}
         <p className="muted small center gap">{game.offline ? 'Mode solo/bergiliran ini bisa dimainkan tanpa internet.' : ''}</p>
       </div>
     );
@@ -148,7 +161,7 @@ export default function GamePage() {
     return (
       <div className="page">
         <Header title={game.title} back={() => { void ask({ title: 'Keluar dari permainan?', text: 'Kemajuan ronde ini tidak disimpan.', ok: 'Keluar', danger: true }).then((y) => { if (y) setPhase('setup'); }); }} />
-        <M key={session.id} game={game} players={names} seed={session.seed} count={quizLike && mode === 'level' ? 10 : cfg.count} secs={quizLike && mode === 'level' ? lvSecs : quizLike && mode === 'endless' ? 15 : cfg.secs || 20} onDone={finish} mode={quizLike ? mode : undefined} level={level} />
+        <M key={session.id} game={eg} players={names} seed={session.seed} count={quizLike && mode === 'level' ? 10 : cfg.count} secs={quizLike && mode === 'level' ? lvSecs : quizLike && mode === 'endless' ? 15 : cfg.secs || 20} onDone={finish} mode={quizLike ? mode : undefined} level={level} />
       </div>
     );
   }

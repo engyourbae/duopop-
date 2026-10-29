@@ -11,6 +11,7 @@ import { GAMES } from '../games/registry';
 import { isFresh, ONLINE_TTL } from '../../utils/presence';
 import { serverNow } from '../../utils/clock';
 import { useProgress } from '../progression/store';
+import { Social } from '../chat/Social';
 import type { Group, GroupInvite } from '../../services/social';
 
 export default function GroupsPage() { return <RequireAuth need="Grup memerlukan akun."><Inner /></RequireAuth>; }
@@ -66,6 +67,7 @@ function Inner() {
         <Card key={g.id} onClick={() => setSel(g)}><div className="row"><div className="avatar">{g.name.slice(0, 1).toUpperCase()}</div><div className="grow"><b>{g.name}</b><div className="small muted">{g.members.length}/{g.max} anggota{g.ownerUid === me.uid ? ' · Pemilik' : ''}</div></div></div></Card>))}
       <Modal open={!!cur} title={cur?.name ?? ''} onClose={() => setSel(null)}>
         {cur && <>
+          <Social scope={{ kind: 'group', id: cur.id }} me={me} title={`Chat ${cur.name}`} floating={false} />
           <p className="muted small center">Kode undangan</p><div className="code">{cur.code}</div>
           <div className="row"><Button size="sm" variant="soft" className="grow" icon="share" onClick={() => setShareOpen(true)}>Bagikan</Button>
             {owner && <Button size="sm" variant="ghost" className="grow" onClick={() => void run((s) => s.regenerateCode(cur), 'Kode baru dibuat')}>Kode baru</Button>}</div>

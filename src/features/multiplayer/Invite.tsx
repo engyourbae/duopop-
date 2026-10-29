@@ -6,6 +6,7 @@ import { useProgress } from '../progression/store';
 import { gameById } from '../games/registry';
 import { explainError } from '../../utils/errors';
 import { initial, isFresh, ONLINE_TTL } from '../../utils/presence';
+import { alertInvite } from '../../utils/notify';
 import { serverNow } from '../../utils/clock';
 import type { PlayInvite } from '../../services/online';
 import type { GroupInvite } from '../../services/social';
@@ -52,7 +53,7 @@ export function FriendInviter({ code, gameId }: { code: string; gameId: string }
     <div>{denied && <p className="field-err">Status online tidak terbaca (ditolak aturan keamanan). Publish firestore.rules terbaru di Firebase, lalu muat ulang.</p>}{friends.map((f) => (
       <div key={f.uid} className="list-item"><div className="avatar">{initial(f.handle || f.name)}</div>
         <div className="grow"><b>@{f.handle || f.name.replace(/^@/, '')}</b><div className="small muted">{f.online ? <><span className="online-dot" />Online</> : 'Offline'}</div></div>
-        <Button size="sm" disabled={!f.online || sent[f.uid]} onClick={() => void invite(f)}>{sent[f.uid] ? 'Terkirim' : 'Undang'}</Button></div>))}</div>
+        <Button size="sm" disabled={sent[f.uid]} onClick={() => void invite(f)}>{sent[f.uid] ? 'Terkirim' : f.online ? 'Undang' : 'Undang (offline)'}</Button></div>))}</div>
   );
 }
 
@@ -65,6 +66,9 @@ export function GlobalWatchers() {
   const [play, setPlay] = useState<PlayInvite | null>(null);
   const [grp, setGrp] = useState<GroupInvite | null>(null);
   const handled = useRef<Set<string>>(new Set());
+  const grpRef = useRef<GroupInvite | null>(null);
+  const playRef = useRef<PlayInvite | null>(null);
+  playRef.current = play; grpRef.current = grp;
   const showOnline = prog.settings.showOnline !== false;
   useEffect(() => {
     if (!configured || !me?.handle) return;
@@ -82,18 +86,21 @@ export function GlobalWatchers() {
     void Promise.all([import('../../services/online'), import('../../services/social')]).then(([o, s]) => {
       if (dead) return;
       o1 = o.watchPlayInvites(me.uid, (list) => {
-        const fresh = list.filter((i) => Date.now() - i.at < 180000 && !handled.current.has(i.id)).sort((a, b) => b.at - a.at)[0];
-        list.filter((i) => Date.now() - i.at >= 180000).forEach((i) => void o.removePlayInvite(i.id).catch(() => undefined));
+        // kunci = id + waktu, supaya undangan baru dari pengirim yang sama tetap muncul (id dokumen sama untuk pasangan pengirim-penerima)
+        const key = (i: PlayInvite) => `${i.id}:${i.at}`;
+        const fresh = list.filter((i) => serverNow() - i.at < 600000 && !handled.current.has(key(i))).sort((a, b) => b.at - a.at)[0];
+        list.filter((i) => serverNow() - i.at >= 600000).forEach((i) => void o.removePlayInvite(i.id).catch(() => undefined));
+        if (fresh && fresh.id !== playRef.current?.id) alertInvite(`${fresh.fromName} mengajakmu main`);
         setPlay(fresh ?? null);
       });
-      o2 = s.watchInvites(me.uid, (list) => setGrp(list.find((i) => !handled.current.has(i.id)) ?? null));
+      o2 = s.watchInvites(me.uid, (list) => { const g = list.find((i) => !handled.current.has(i.id)) ?? null; if (g && g.id !== grpRef.current?.id) alertInvite(`${g.fromName} mengundangmu ke grup ${g.groupName}`); setGrp(g); });
     }).catch(() => undefined);
     return () => { dead = true; o1?.(); o2?.(); };
   }, [configured, me?.uid, me?.handle]);
   if (!configured || !me?.handle) return null;
   const respondPlay = async (join: boolean) => {
     if (!play) return;
-    handled.current.add(play.id);
+    handled.current.add(`${play.id}:${play.at}`);
     const inv = play; setPlay(null);
     try {
       const [o, r] = await Promise.all([import('../../services/online'), import('../../services/rooms')]);

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Button, Card, EmptyState, Field, Header, Tabs, useConfirm, useToast } from '../../components/ui';
 import { explainError } from '../../utils/errors';
 import { initial, isFresh, ONLINE_TTL } from '../../utils/presence';
+import { Social } from '../chat/Social';
+import { dmId } from '../../services/chat';
 import { serverNow } from '../../utils/clock';
 import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
@@ -45,7 +47,7 @@ function Inner() {
     <div className="page"><Header title="Teman" />
       <Tabs tabs={[{ id: 'teman', label: `Teman (${friends.length})` }, { id: 'permintaan', label: `Permintaan (${inc.length})` }, { id: 'cari', label: 'Cari' }]} value={tab} onChange={setTab} />
       {tab === 'teman' && (friends.length === 0 ? <EmptyState icon="users" title="Belum ada teman" text="Cari teman lewat nama penggunanya." action={<Button onClick={() => setTab('cari')}>Cari teman</Button>} /> :
-        friends.map((f) => <div key={f.uid} className="list-item"><div className="avatar">{initial(f.handle || f.name)}</div><div className="grow"><b>@{f.handle || f.name.replace(/^@/, '')}</b><div className="small muted">{isFresh(pres[f.uid], serverNow(), ONLINE_TTL) ? <><span className="online-dot" />Online</> : 'Offline'}</div></div><Button size="sm" variant="ghost" onClick={() => { void ask({ title: `Hapus @${f.handle || f.name.replace(/^@/, '')} dari teman?`, ok: 'Hapus', danger: true }).then((y) => { if (y) void run((s) => s.removeFriend(me.uid, f.uid), 'Teman dihapus'); }); }}>Hapus</Button></div>))}
+        friends.map((f) => <div key={f.uid} className="list-item"><div className="avatar">{initial(f.handle || f.name)}</div><div className="grow"><b>@{f.handle || f.name.replace(/^@/, '')}</b><div className="small muted">{isFresh(pres[f.uid], serverNow(), ONLINE_TTL) ? <><span className="online-dot" />Online</> : 'Offline'}</div></div><Social scope={{ kind: 'dm', id: dmId(me.uid, f.uid) }} me={me} title={`Chat @${f.handle || ''}`} floating={false} /><Button size="sm" variant="ghost" onClick={() => { void ask({ title: `Hapus @${f.handle || f.name.replace(/^@/, '')} dari teman?`, ok: 'Hapus', danger: true }).then((y) => { if (y) void run((s) => s.removeFriend(me.uid, f.uid), 'Teman dihapus'); }); }}>Hapus</Button></div>))}
       {tab === 'permintaan' && <>
         <h3>Masuk</h3>{inc.length === 0 && <p className="muted">Tidak ada permintaan.</p>}
         {inc.map((r) => <div key={r.id} className="list-item"><div className="grow"><b>@{r.fromHandle}</b></div>

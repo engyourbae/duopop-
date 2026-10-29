@@ -4,19 +4,29 @@ import { Button, Card, ErrorState, Header, Spinner, useToast } from '../../compo
 import { ShareSheet } from '../../components/Share';
 import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
-import { gameById } from '../games/registry';
+import { gameById, withVariant } from '../games/registry';
+import { TurnBoard, TURN_ENGINES } from '../games/mechanics/Turn';
+import { replayTurns } from '../games/engines/types';
 import { MECH } from '../games/GamePage';
 import { recordResult } from '../progression/store';
 import { buildRounds, roomCapacity, roomKind, roundComplete, scoreRounds, type RoomRound } from './rounds';
 import { replayBoard } from './board';
 import { FriendInviter } from './Invite';
+import { Social } from '../chat/Social';
 import { LETTERS, type MechProps } from '../games/mechanics/types';
 import type { Room, RoomAnswer, RoomScore } from '../../services/rooms';
 import { useMusic } from '../../hooks/useMusic';
 import { explainError } from '../../utils/errors';
 import { sfx } from '../../utils/sound';
 
-export default function RoomPage() { return <RequireAuth need="Ruang online memerlukan akun."><RoomInner /></RequireAuth>; }
+export default function RoomPage() { return <RequireAuth need="Ruang online memerlukan akun."><RoomInner /><RoomSocialHost /></RequireAuth>; }
+/** Chat + reaksi sementara untuk semua tampilan ruang. */
+function RoomSocialHost() {
+  const { code = '' } = useParams();
+  const { me } = useAuth();
+  if (!me || !code) return null;
+  return <><div style={{ height: 64 }} /><Social scope={{ kind: 'room', id: code.toUpperCase() }} me={me} title={`Chat ruang ${code.toUpperCase()}`} /></>;
+}
 const svc = () => import('../../services/rooms');
 
 function RoomInner() {
@@ -31,17 +41,20 @@ function RoomInner() {
   const [now, setNow] = useState(Date.now());
   const [shareOpen, setShareOpen] = useState(false);
   const saved = useRef(false);
+  const lastRoom = useRef<Room | null>(null);
+  const frozen = useRef<Record<string, number> | null>(null);
   useEffect(() => {
     let o1: (() => void) | undefined, o2: (() => void) | undefined, o3: (() => void) | undefined, dead = false;
     void svc().then((r) => {
       if (dead) return;
-      o1 = r.watchRoom(code, setRoom, () => setErr('Tidak bisa membuka ruang. Kamu mungkin belum bergabung atau koneksi terputus.'));
+      o1 = r.watchRoom(code, (rm) => { if (rm) { lastRoom.current = rm; setRoom(rm); } else if (lastRoom.current?.status === 'finished') { /* ruang dibersihkan host; hasil tetap ditampilkan */ } else setRoom(null); }, () => setErr('Tidak bisa membuka ruang. Kamu mungkin belum bergabung atau koneksi terputus.'));
       o2 = r.watchAnswers(code, setAnswers); o3 = r.watchScores(code, setScoreDocs);
     }).catch(() => setErr('Gagal memuat layanan online.'));
     return () => { dead = true; o1?.(); o2?.(); o3?.(); };
   }, [code]);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, []);
-  const game = room ? gameById(room.gameId) : undefined;
+  const baseGame = room ? gameById(room.gameId) : undefined;
+  const game = baseGame ? withVariant(baseGame, room?.variant) : undefined;
   const kind = game ? roomKind(game) : 'rounds';
   const uids = useMemo(() => Object.keys(room?.players ?? {}).sort(), [room?.players]);
   const names = uids.map((u) => room?.players[u]?.name ?? '?');
@@ -53,13 +66,24 @@ function RoomInner() {
 
   // ---- skor per jenis ----
   const board = useMemo(() => (game && kind === 'board' ? replayBoard(game.mechanic as 'tictactoe' | 'connect4', [...lite].sort((a, b) => a.round - b.round)) : null), [lite, game, kind]);
+  const turn = useMemo(() => (game && kind === 'turn' && room ? replayTurns(TURN_ENGINES[game.mechanic] as never, uids, room.seed, [...lite].sort((a, b) => a.round - b.round || (a.atMs ?? 0) - (b.atMs ?? 0))) : null), [lite, game, kind, room?.seed, uids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const turnWin = turn && game ? (TURN_ENGINES[game.mechanic] as unknown as { winner: (s: unknown) => number }).winner(turn.s) : -1;
   const scores: Record<string, number> = useMemo(() => {
     if (!room) return {};
+    if (kind === 'turn') return Object.fromEntries(uids.map((u, i) => [u, turnWin === i ? 1 : 0]));
     if (kind === 'rounds') return scoreRounds(rounds, lite, startsMs, room.secs, uids);
     if (kind === 'board') return Object.fromEntries(uids.map((u, i) => [u, board?.winner === i + 1 ? 1 : 0]));
     return Object.fromEntries(uids.map((u) => [u, scoreDocs.find((s) => s.uid === u)?.score ?? 0]));
-  }, [room, kind, rounds, lite, startsMs, uids, board, scoreDocs]);
+  }, [room, kind, rounds, lite, startsMs, uids, board, scoreDocs, turnWin]);
 
+  const finalScores = room?.status === 'finished' ? (frozen.current ?? (Object.keys(scores).length ? (frozen.current = scores) : scores)) : scores;
+  // Host membersihkan ruang 45 dtk setelah selesai (atau saat keluar dari layar hasil)
+  useEffect(() => {
+    if (!room || room.status !== 'finished' || !isHost) return;
+    const run = () => { void svc().then((r) => r.cleanupRoom(code)).catch(() => undefined); };
+    const t = setTimeout(run, 45000);
+    return () => { clearTimeout(t); run(); };
+  }, [room?.status, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
   // ---- otomatis: mulai ruang cepat, selesaikan papan/adu skor ----
   useEffect(() => {
     if (!room || !isHost || room.status !== 'lobby' || !room.auto || uids.length < 2) return;
@@ -69,8 +93,8 @@ function RoomInner() {
   const raceAllIn = kind === 'race' && uids.length > 0 && uids.every((u) => scoreDocs.some((s) => s.uid === u));
   useEffect(() => {
     if (!room || !isHost || room.status !== 'playing') return;
-    if ((kind === 'board' && board?.over) || raceAllIn) { const t = setTimeout(() => { void svc().then((r) => r.finishRoom(code)).catch(() => undefined); }, 2200); return () => clearTimeout(t); }
-  }, [board?.over, raceAllIn, room?.status, isHost, kind]); // eslint-disable-line react-hooks/exhaustive-deps
+    if ((kind === 'board' && board?.over) || (kind === 'turn' && turnWin >= 0) || raceAllIn) { const t = setTimeout(() => { void svc().then((r) => r.finishRoom(code)).catch(() => undefined); }, 2200); return () => clearTimeout(t); }
+  }, [board?.over, turnWin, raceAllIn, room?.status, isHost, kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- ronde sinkron ----
   const round = room?.round ?? 0;
@@ -94,8 +118,8 @@ function RoomInner() {
   useEffect(() => {
     if (!room || room.status !== 'finished' || !me || saved.current) return;
     saved.current = true;
-    const ranked = uids.slice().sort((a, b) => (scores[b] ?? 0) - (scores[a] ?? 0)), rank = ranked.indexOf(me.uid), win = rank === 0 && (scores[me.uid] ?? 0) > 0;
-    recordResult({ sessionId: `room-${room.code}-${room.seed}`, gameId: room.gameId, at: Date.now(), players: uids.map((u) => ({ name: room.players[u]?.name ?? '?', score: scores[u] ?? 0 })), correct: win ? 1 : 0, total: 1, xp: Math.min(100, 30 + (rank === 0 ? 40 : rank === 1 ? 20 : 10)) });
+    const ranked = uids.slice().sort((a, b) => (finalScores[b] ?? 0) - (finalScores[a] ?? 0)), rank = ranked.indexOf(me.uid), win = rank === 0 && (finalScores[me.uid] ?? 0) > 0;
+    recordResult({ sessionId: `room-${room.code}-${room.seed}`, gameId: room.gameId, at: Date.now(), players: uids.map((u) => ({ name: room.players[u]?.name ?? '?', score: finalScores[u] ?? 0 })), correct: win ? 1 : 0, total: 1, xp: Math.min(100, 30 + (rank === 0 ? 40 : rank === 1 ? 20 : 10)) });
   }, [room?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (err) return <ErrorState text={err} onRetry={() => nav('/lobi')} />;
@@ -103,7 +127,7 @@ function RoomInner() {
   if (room === null || !me || !game) return <ErrorState text="Ruang tidak ditemukan atau sudah dihapus." onRetry={() => nav('/lobi')} />;
   if (!room.players[me.uid]) return <ErrorState text="Kamu belum bergabung di ruang ini. Buka Lobi lalu masukkan kodenya." onRetry={() => nav(`/lobi/${code}`)} />;
   const link = `${location.origin}${location.pathname}#/lobi/${room.code}`;
-  const ranked = uids.map((u) => ({ uid: u, name: room.players[u]?.name ?? '?', score: scores[u] ?? 0 })).sort((a, b) => b.score - a.score);
+  const ranked = uids.map((u) => ({ uid: u, name: room.players[u]?.name ?? '?', score: finalScores[u] ?? 0 })).sort((a, b) => b.score - a.score);
   const act = async (f: () => Promise<unknown>) => { try { await f(); } catch (e) { toast(explainError(e), 'err'); } };
   const myIdx = uids.indexOf(me.uid);
 
@@ -148,6 +172,12 @@ function RoomInner() {
       <div className="page"><Header title="Menunggu pemain lain" /><p className="muted center">Skormu terkirim: <b>{mine?.score ?? 0}</b></p>
         {ranked.map((p) => <div key={p.uid} className="score-row"><span>{p.name}</span><span>{scoreDocs.some((s) => s.uid === p.uid) ? p.score : 'bermain…'}</span></div>)}
         {isHost && <Button className="gap" variant="soft" onClick={() => void act(async () => (await svc()).finishRoom(code))}>Akhiri sekarang</Button>}</div>);
+  }
+  if (kind === 'turn' && turn) {
+    const eng = TURN_ENGINES[game.mechanic] as unknown as { actor: (s: unknown) => number; apply: (s: unknown, m: number) => unknown };
+    const active = eng.actor(turn.s) === myIdx && turnWin < 0;
+    const onMove = (m: number) => { if (!eng.apply(turn.s, m)) { sfx.wrong(); return; } void act(async () => (await svc()).submitAnswer(code, me.uid, turn.count, m)); };
+    return <div className="page"><Header title={game.title} /><TurnBoard kind={game.mechanic} state={turn.s} viewer={myIdx} names={names} onMove={onMove} active={active} /></div>;
   }
   if (kind === 'board' && board) {
     const turnUid = uids[board.moves % 2], myTurn = turnUid === me.uid && !board.over;

@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Card, Field, Header, Select, useToast } from '../../components/ui';
 import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
-import { GAMES } from '../games/registry';
+import { GAMES, withVariant } from '../games/registry';
 import { defaultsFor } from '../games/GamePage';
 import { useProgress } from '../progression/store';
 import { useOnline } from '../../hooks/useOnline';
@@ -65,20 +65,21 @@ function LobbyInner() {
   useMusic('lobi');
   const first = GAMES.find((g) => g.id === sp.get('game')) ? (sp.get('game') as string) : 'duel';
   const [gid, setGid] = useState(first);
+  const [variant, setVariant] = useState(sp.get('v') ?? '');
   const [searching, setSearching] = useState(false);
   const [showCode, setShowCode] = useState(!!codeParam);
   const [code, setCode] = useState((codeParam ?? '').toUpperCase());
   const [busy, setBusy] = useState(false);
   const game = GAMES.find((g) => g.id === gid) ?? GAMES[0];
-  const d = game ? defaultsFor(game) : null;
+  const d = game ? defaultsFor(withVariant(game, variant)) : null;
   const [count, setCount] = useState(d?.count ?? 10);
   const [secs, setSecs] = useState((d?.secs ?? 0) || 20);
-  useEffect(() => { const dd = game ? defaultsFor(game) : null; if (dd) { setCount(dd.count); setSecs(dd.secs || 20); } }, [gid]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const dd = game ? defaultsFor(game) : null; if (dd) { setCount(dd.count); setSecs(dd.secs || 20); } if (!game?.variants?.some((v) => v.id === variant)) setVariant(game?.variants?.[0]?.id ?? ''); }, [gid]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const f = () => setSearching(true); window.addEventListener('duopop:search-again', f); return () => window.removeEventListener('duopop:search-again', f); }, []);
   if (!me || !game || !d) return null;
   const createFriends = async () => {
     setBusy(true);
-    try { const r = await import('../../services/rooms'); const c = await r.createRoom(me, gid, count, secs, prog.settings.pause ?? 6); nav(`/ruang/${c}`); }
+    try { const r = await import('../../services/rooms'); const c = await r.createRoom(me, gid, count, secs, prog.settings.pause ?? 6, variant); nav(`/ruang/${c}`); }
     catch (e) { toast(explainError(e), 'err'); } finally { setBusy(false); }
   };
   const join = async () => {
@@ -93,9 +94,10 @@ function LobbyInner() {
     <div className="page"><Header title="Main Online" back={() => nav(-1)} />
       {!online && <div className="expl bad">Kamu sedang offline. Main online membutuhkan koneksi real-time.</div>}
       <Select label="Pilih game" value={gid} onChange={setGid} options={GAMES.map((g) => ({ value: g.id, label: g.title }))} />
+      {game.variants && game.variants.length > 1 && <Select label="Topik / varian" value={variant} onChange={setVariant} options={game.variants.map((v) => ({ value: v.id, label: v.label }))} />}
       {d.counts.length > 1 && <div className="row wrap"><span className="small">{game.mechanic === 'memorymatch' ? 'Pasangan:' : 'Ronde/soal:'}</span>{d.counts.map((c) => <button key={c} className={`chip ${count === c ? 'on' : ''}`} onClick={() => setCount(c)}>{c}</button>)}</div>}
       {d.secsOpts && <div className="row wrap gap"><span className="small">Detik:</span>{d.secsOpts.map((c) => <button key={c} className={`chip ${secs === c ? 'on' : ''}`} onClick={() => setSecs(c)}>{c}</button>)}</div>}
-      {searching ? <div className="gap"><Searching gameId={gid} count={count} secs={secs} onCancel={() => setSearching(false)} /></div> : (
+      {searching ? <div className="gap"><Searching gameId={variant ? `${gid}#${variant}` : gid} count={count} secs={secs} onCancel={() => setSearching(false)} /></div> : (
         <div className="gap">
           <Card><h3>Cari lawan acak</h3><p className="muted small">Masuk antrean dan langsung dipertemukan dengan pemain online yang mencari game yang sama. Tanpa kode.</p>
             <Button size="lg" icon="users" onClick={() => setSearching(true)} disabled={!online}>Cari lawan sekarang</Button></Card>

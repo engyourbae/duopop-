@@ -6,7 +6,7 @@ import { STROOP } from '../logic';
 import type { MechProps, Outcome } from './types';
 
 /** Menjalankan game arkade satu pemain secara bergiliran untuk 1–4 pemain, lalu merangkum skor. */
-function TurnRunner({ players, hint, xpPer, render, onDone }: { players: string[]; hint: string; xpPer: number; render: (end: (score: number) => void) => ReactNode; onDone: (o: Outcome) => void }) {
+export function TurnRunner({ players, hint, xpPer, render, onDone }: { players: string[]; hint: string; xpPer: number; render: (end: (score: number) => void, idx: number) => ReactNode; onDone: (o: Outcome) => void }) {
   const [i, setI] = useState(0);
   const [phase, setPhase] = useState<'ready' | 'play' | 'after'>('ready');
   const [scores, setScores] = useState<number[]>([]);
@@ -22,7 +22,7 @@ function TurnRunner({ players, hint, xpPer, render, onDone }: { players: string[
       {i + 1 < players.length ? <Button size="lg" onClick={() => { setI(i + 1); setPhase('ready'); }}>Pemain berikutnya</Button>
         : <Button size="lg" onClick={() => { const best = Math.max(...scores); onDone({ scores, correct: players.length, total: players.length, xp: Math.min(100, Math.round(best * xpPer) + 10), headline: `Skor tertinggi: ${best}` }); }}>Lihat hasil</Button>}
       {players.length > 1 && scores.map((s, k) => <div key={k} className="score-row"><span>{players[k]}</span><span>{s}</span></div>)}</div>);
-  return <div key={`p${i}`}>{render(end)}</div>;
+  return <div key={`p${i}`}>{render(end, i)}</div>;
 }
 
 const cssVar = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#000';

@@ -3,16 +3,18 @@ import { answerPoints, buildItems } from '../games/engine';
 import { challenges, rapidFire, storyStarters, wheelSlices, wordPairs } from '../../data/content/party';
 import { chemistryBank, deepTalk, knowMe, likelyBank, matchBank, memoryLane, thisOrThat, truthDare, wouldYouRather } from '../../data/content/couples';
 import { rng, seedFrom, shuffle } from '../../utils/rng';
+import { rpsPoints } from '../games/logic';
 
 /** Cara tiap game dimainkan online. rounds = ronde sinkron; board = giliran papan; race = semua main sendiri-sendiri lalu adu skor. */
-export type RoomKind = 'rounds' | 'board' | 'race';
-export type Scoring = 'quiz' | 'plurality' | 'most' | 'predict' | 'actorDone' | 'text' | 'wordchain';
-const ROUND_MECHS = ['mcq', 'tf', 'era', 'flag', 'pair', 'match', 'likely', 'predict', 'deck', 'wheel', 'story', 'wordchain', 'wordguess'];
+export type RoomKind = 'rounds' | 'board' | 'turn' | 'race';
+export type Scoring = 'quiz' | 'plurality' | 'most' | 'predict' | 'actorDone' | 'text' | 'wordchain' | 'rps';
+const ROUND_MECHS = ['mcq', 'buzzer', 'rps', 'tf', 'era', 'flag', 'pair', 'match', 'likely', 'predict', 'deck', 'wheel', 'story', 'wordchain', 'wordguess'];
 export function roomKind(g: GameDef): RoomKind {
   if (g.mechanic === 'tictactoe' || g.mechanic === 'connect4') return 'board';
+  if (g.mechanic === 'uno' || g.mechanic === 'gaple' || g.mechanic === 'ladder') return 'turn';
   return ROUND_MECHS.includes(g.mechanic) ? 'rounds' : 'race';
 }
-export const roomCapacity = (g: GameDef) => (roomKind(g) === 'board' ? 2 : 8);
+export const roomCapacity = (g: GameDef) => (roomKind(g) === 'board' ? 2 : roomKind(g) === 'turn' ? 4 : 8);
 
 export interface RoomRound {
   /** all = semua pemain menjawab; actor = hanya pemain giliran yang menjawab */
@@ -26,7 +28,9 @@ export function buildRounds(game: GameDef, seed: string, count: number, names: s
   const n = Math.max(1, names.length), r = rng(seedFrom(seed));
   const act = (i: number) => i % n;
   switch (game.mechanic) {
-    case 'mcq': case 'tf': case 'era': case 'flag':
+    case 'rps':
+      return Array.from({ length: count }, (_, i) => ({ kind: 'all' as const, actor: act(i), scoring: 'rps' as const, prompt: 'Pilih senjatamu!', options: ['✊ Batu', '✌️ Gunting', '✋ Kertas'] }));
+    case 'mcq': case 'buzzer': case 'tf': case 'era': case 'flag':
       return buildItems(game, count, seed).map((it, i) => ({ kind: 'all', actor: act(i), scoring: 'quiz', prompt: it.prompt, options: it.options, correct: it.correct, explanation: it.explanation, big: it.big }));
     case 'pair': {
       const bank = game.bank === 'wouldYouRather' ? wouldYouRather : thisOrThat;
@@ -83,6 +87,7 @@ export function scoreRounds(rounds: RoomRound[], answers: AnsLite[], startsMs: R
     const start = startsMs[String(i)] ?? 0;
     switch (rd.scoring) {
       case 'quiz': list.forEach((a) => { out[a.uid] = (out[a.uid] ?? 0) + answerPoints(a.choice === rd.correct, 1 - Math.max(0, ((a.atMs ?? start) - start) / 1000) / secs); }); break;
+      case 'rps': { const pts = rpsPoints(list.map((a) => a.choice)); list.forEach((a, k) => { out[a.uid] = (out[a.uid] ?? 0) + (pts[k] ?? 0); }); break; }
       case 'plurality': {
         const t = tally(list.map((a) => a.choice)), max = Math.max(0, ...t.values());
         if (list.length > 1 && max === 1) break;

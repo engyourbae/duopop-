@@ -29,7 +29,7 @@ export const THEMES = [
 const KEY = 'duopop:v1';
 const fresh = (): Progress => ({
   name: '', xp: 0, xpToday: { date: todayKey(), amount: 0 }, history: [], seen: [], badges: [], streak: { last: null, count: 0, best: 0 },
-  dailyDone: null, seenQ: [], levels: {}, onboarded: false, theme: 'biru', settings: { music: true, musicVol: 0.55, pause: 6, sound: true, animations: true, theme: 'sistem', shareProfile: true, showOnline: true },
+  dailyDone: null, seenQ: [], levels: {}, onboarded: false, theme: 'biru', settings: { music: true, musicVol: 0.7, pause: 6, sound: true, animations: true, theme: 'sistem', shareProfile: true, showOnline: true },
 });
 function load(): Progress {
   try { const raw = localStorage.getItem(KEY); if (raw) return { ...fresh(), ...(JSON.parse(raw) as Partial<Progress>) }; } catch { /* abaikan */ }

@@ -6,6 +6,7 @@ import { rng, seedFrom, shuffle } from '../../../utils/rng';
 import { chemistryBank, knowMe, likelyBank, loveLangs, loveQuiz, matchBank, truthDare, memoryLane, deepTalk, thisOrThat, wouldYouRather, type LoveKey } from '../../../data/content/couples';
 import { rapidFire, challenges } from '../../../data/content/party';
 import { Scoreboard } from './Quiz';
+import { rpsPoints } from '../logic';
 import { LETTERS, type MechProps } from './types';
 
 function Cover({ name, onGo, hint }: { name: string; onGo: () => void; hint?: string }) {
@@ -34,6 +35,7 @@ export function PairMech({ game, players, seed, count, onDone }: MechProps) {
   const mode = game.mechanic;
   const rounds = useMemo(() => {
     const r = rng(seedFrom(seed));
+    if (mode === 'rps') return Array.from({ length: count }, () => ({ q: 'Pilih senjatamu!', o: ['✊ Batu', '✌️ Gunting', '✋ Kertas'] }));
     if (mode === 'likely') return shuffle(likelyBank, r).slice(0, count).map((t) => ({ q: `Siapa yang paling mungkin ${t}?`, o: players }));
     if (mode === 'match') return shuffle(game.bank === 'chemistryBank' ? chemistryBank : matchBank, r).slice(0, count);
     const bank = game.bank === 'wouldYouRather' ? wouldYouRather : thisOrThat;
@@ -49,7 +51,7 @@ export function PairMech({ game, players, seed, count, onDone }: MechProps) {
   if (!q) return null;
   const revealing = picks.length === players.length;
   const choose = (c: number) => { setPicks([...picks, c]); setVoter(voter + 1); setCovered(true); };
-  const pts = revealing ? (mode === 'likely' ? (() => { const t = players.map((_, k) => picks.filter((p) => p === k).length); const m = Math.max(...t); return t.map((n) => (n === m ? 1 : 0)); })() : pluralityPoints(picks)) : [];
+  const pts = revealing ? (mode === 'rps' ? rpsPoints(picks) : mode === 'likely' ? (() => { const t = players.map((_, k) => picks.filter((p) => p === k).length); const m = Math.max(...t); return t.map((n) => (n === m ? 1 : 0)); })() : pluralityPoints(picks)) : [];
   const allSame = revealing && picks.every((p) => p === picks[0]);
   const next = () => {
     const ns = scores.map((v, k) => v + (pts[k] ?? 0));

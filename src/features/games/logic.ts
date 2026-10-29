@@ -5,6 +5,9 @@ export function tttWinner(b: readonly Cell[]): { winner: 1 | 2 | 0; line: readon
   for (const l of LINES) { const v = b[l[0]] as Cell; if (v && v === b[l[1]] && v === b[l[2]]) return { winner: v, line: l }; }
   return { winner: 0, line: [] };
 }
+/** Suit: 0 batu, 1 gunting, 2 kertas. */
+export const beats = (x: number, y: number) => (x - y + 3) % 3 === 2;
+export const rpsPoints = (picks: number[]) => picks.map((a) => picks.filter((b) => beats(a, b)).length);
 export const C4_COLS = 7, C4_ROWS = 6;
 export const emptyC4 = (): Cell[] => Array(C4_COLS * C4_ROWS).fill(0) as Cell[];
 /** Jatuhkan cakram di kolom; mengembalikan indeks sel atau -1 bila kolom penuh. Indeks = baris*7+kolom, baris 0 di atas. */
