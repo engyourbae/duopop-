@@ -9,7 +9,8 @@ import { useAuth } from '../features/auth/AuthContext';
 import { isFirebaseConfigured } from '../lib/firebase/config';
 import { todayKey } from '../utils/rng';
 import { useOnline } from '../hooks/useOnline';
-import { QUESTION_COUNT } from '../features/games/engine';
+import { allQuestions } from '../data/questions';
+import { loadedPacks } from '../data/questions/packs';
 import { initial } from '../utils/presence';
 import type { GameDef, GameGroup } from '../types';
 
@@ -51,7 +52,7 @@ export function Home() {
   const li = levelInfo(p.xp);
   const doneToday = p.dailyDone === todayKey();
   const core = GAMES.filter((g) => g.core);
-  const rec = GAMES.filter((g) => !g.core && g.group !== 'arkade').filter((_, i) => (i + new Date().getDate()) % 4 === 0).slice(0, 4);
+  const rec = GAMES.filter((g) => !g.core && g.group !== 'arkade' && g.group !== 'kartu' && g.id !== 'harian').filter((_, i) => (i + new Date().getDate()) % 4 === 0).slice(0, 4);
   return (
     <div className="page">
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 16 }}><Logo /><Link to="/notifikasi" className="icon-btn" aria-label="Notifikasi"><Icon name="bell" /></Link></div>
@@ -61,6 +62,8 @@ export function Home() {
       <div className="grid">{core.map((g) => <GameCard key={g.id} g={g} />)}</div>
       <h2 className="gap">Arkade &amp; aksi</h2>
       <div className="grid">{GAMES.filter((g) => g.group === 'arkade').slice(0, 4).map((g) => <GameCard key={g.id} g={g} />)}</div>
+      <h2 className="gap">Kartu &amp; papan</h2>
+      <div className="grid">{GAMES.filter((g) => g.group === 'kartu').map((g) => <GameCard key={g.id} g={g} />)}</div>
       <h2 className="gap">Rekomendasi hari ini</h2>
       <div className="grid">{rec.map((g) => <GameCard key={g.id} g={g} />)}</div>
       <Link to="/game"><Button variant="soft" size="lg" className="gap">Lihat semua {GAMES.length} game</Button></Link>
@@ -74,7 +77,7 @@ export function Games() {
   const list = GAMES.filter((g) => (tab === 'semua' || g.group === tab) && g.title.toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="page"><Header title="Game" />
-      <Tabs tabs={[{ id: 'semua', label: 'Semua' }, ...(['pasangan', 'pengetahuan', 'grup', 'arkade'] as GameGroup[]).map((id) => ({ id, label: GROUP_LABEL[id] }))]} value={tab} onChange={setTab} />
+      <Tabs tabs={[{ id: 'semua', label: 'Semua' }, ...(['pasangan', 'pengetahuan', 'grup', 'arkade', 'kartu'] as GameGroup[]).map((id) => ({ id, label: GROUP_LABEL[id] }))]} value={tab} onChange={setTab} />
       <input className="input" placeholder="Cari game…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Cari game" style={{ marginBottom: 12 }} />
       {list.length === 0 ? <EmptyState icon="search" title="Tidak ada game" text="Coba kata kunci lain." /> : <div className="grid">{list.map((g) => <GameCard key={g.id} g={g} />)}</div>}
     </div>
@@ -163,7 +166,7 @@ export function Settings() {
         <div className="row wrap gap">{(['sistem', 'terang', 'gelap'] as const).map((t) => <button key={t} className={`chip ${s.theme === t ? 'on' : ''}`} onClick={() => patchSettings({ theme: t })}>Tema {t}</button>)}</div>
         <Row label="Musik latar" k="music" />
         <h3 className="gap">Volume musik</h3>
-        <div className="row wrap gap">{[[0.3, 'Pelan'], [0.55, 'Sedang'], [1, 'Keras']].map(([v, t]) => <button key={String(v)} className={`chip ${Math.abs((s.musicVol ?? 0.55) - (v as number)) < 0.05 ? 'on' : ''}`} onClick={() => { patchSettings({ musicVol: v as number }); }}>{String(t)}</button>)}</div><Row label="Efek suara" k="sound" />
+        <div className="row wrap gap">{[[0.35, 'Pelan'], [0.7, 'Sedang'], [1, 'Keras']].map(([v, t]) => <button key={String(v)} className={`chip ${Math.abs((s.musicVol ?? 0.7) - (v as number)) < 0.05 ? 'on' : ''}`} onClick={() => { patchSettings({ musicVol: v as number }); }}>{String(t)}</button>)}</div><Row label="Efek suara" k="sound" />
         <h3 className="gap">Jeda penjelasan setelah menjawab</h3>
         <div className="row wrap gap">{[4, 6, 10, 0].map((v) => <button key={v} className={`chip ${(s.pause ?? 6) === v ? 'on' : ''}`} onClick={() => patchSettings({ pause: v })}>{v === 0 ? 'Manual' : `${v} detik`}</button>)}</div><Row label="Animasi" k="animations" /></Card>
       <Card><h3>Privasi</h3><Row label="Bisa ditemukan lewat pencarian teman" k="shareProfile" /><Row label="Tampilkan status online" k="showOnline" />
@@ -179,7 +182,7 @@ export function Help() {
     <div className="page"><Header title="Bantuan" back={() => history.back()} />
       <div className="center gap"><Logo size={64} /><p className="muted">Versi 1.1.0 · Play Closer, Know More</p></div>
       <Card><h3>Cara kerja</h3><p>Game <b>solo/bergiliran</b> dimainkan di satu perangkat dan bisa offline setelah aplikasi dibuka sekali. <b>Akun, teman, grup, dan ruang online</b> memerlukan internet dan konfigurasi Firebase.</p></Card>
-      <Card><h3>Tentang konten</h3><p>Bank berisi {QUESTION_COUNT} pertanyaan berbahasa Indonesia. Semuanya berstatus <b>perlu tinjauan</b> — belum diverifikasi ke sumber primer — jadi gunakan sebagai hiburan dan pembelajaran awal.</p></Card>
+      <Card><h3>Tentang konten</h3><p>Bank berisi {allQuestions.length} pertanyaan tertulis{loadedPacks.length ? ` dan ${loadedPacks.reduce((n, p) => n + p.datasets, 0)} dataset yang menghasilkan ribuan soal unik secara otomatis (paket: ${loadedPacks.map((p) => p.name).join(', ')})` : ''}, berbahasa Indonesia. Semuanya berstatus <b>perlu tinjauan</b> — belum diverifikasi ke sumber primer — jadi gunakan sebagai hiburan dan pembelajaran awal.</p></Card>
       <Card><h3>Love Language Quiz</h3><p>Hanya refleksi ringan, bukan diagnosis psikologis.</p></Card>
       <Card><h3>Status koneksi</h3><p>{online ? 'Online' : 'Offline — game solo tetap bisa dimainkan.'}</p></Card>
     </div>
