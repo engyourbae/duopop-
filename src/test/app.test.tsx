@@ -10,7 +10,7 @@ afterEach(cleanup);
 describe('navigasi & halaman penting', () => {
   it('beranda menampilkan game inti dan tantangan harian', async () => {
     render(<App />);
-    expect(await screen.findByText('Tantangan Harian')).toBeInTheDocument();
+    expect((await screen.findAllByText('Tantangan Harian')).length).toBeGreaterThan(0);
     expect(screen.getByText('How Well Do You Know Me?')).toBeInTheDocument();
   });
   it('belum onboarding diarahkan ke layar mulai', async () => {

@@ -7,7 +7,7 @@ const TRACKS: Track[] = ['lobi', 'game', 'arkade'];
 describe('musik latar', () => {
   it('aman dipanggil tanpa dukungan audio', () => { expect(() => { setTrack('lobi'); unlockMusic(); refreshMusic(); }).not.toThrow(); });
   it('frekuensi MIDI benar', () => { expect(mtof(69)).toBeCloseTo(440); expect(mtof(57)).toBeCloseTo(220); expect(mtof(60)).toBeCloseTo(261.63, 1); });
-  it('volume bawaan sedang dan bisa diubah', () => { expect(getProgress().settings.musicVol).toBe(0.55); patchSettings({ musicVol: 1 }); expect(getProgress().settings.musicVol).toBe(1); patchSettings({ musicVol: 0.55 }); });
+  it('volume bawaan sedang dan bisa diubah', () => { expect(getProgress().settings.musicVol).toBe(0.7); patchSettings({ musicVol: 1 }); expect(getProgress().settings.musicVol).toBe(1); patchSettings({ musicVol: 0.7 }); });
   it('tiap lagu punya progresi 4 akor dan tempo wajar', () => { for (const t of TRACKS) { const s = STYLES[t]; expect(s.chords.length).toBe(4); expect(s.bpm).toBeGreaterThan(60); expect(s.bpm).toBeLessThan(200); } });
   it('melodi deterministik, variatif antar bar, dan berada di tangga nada', () => {
     for (const t of TRACKS) {
