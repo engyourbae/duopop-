@@ -5,9 +5,9 @@ export { STYLES };
 
 let ctx: AudioContext | null = null, master: GainNode | null = null, bus: Bus | null = null, busTrack: Track | null = null, timer: ReturnType<typeof setInterval> | undefined;
 let want: Track | null = null, cur: Track | null = null, started = false, step = 0, nextT = 0;
-const MASTER = 0.62;
+const MASTER = 0.34;
 const enabled = () => getProgress().settings.music !== false;
-const volume = () => Math.max(0, Math.min(1, getProgress().settings.musicVol ?? 0.55));
+const volume = () => Math.max(0, Math.min(1, getProgress().settings.musicVol ?? 0.7));
 
 function ensure(): boolean {
   if (typeof window === 'undefined') return false;
@@ -16,10 +16,11 @@ function ensure(): boolean {
   try {
     if (!ctx) {
       ctx = new AC(); master = ctx.createGain();
-      const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 12; comp.ratio.value = 3.5; comp.attack.value = 0.004; comp.release.value = 0.18;
-      const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -2; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.08; // pembatas: cegah suara pecah
-      const sat = ctx.createWaveShaper(), curve = new Float32Array(1024); for (let i = 0; i < curve.length; i++) { const x = (i / (curve.length - 1)) * 2 - 1; curve[i] = (Math.tanh(2 * x) / Math.tanh(2)) * 0.98; } sat.curve = curve; // saturasi lembut: puncak tidak pernah melewati 0 dBFS
-      master.connect(comp); comp.connect(lim); lim.connect(sat); sat.connect(ctx.destination);
+      // rantai keluaran: lowpass (haluskan desis) -> kompresor lembut -> pembatas. Tanpa distorsi/saturasi.
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 7500; tone.Q.value = 0.5;
+      const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -22; comp.knee.value = 20; comp.ratio.value = 2.5; comp.attack.value = 0.01; comp.release.value = 0.25;
+      const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -4; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.1;
+      master.connect(tone); tone.connect(comp); comp.connect(lim); lim.connect(ctx.destination);
     }
     master?.gain.setTargetAtTime(MASTER * volume(), ctx.currentTime, 0.05);
     if (ctx.state === 'suspended') void ctx.resume();

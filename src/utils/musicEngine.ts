@@ -26,18 +26,14 @@ const DR = {
 } as const;
 
 export interface Bus { ctx: Ctx; dry: GainNode; rev: GainNode; echo: GainNode; noise: AudioBuffer; melodies: Map<string, (number | null)[]> }
-function impulse(ctx: Ctx, secs: number, decay: number): AudioBuffer {
-  const len = Math.max(1, Math.floor(ctx.sampleRate * secs)), buf = ctx.createBuffer(2, len, ctx.sampleRate);
-  for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** decay; }
-  return buf;
-}
-/** Membuat jalur suara: dry, gaung (convolver), dan echo bertempo; semuanya menuju `out`. */
+/** Membuat jalur suara ringan: dry, ruang kecil (dua delay pendek), dan echo bertempo. Tanpa convolver agar tidak membebani CPU HP. */
 export function makeBus(ctx: Ctx, out: AudioNode, bpm: number): Bus {
   const dry = ctx.createGain(); dry.connect(out);
-  const conv = ctx.createConvolver(); conv.buffer = impulse(ctx, 1.8, 2.6);
-  const rev = ctx.createGain(), revOut = ctx.createGain(); revOut.gain.value = 0.5; rev.connect(conv); conv.connect(revOut); revOut.connect(out);
+  const rev = ctx.createGain(), roomOut = ctx.createGain(), roomLp = ctx.createBiquadFilter(); roomOut.gain.value = 0.3; roomLp.type = 'lowpass'; roomLp.frequency.value = 2600;
+  for (const t of [0.029, 0.047]) { const d = ctx.createDelay(0.2), fb = ctx.createGain(); d.delayTime.value = t; fb.gain.value = 0.28; rev.connect(d); d.connect(fb); fb.connect(d); d.connect(roomLp); }
+  roomLp.connect(roomOut); roomOut.connect(out);
   const echo = ctx.createGain(), dl = ctx.createDelay(2), fb = ctx.createGain(), lp = ctx.createBiquadFilter();
-  dl.delayTime.value = (60 / bpm) * 0.75; fb.gain.value = 0.32; lp.type = 'lowpass'; lp.frequency.value = 2600;
+  dl.delayTime.value = (60 / bpm) * 0.75; fb.gain.value = 0.28; lp.type = 'lowpass'; lp.frequency.value = 2200;
   echo.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(out);
   const noise = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate)), ctx.sampleRate), nd = noise.getChannelData(0);
   for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
@@ -56,23 +52,23 @@ const filter = (b: Bus, type: BiquadFilterType, f: number, q = 0.7) => { const x
 
 /** Piano elektrik hangat: sinus + overtone bel singkat. */
 function epiano(b: Bus, f: number, t: number, dur: number, v: number) {
-  const g = b.ctx.createGain(), lp = filter(b, 'lowpass', 3200); adsr(g, t, 0.006, v * 0.5, dur * 1.2);
-  for (const [mul, lvl, d] of [[1, 1, dur * 1.2], [2, 0.28, dur * 0.7], [4, 0.07, 0.18]] as const) { const o = osc(b, 'sine', f * mul, t, d, mul === 2 ? 4 : 0), og = b.ctx.createGain(); og.gain.value = lvl; o.connect(og); og.connect(lp); }
-  lp.connect(g); send(b, g, 0.9, 0.35, 0.12);
+  const g = b.ctx.createGain(), lp = filter(b, 'lowpass', 2600); adsr(g, t, 0.008, v * 0.45, dur * 1.1);
+  for (const [mul, lvl, d] of [[1, 1, dur * 1.1], [2, 0.22, dur * 0.6]] as const) { const o = osc(b, 'sine', f * mul, t, d), og = b.ctx.createGain(); og.gain.value = lvl; o.connect(og); og.connect(lp); }
+  lp.connect(g); send(b, g, 0.9, 0.3, 0.1);
 }
 function pad(b: Bus, freqs: number[], t: number, dur: number, v: number) {
   for (const f of freqs) {
-    const g = b.ctx.createGain(), lp = filter(b, 'lowpass', 750); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v * 0.07), t + dur * 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 1.1);
-    for (const dt of [-7, 7]) osc(b, 'sawtooth', f, t, dur * 1.1, dt).connect(lp);
-    lp.connect(g); send(b, g, 0.5, 0.6, 0);
+    const g = b.ctx.createGain(), lp = filter(b, 'lowpass', 900); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v * 0.06), t + dur * 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 1.05);
+    osc(b, 'triangle', f, t, dur * 1.05, -5).connect(lp); osc(b, 'sine', f, t, dur * 1.05, 5).connect(lp);
+    lp.connect(g); send(b, g, 0.6, 0.4, 0);
   }
 }
 function pluck(b: Bus, f: number, t: number, v: number, dur = 0.38) {
-  const g = b.ctx.createGain(), lp = filter(b, 'lowpass', 3600, 1.2); lp.frequency.setValueAtTime(3600, t); lp.frequency.exponentialRampToValueAtTime(500, t + 0.3);
-  adsr(g, t, 0.004, v * 0.4, dur); const o1 = osc(b, 'triangle', f, t, dur), o2 = osc(b, 'square', f, t, dur), g2 = b.ctx.createGain(); g2.gain.value = 0.25; o1.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); send(b, g, 0.8, 0.25, 0.28);
+  const g = b.ctx.createGain(), lp = filter(b, 'lowpass', 2800, 0.9); lp.frequency.setValueAtTime(2800, t); lp.frequency.exponentialRampToValueAtTime(450, t + 0.28);
+  adsr(g, t, 0.005, v * 0.36, dur); osc(b, 'triangle', f, t, dur).connect(lp); lp.connect(g); send(b, g, 0.85, 0.2, 0.22);
 }
 function pulse(b: Bus, f: number, t: number, dur: number, v: number) {
-  const g = b.ctx.createGain(), lp = filter(b, 'lowpass', 5200); adsr(g, t, 0.003, v * 0.22, dur); osc(b, 'square', f, t, dur).connect(lp); lp.connect(g); send(b, g, 0.9, 0.08, 0.1);
+  const g = b.ctx.createGain(), lp = filter(b, 'lowpass', 2300); adsr(g, t, 0.004, v * 0.14, dur); osc(b, 'square', f, t, dur).connect(lp); lp.connect(g); send(b, g, 0.95, 0.06, 0.08);
 }
 function bass(b: Bus, f: number, t: number, dur: number, v: number) {
   const g = b.ctx.createGain(), lp = filter(b, 'lowpass', 520); adsr(g, t, 0.008, v * 0.55, dur); osc(b, 'sine', f, t, dur).connect(lp); osc(b, 'triangle', f, t, dur).connect(lp); lp.connect(g); send(b, g, 1, 0.04, 0);
@@ -85,7 +81,7 @@ function noiseHit(b: Bus, t: number, v: number, type: BiquadFilterType, f: numbe
   const s = b.ctx.createBufferSource(), g = b.ctx.createGain(), x = filter(b, type, f, type === 'bandpass' ? 0.9 : 0.7);
   s.buffer = b.noise; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); s.connect(x); x.connect(g); s.start(t); s.stop(t + d + 0.05); send(b, g, 1, rev, 0);
 }
-function snare(b: Bus, t: number, v: number) { noiseHit(b, t, v * 0.5, 'bandpass', 1900, 0.15, 0.2); const o = osc(b, 'triangle', 190, t, 0.1), g = b.ctx.createGain(); g.gain.setValueAtTime(v * 0.35, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09); o.connect(g); send(b, g, 1, 0.1, 0); }
+function snare(b: Bus, t: number, v: number) { noiseHit(b, t, v * 0.32, 'bandpass', 1700, 0.13, 0.15); const o = osc(b, 'triangle', 190, t, 0.1), g = b.ctx.createGain(); g.gain.setValueAtTime(v * 0.28, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09); o.connect(g); send(b, g, 1, 0.08, 0); }
 
 const scaleNotes = (root: number, scale: number[]) => [-12, 0, 12, 24].flatMap((o) => scale.map((s) => root + o + s)).sort((a, b) => a - b);
 /** Melodi satu bar (16 langkah), deterministik per (lagu, bar) — berbeda tiap bar dan tiap putaran. */
@@ -106,7 +102,7 @@ export function scheduleStep(b: Bus, track: Track, step: number, t0: number) {
   const d = DR[S.drums], notesOf = (oct = 0) => chord.map((c) => mtof(S.root + c + oct));
   if (d.k[pos]) kick(b, t, vel(d.k[pos] as number) * 0.85);
   if (d.s[pos]) snare(b, t, vel(d.s[pos] as number));
-  if (d.h[pos]) noiseHit(b, t, vel(d.h[pos] as number) * 0.28, 'highpass', S.drums === 'lofi' ? 6000 : 7500, S.drums === 'arc' ? 0.04 : 0.05);
+  if (d.h[pos]) noiseHit(b, t, vel(d.h[pos] as number) * 0.13, 'bandpass', S.drums === 'lofi' ? 5200 : 6200, S.drums === 'arc' ? 0.035 : 0.045);
   const bassF = mtof(S.root + (chord[0] as number) - 12);
   if (track === 'lobi') {
     if (pos === 0) { pad(b, notesOf(0), t, q * 16, 0.9); chord.forEach((c, i) => epiano(b, mtof(S.root + c + 12), t + i * 0.018, q * 7, vel(0.5))); bass(b, bassF, t, q * 6, vel(0.9)); }
