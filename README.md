@@ -4,7 +4,7 @@ Aplikasi PWA game untuk pasangan, teman, dan grup, berbahasa Indonesia.
 Stack: React + TypeScript (strict) + Vite, CSS buatan sendiri, Firebase (Auth + Firestore), service worker kustom, Vitest.
 
 ## Isi aplikasi
-- **55 game** dengan mekanik berbeda (lihat `src/features/games/registry.ts`): 8 game pasangan, 20 game pengetahuan, 8 game grup/pesta, dan **10 game arkade/aksi** yang dimainkan dengan gerak, refleks, dan strategi (Pasangan Kartu, Adu Refleks, Tic-Tac-Toe, Empat Sejajar, Pukul Tikus, Tebak Warna, Ikuti Urutan, Ular Lapar, Terbang Melewati Pipa, Tangkap Bintang).
+- **39 game** dengan mekanik berbeda (tanpa game kembar; topik/varian dipilih di layar pengaturan): pasangan, pengetahuan (Duel Pengetahuan dengan 17+ topik, Kuis Rebutan, Fakta atau Mitos, Kronologi, Estimasi, dll.), grup & pesta, arkade (Pasangan Kartu, Adu Refleks, Pukul Tikus, Ular Lapar, Terbang, Tangkap Bintang, Tebak Kata Rahasia, Adu Mengetik, Adu Ketuk, Susun Huruf), serta **kartu & papan: UNO, Gaple, Ular Tangga, Suit, Tic-Tac-Toe, Empat Sejajar**. Semuanya bisa dimainkan online.
 - **Bank soal**: 283 butir (pilihan ganda, fakta/mitos, kronologi, tebak era, estimasi) + 16 teka-teki bertahap + 40 bendera. Semua berstatus `perlu-tinjauan` (belum diverifikasi ke sumber primer; `sourceUrl` sengaja kosong, tidak ada URL karangan). Lihat bagian *Konten*.
 - **Solo/bergiliran** (1–8 pemain di satu perangkat): bisa offline setelah aplikasi dibuka sekali.
 - **Online** (butuh Firebase): akun, teman, grup + undangan (kode/tautan), ruang multiplayer real-time untuk game berbasis soal.
@@ -51,6 +51,12 @@ Hanya **@username** yang terlihat pengguna lain. Nama Google/akun tidak disimpan
 
 ## Musik
 Musik latar disintesis dengan WebAudio (tanpa berkas audio): satu lagu untuk lobi, satu untuk game, satu untuk arkade. Bisa dimatikan di Pengaturan.
+
+## Chat, reaksi, dan stiker (sementara, tidak menumpuk di database)
+Chat ruang, grup, dan antarteman hanya **numpang lewat** di Firestore: dokumen dihapus pengirim dalam ±55 detik (anggota mana pun ikut membersihkan sisa yang lebih dari 60 detik), dan riwayat disimpan **di perangkat** (localStorage, maks. 150 pesan per percakapan, bisa dihapus). Reaksi emote dan stiker kustom di dalam ruang muncul sebagai animasi sementara bagi semua pemain. Host juga menghapus seluruh data ruang (jawaban, skor, chat) 45 detik setelah game selesai. Konsekuensi: pesan tidak tersimpan untuk pemain yang offline lebih dari ±1 menit.
+
+## Paket upgrade soal (tanpa mengubah kode)
+`public/packs/upgrade-1.js` dipanggil lewat tag `<script src="./packs/upgrade-1.js"></script>` di `index.html` (sebelum skrip utama). Isinya memakai `window.DUOPOP_PACKS.push({...})` dan boleh berisi: `questions` (soal tertulis), `myths` (fakta/mitos), `datasets` (baris data + templat yang menghasilkan ribuan soal unik, termasuk perbandingan "mana yang lebih…"), `variants` (topik baru di Duel Pengetahuan & Kuis Rebutan), dan `categoryLabels`. Paket baru cukup ditambah sebagai file `.js` baru + satu tag script. Soal yang belum pernah kamu lihat selalu didahulukan, jadi permainan tidak mengulang-ulang. Catatan: di ruang online semua pemain harus memuat paket yang sama (otomatis bila memakai versi situs yang sama).
 
 ## Status online, volume musik, dan Security Rules
 - Status **Online/Offline** teman memakai detak presensi tiap 30 detik dengan **jam server** (bukan jam HP), jadi tidak terpengaruh jam perangkat yang meleset. Agar terbaca, **kedua** pengguna harus memakai versi terbaru dan `firestore.rules` terbaru harus sudah di-**Publish**; bila ditolak, ruang tunggu menampilkan petunjuknya.
