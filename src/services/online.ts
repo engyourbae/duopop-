@@ -49,7 +49,8 @@ export async function tryMatch(me: Who, gameId: string, count = 10, secs = 15): 
         const meRef = doc(db(), 'matchQueue', me.uid), otherRef = doc(db(), 'matchQueue', c.uid), roomRef = doc(db(), 'rooms', code);
         const [m, o, r] = await Promise.all([tx.get(meRef), tx.get(otherRef), tx.get(roomRef)]);
         if (!m.exists() || (m.data() as QueueEntry).status !== 'waiting' || !o.exists() || (o.data() as QueueEntry).status !== 'waiting' || r.exists()) return false;
-        tx.set(roomRef, { code, hostUid: me.uid, gameId, seed: `${code}-${Date.now()}`, count, secs, status: 'lobby', round: 0, auto: true, players: { [me.uid]: { name: me.displayName } }, starts: {}, createdAt: Date.now() });
+        const [gid, variant] = gameId.split('#');
+        tx.set(roomRef, { code, hostUid: me.uid, gameId: gid, ...(variant ? { variant } : {}), seed: `${code}-${Date.now()}`, count, secs, status: 'lobby', round: 0, auto: true, players: { [me.uid]: { name: me.displayName } }, starts: {}, createdAt: Date.now() });
         tx.update(otherRef, { status: 'matched', roomCode: code });
         tx.update(meRef, { status: 'matched', roomCode: code });
         return true;
@@ -63,8 +64,8 @@ export async function tryMatch(me: Who, gameId: string, count = 10, secs = 15): 
 // ---------- Undangan bermain ke teman ----------
 export interface PlayInvite { id: string; from: string; fromName: string; to: string; code: string; gameId: string; at: number }
 export const sendPlayInvite = (me: Who, friendUid: string, code: string, gameId: string) =>
-  setDoc(doc(db(), 'roomInvites', `${me.uid}_${friendUid}`), { from: me.uid, fromName: me.displayName, to: friendUid, code, gameId, at: Date.now() });
+  setDoc(doc(db(), 'roomInvites', `${me.uid}_${friendUid}`), { from: me.uid, fromName: me.displayName, to: friendUid, code, gameId, at: serverTimestamp() });
 export const removePlayInvite = (id: string) => deleteDoc(doc(db(), 'roomInvites', id));
 export function watchPlayInvites(uid: string, cb: (i: PlayInvite[]) => void): Unsub {
-  return onSnapshot(query(collection(db(), 'roomInvites'), where('to', '==', uid)), (s) => cb(s.docs.map((d) => ({ ...(d.data() as Omit<PlayInvite, 'id'>), id: d.id }))), () => cb([]));
+  return onSnapshot(query(collection(db(), 'roomInvites'), where('to', '==', uid)), (s) => cb(s.docs.map((d) => { const x = d.data({ serverTimestamps: 'estimate' }) as Omit<PlayInvite, 'id' | 'at'> & { at?: Timestamp | null }; return { ...x, at: ms(x.at) || serverNow(), id: d.id } as PlayInvite; })), () => cb([]));
 }
