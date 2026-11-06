@@ -31,7 +31,7 @@ const busFor = (t: Track): Bus | null => { if (!ctx || !master) return null; if 
 function schedule() {
   if (!ctx || !cur || !bus) return;
   const q = 60 / STYLES[cur].bpm / 4;
-  while (nextT < ctx.currentTime + 0.45) { scheduleStep(bus, cur, step, nextT); nextT += q; step++; }
+  while (nextT < ctx.currentTime + 0.7) { scheduleStep(bus, cur, step, nextT); nextT += q; step++; }
 }
 function stop() { if (timer) clearInterval(timer); timer = undefined; cur = null; }
 function apply() {
@@ -41,7 +41,7 @@ function apply() {
   stop();
   if (!ensure() || !ctx) return;
   cur = want; step = 0; nextT = ctx.currentTime + 0.15; busFor(cur);
-  timer = setInterval(schedule, 100); schedule();
+  timer = setInterval(schedule, 80); schedule();
 }
 /** Pilih lagu (null = biarkan). */
 export function setTrack(t: Track | null) { if (t) { want = t; apply(); } }
