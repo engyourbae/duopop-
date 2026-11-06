@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Button, ProgressBar } from '../../../components/ui';
 import { useCountdown } from '../../../hooks/useCountdown';
 import { usePauseSecs } from '../../../hooks/usePause';
@@ -6,7 +6,7 @@ import { sfx } from '../../../utils/sound';
 import { rng, seedFrom, shuffle } from '../../../utils/rng';
 import { clueItems, estimateQuestions, orderQuestions } from '../../../data/questions';
 import { getProgress, markSeen } from '../../progression/store';
-import { buildItems, cluePoints, estimatePoints, initialQuiz, orderPoints, quizReducer, type QuizAction, type QuizState } from '../engine';
+import { buildItems, type PlayItem, cluePoints, estimatePoints, initialQuiz, orderPoints, quizReducer, type QuizAction, type QuizState } from '../engine';
 import { LETTERS, type MechProps } from './types';
 
 /** Batang hitung mundur jeda penjelasan + tombol lanjut. */
@@ -22,7 +22,11 @@ export function Scoreboard({ players, scores, turn }: { players: string[]; score
 export function QuizMech({ game, players, seed, count, secs, onDone, mode, level }: MechProps) {
   const chain = game.mechanic === 'chain-tf';
   const endless = mode === 'endless';
-  const items = useMemo(() => buildItems(game, endless ? 300 : chain ? 30 : count, seed, { level: mode === 'level' ? level : undefined, seen: mode ? new Set(getProgress().seenQ) : undefined }), [game, chain, endless, count, seed, mode, level]);
+  // Daftar soal DIBEKUKAN sekali per sesi (ref). Sebelumnya useMemo ikut terhitung ulang saat markSeen mengubah progres,
+  // sehingga soal di indeks yang sama berganti dan penjelasan yang muncul milik soal lain.
+  const itemsRef = useRef<PlayItem[] | null>(null);
+  if (itemsRef.current === null) itemsRef.current = buildItems(game, endless ? 300 : chain ? 30 : count, seed, { level: mode === 'level' ? level : undefined, seen: mode ? new Set(getProgress().seenQ) : undefined });
+  const items = itemsRef.current;
   const [s, dispatch] = useReducer((st: QuizState, a: QuizAction) => quizReducer(st, a, items, chain, endless ? 3 : 0), initialQuiz(players.length));
   const item = items[s.index];
   const pause = usePauseSecs();
