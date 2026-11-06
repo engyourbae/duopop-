@@ -117,17 +117,99 @@ function GapleView({ s, viewer, names, onMove, active }: { s: GapleState; viewer
   );
 }
 
-function LadderView({ s, viewer, names, onMove, active }: { s: LadderState; viewer: number; names: string[]; onMove: (m: number) => void; active: boolean }) {
-  const cell = (r: number, c: number) => (r % 2 === 0 ? r * 10 + c + 1 : r * 10 + (9 - c) + 1);
+/** Pusat kotak n pada papan 100x100 (baris bawah = 1–10, berganti arah tiap baris). */
+const cellXY = (n: number): [number, number] => { const r = Math.floor((n - 1) / 10), i = (n - 1) % 10, c = r % 2 === 0 ? i : 9 - i; return [c * 10 + 5, (9 - r) * 10 + 5]; };
+const SNAKE_COL = ['#c2255c', '#e8590c', '#7048e8', '#0b7285'];
+function JumpArt({ from, to, k }: { from: number; to: number; k: number }) {
+  const [x1, y1] = cellXY(from), [x2, y2] = cellXY(to), dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, px = -dy / len, py = dx / len;
+  if (to > from) { // tangga
+    const n = Math.max(2, Math.round(len / 4.5)), o = 1.5;
+    return (<g>
+      {Array.from({ length: n }, (_, i) => { const t = (i + 1) / (n + 1), cx = x1 + dx * t, cy = y1 + dy * t; return <line key={i} x1={cx + px * o} y1={cy + py * o} x2={cx - px * o} y2={cy - py * o} stroke="#c08a4b" strokeWidth=".8" strokeLinecap="round" />; })}
+      <line x1={x1 + px * o} y1={y1 + py * o} x2={x2 + px * o} y2={y2 + py * o} stroke="#8a5a2b" strokeWidth="1" strokeLinecap="round" />
+      <line x1={x1 - px * o} y1={y1 - py * o} x2={x2 - px * o} y2={y2 - py * o} stroke="#8a5a2b" strokeWidth="1" strokeLinecap="round" />
+    </g>);
+  }
+  const w = Math.min(9, len * 0.28), col = SNAKE_COL[k % SNAKE_COL.length] as string; // ular: kepala di kotak atas
+  const d = `M${x1} ${y1} C${x1 + dx * 0.25 + px * w} ${y1 + dy * 0.25 + py * w} ${x1 + dx * 0.75 - px * w} ${y1 + dy * 0.75 - py * w} ${x2} ${y2}`;
+  return (<g>
+    <path d={d} fill="none" stroke="#17140e" strokeWidth="3" strokeLinecap="round" opacity=".55" />
+    <path d={d} fill="none" stroke={col} strokeWidth="2.2" strokeLinecap="round" />
+    <path d={d} fill="none" stroke="#fff" strokeWidth=".6" strokeLinecap="round" strokeDasharray="1.2 2.4" opacity=".75" />
+    <circle cx={x1} cy={y1} r="2.6" fill={col} stroke="#17140e" strokeWidth=".6" />
+    <circle cx={x1 - 0.9} cy={y1 - 0.6} r=".55" fill="#fff" /><circle cx={x1 + 0.9} cy={y1 - 0.6} r=".55" fill="#fff" />
+  </g>);
+}
+function Die({ v, tumble = false }: { v: number; tumble?: boolean }) {
+  return <span className={`die ${tumble ? 'tumble' : ''}`} role="img" aria-label={`Dadu ${v}`}><span className="dhalf">{Array.from({ length: v }, (_, k) => <i key={k} className={`dp p${v}-${k}`} />)}</span></span>;
+}
+const OFFS: [number, number][] = [[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6]];
+const JUMP_LIST = Object.entries(JUMPS).map(([k, v]) => [Number(k), v] as const);
+
+function LadderView({ s, names, onMove, active }: { s: LadderState; viewer: number; names: string[]; onMove: (m: number) => void; active: boolean }) {
+  const [disp, setDisp] = useState<number[]>(() => s.pos.slice());
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [tumble, setTumble] = useState(false);
+  const [face, setFace] = useState(s.last?.roll ?? 1);
+  const [slide, setSlide] = useState(false);
+  const seen = useRef(s.moves), alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  // Bidak berjalan kotak demi kotak mengikuti langkah terakhir (juga untuk pemain lain di mode online).
+  useEffect(() => {
+    if (s.moves === seen.current) return;
+    seen.current = s.moves;
+    const l = s.last;
+    setPending(false);
+    if (!l) { setDisp(s.pos.slice()); return; }
+    const path: number[] = []; for (let p = l.from + 1; p <= l.to; p++) path.push(p);
+    const hasJump = l.jump !== l.to; if (hasJump) path.push(l.jump);
+    setFace(l.roll); setTumble(false); setBusy(true); setDisp(s.pos.map((v, i) => (i === l.who ? l.from : v)));
+    let k = 0, timer: ReturnType<typeof setTimeout> | undefined, cancelled = false;
+    const step = () => {
+      if (cancelled) return;
+      if (k >= path.length) { setDisp(s.pos.slice()); setSlide(false); setBusy(false); return; }
+      const p = path[k] as number, isJump = hasJump && k === path.length - 1;
+      setSlide(isJump); setDisp((d) => d.map((v, i) => (i === l.who ? p : v)));
+      if (isJump && l.jump < l.to) sfx.wrong(); else sfx.tick();
+      k++; timer = setTimeout(step, isJump ? 700 : 240);
+    };
+    timer = setTimeout(step, 150);
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [s.moves]); // eslint-disable-line react-hooks/exhaustive-deps
+  const roll = () => {
+    if (busy || tumble || pending) return;
+    setTumble(true); setPending(true); let n = 0;
+    setTimeout(() => { if (alive.current) setPending(false); }, 5000); // jaga-jaga bila langkah ditolak
+    const id = setInterval(() => {
+      if (!alive.current) { clearInterval(id); return; }
+      setFace(1 + Math.floor(Math.random() * 6)); n++;
+      if (n >= 7) { clearInterval(id); setTumble(false); onMove(MOVE_ROLL); }
+    }, 90);
+  };
+  const l = s.last, n0 = l ? names[l.who] ?? '?' : '';
+  const msg = s.win >= 0 ? `${names[s.win]} sampai di 100!` : !l ? 'Lempar dadu untuk mulai. Butuh angka pas untuk mencapai 100.'
+    : busy ? `${n0} melempar ${l.roll}…`
+    : l.to === l.from ? `${n0} melempar ${l.roll} — terlalu jauh, butuh angka pas ke 100`
+    : `${n0} melempar ${l.roll}${l.jump > l.to ? ` — naik tangga ke ${l.jump}! 🪜` : l.jump < l.to ? ` — dimakan ular, turun ke ${l.jump}! 🐍` : ''}${l.roll === 6 && s.win < 0 ? ' · dapat giliran lagi!' : ''}`;
+  const canRoll = active && s.win < 0 && !busy && !tumble && !pending;
   return (
     <div>
-      <div className="lboard">{Array.from({ length: 10 }, (_, rr) => 9 - rr).map((r) => Array.from({ length: 10 }, (_, c) => { const n = cell(r, c), j = JUMPS[n]; return (
-        <div key={n} className={`lcell ${j ? (j > n ? 'up' : 'down') : ''}`}><small>{n}</small>{j && <em>{j > n ? '↑' : '↓'}{j}</em>}<span className="ltok">{s.pos.map((p, i) => p === n ? <i key={i} style={{ background: PCOL[i] }} /> : null)}</span></div>); }))}</div>
-      <div className="row wrap gap" style={{ justifyContent: 'center' }}>{names.map((n, i) => <span key={i} className="badge" style={{ background: PCOL[i], color: i === 3 ? '#17140e' : '#fff' }}>{n}: {s.pos[i]}</span>)}</div>
-      {s.last && <p className="center">{names[s.last.who]} melempar <b>{s.last.roll}</b>{s.last.jump !== s.last.to ? (s.last.jump > s.last.to ? ' — naik tangga!' : ' — dimakan ular!') : ''}</p>}
-      <p className="center"><b>{s.win >= 0 ? `${names[s.win]} menang!` : active ? 'Giliranmu' : `Giliran ${names[s.cur]}`}</b></p>
-      {active && s.win < 0 && <Button size="lg" onClick={() => onMove(MOVE_ROLL)}>🎲 Lempar dadu</Button>}
-      <span className="sr">{viewer}</span>
+      <div className="row wrap" style={{ justifyContent: 'center', marginBottom: 6 }}>{names.map((n, i) => <span key={i} className={`badge ${s.cur === i && s.win < 0 ? '' : 'dim'}`} style={{ background: PCOL[i], color: i === 3 ? '#17140e' : '#fff' }}>{s.cur === i && s.win < 0 ? '▶ ' : ''}{n}: {s.pos[i] === 0 ? 'Start' : s.pos[i]}</span>)}</div>
+      <div className="lwrap"><div className="lgrid">
+        <div className="lboard">{Array.from({ length: 10 }, (_, rr) => 9 - rr).map((r) => Array.from({ length: 10 }, (_, c) => { const num = r % 2 === 0 ? r * 10 + c + 1 : r * 10 + (9 - c) + 1, j = JUMPS[num];
+          return <div key={num} className={`lcell ${(r + c) % 2 ? 'alt' : ''} ${j ? (j > num ? 'up' : 'down') : ''}`}><small>{num}</small>{num === 100 && <b className="goal">🏆</b>}</div>; }))}</div>
+        <svg className="lsvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{JUMP_LIST.map(([f, t], k) => <JumpArt key={f} from={f} to={t} k={k} />)}</svg>
+        {disp.map((p, i) => {
+          const [bx, by] = p === 0 ? [5 + i * 7, 106] as [number, number] : cellXY(p), same = disp.filter((q) => q === p).length, idx = disp.slice(0, i).filter((q) => q === p).length, o = same > 1 ? (OFFS[idx % 4] as [number, number]) : [0, 0];
+          return <span key={i} className={`ltoken ${s.cur === i && s.win < 0 ? 'now' : ''} ${slide && s.last?.who === i ? 'slide' : ''}`} style={{ left: `${bx + o[0]}%`, top: `${by + o[1]}%`, background: PCOL[i] }} title={names[i]} />;
+        })}
+      </div></div>
+      <div className="row gap" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <Die v={face} tumble={tumble} />
+        <div style={{ maxWidth: 220 }}><p className="small" style={{ margin: 0 }}><b>{msg}</b></p><p className="small muted" style={{ margin: '4px 0 0' }}>{s.win >= 0 ? '' : active ? 'Giliranmu' : `Giliran ${names[s.cur]}`}</p></div>
+      </div>
+      {s.win < 0 && <Button size="lg" className="gap" style={{ width: '100%' }} disabled={!canRoll} onClick={roll}>{tumble ? '🎲 Berputar…' : busy ? 'Bidak berjalan…' : '🎲 Lempar dadu'}</Button>}
     </div>
   );
 }
