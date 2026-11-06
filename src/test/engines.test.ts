@@ -1,5 +1,5 @@
 import { makeDeck, uno, playable, playMove, MOVE_DRAW, MOVE_PASS, cardColor, cardVal } from '../features/games/engines/uno';
-import { gaple, hasMove, playMove as gm, MOVE_PASS as GP, tile, pips, canPlay as canPlayG } from '../features/games/engines/gaple';
+import { gaple, hasMove, playMove as gm, MOVE_PASS as GP, tile, pips, startTile, canPlay as canPlayG } from '../features/games/engines/gaple';
 import { ladder, diceFor, JUMPS } from '../features/games/engines/ladder';
 import { replayTurns } from '../features/games/engines/types';
 
@@ -21,7 +21,8 @@ describe('UNO', () => {
   it('efek kartu khusus: lewati, +2, balik arah', () => {
     const base = uno.init(3, 'a'); const mk = (card: number) => { const s = { ...base, hands: base.hands.map((h) => h.slice()), discard: [cardColor(card) * 16 + 5], color: cardColor(card) }; s.hands[0] = [card, 3]; return s; };
     expect(uno.apply(mk(1 * 16 + 10), playMove(0))!.cur).toBe(2);   // lewati
-    const d2 = uno.apply(mk(1 * 16 + 12), playMove(0))!; expect(d2.hands[1]!.length).toBe(9); expect(d2.cur).toBe(2); // +2
+    const d2 = uno.apply(mk(1 * 16 + 12), playMove(0))!; expect(d2.pend).toBe(2); expect(d2.cur).toBe(1); // +2 menunggu (bisa ditumpuk)
+    const d3 = uno.apply(d2, MOVE_DRAW)!; expect(d3.hands[1]!.length).toBe(9); expect(d3.cur).toBe(2); expect(d3.pend).toBe(0); // ambil hukuman
     expect(uno.apply(mk(1 * 16 + 11), playMove(0))!.dir).toBe(-1);
     expect(uno.apply({ ...mk(4 * 16 + 13), color: 0 }, playMove(0, 4))).toBeNull(); // warna liar tidak sah
     expect(uno.apply({ ...mk(4 * 16 + 13), color: 0 }, playMove(0, 2))!.color).toBe(2);
@@ -40,7 +41,7 @@ describe('Gaple', () => {
     expect(s.hands[s.cur]!.some((t) => pips(t)[0] === pips(t)[1])).toBe(true);
   });
   it('pasang di ujung yang cocok, tolak yang tidak cocok, dan lewati hanya bila tidak bisa', () => {
-    let s = gaple.init(2, 'k'); const t0 = s.hands[s.cur]![0]!; s = gaple.apply(s, gm(0, 0))!; expect(s.row.length).toBe(1);
+    let s = gaple.init(2, 'k'); const i0 = Math.max(0, s.hands[s.cur]!.indexOf(startTile(s) ?? s.hands[s.cur]![0]!)); const t0 = s.hands[s.cur]![i0]!; s = gaple.apply(s, gm(i0, 0))!; expect(s.row.length).toBe(1);
     const [a, b] = pips(t0); expect([s.row[0]![0], s.row[0]![1]].sort()).toEqual([a, b].sort());
     const p = s.cur, h = s.hands[p]!; const bad = h.findIndex((t) => !(pips(t)[0] === s.row[0]![0] || pips(t)[1] === s.row[0]![0]));
     if (bad >= 0) expect(gaple.apply(s, gm(bad, 0))).toBeNull();
