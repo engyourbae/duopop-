@@ -95,7 +95,7 @@ function LobbyInner() {
       {!online && <div className="expl bad">Kamu sedang offline. Main online membutuhkan koneksi real-time.</div>}
       <Select label="Pilih game" value={gid} onChange={setGid} options={GAMES.map((g) => ({ value: g.id, label: g.title }))} />
       {game.variants && game.variants.length > 1 && <Select label="Topik / varian" value={variant} onChange={setVariant} options={game.variants.map((v) => ({ value: v.id, label: v.label }))} />}
-      {d.counts.length > 1 && <div className="row wrap"><span className="small">{game.mechanic === 'memorymatch' ? 'Pasangan:' : 'Ronde/soal:'}</span>{d.counts.map((c) => <button key={c} className={`chip ${count === c ? 'on' : ''}`} onClick={() => setCount(c)}>{c}</button>)}</div>}
+      {d.counts.length > 1 && <div className="row wrap"><span className="small">{game.mechanic === 'memorymatch' ? 'Pasangan:' : 'Ronde/soal:'}</span>{d.counts.map((c) => <button key={c} className={`chip ${count === c ? 'on' : ''}`} onClick={() => setCount(c)}>{c >= 999 ? '∞ Tanpa batas' : c}</button>)}</div>}
       {d.secsOpts && <div className="row wrap gap"><span className="small">Detik:</span>{d.secsOpts.map((c) => <button key={c} className={`chip ${secs === c ? 'on' : ''}`} onClick={() => setSecs(c)}>{c}</button>)}</div>}
       {searching ? <div className="gap"><Searching gameId={variant ? `${gid}#${variant}` : gid} count={count} secs={secs} onCancel={() => setSearching(false)} /></div> : (
         <div className="gap">

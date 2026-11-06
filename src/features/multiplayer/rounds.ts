@@ -51,7 +51,7 @@ export function buildRounds(game: GameDef, seed: string, count: number, names: s
       return shuffle(cards, r).slice(0, count).map((c, i) => ({ kind: 'actor', actor: act(i), scoring: 'actorDone', prompt: c, options: DONE_OPTS }));
     }
     case 'wheel':
-      return Array.from({ length: count }, (_, i) => ({ kind: 'actor' as const, actor: act(i), scoring: 'actorDone' as const, prompt: `Roda memilih: ${wheelSlices[Math.floor(r() * wheelSlices.length)]}`, options: DONE_OPTS }));
+      return Array.from({ length: count >= 999 ? 200 : count }, (_, i) => ({ kind: 'actor' as const, actor: act(i), scoring: 'actorDone' as const, prompt: `Roda memilih: ${wheelSlices[Math.floor(r() * wheelSlices.length)]}`, options: DONE_OPTS }));
     case 'wordguess':
       return shuffle(wordPairs, r).slice(0, Math.max(count, n * 2)).map((w, i) => ({ kind: 'actor', actor: act(i), scoring: 'actorDone', prompt: `${names[act(i)] ?? ''} menjelaskan, yang lain menebak!`, secret: w, options: ['Benar ditebak', 'Lewati'] }));
     case 'story': {

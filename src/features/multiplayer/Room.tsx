@@ -199,7 +199,8 @@ function RoomInner() {
   const earlier = answers.filter((a) => a.round < round && a.text).sort((a, b) => a.round - b.round).map((a) => a.text as string);
   const nameOf = (u: string) => room.players[u]?.name ?? '?';
   return (
-    <div className="page"><Header title={`Ronde ${round + 1}/${rounds.length}`} />
+    <div className="page"><Header title={room.count >= 999 ? `Ronde ${round + 1} · tanpa batas` : `Ronde ${round + 1}/${rounds.length}`} />
+      {isHost && room.count >= 999 && <div className="center"><Button size="sm" variant="ghost" onClick={() => void act(async () => (await svc()).finishRoom(code))}>Akhiri permainan</Button></div>}
       <div className={`timer ${left < 4 ? 'low' : ''}`}><div style={{ width: `${(left / room.secs) * 100}%` }} /></div>
       {rd.kind === 'actor' && <p className="center small muted">Giliran: <b>{actorName}</b>{iAmActor ? ' (kamu)' : ''}</p>}
       {rd.hint && <p className="center small muted">{rd.hint}</p>}
