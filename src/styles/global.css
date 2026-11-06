@@ -147,7 +147,7 @@ textarea.input{padding:12px 14px;min-height:90px}
 .fx-dot{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border-radius:99px;min-width:18px;height:18px;font-size:.7rem;display:grid;place-items:center;border:2px solid var(--edge)}
 .sticker{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:12px;border:var(--bw) solid var(--edge);font-weight:800;font-size:.9rem;box-shadow:2px 2px 0 var(--shadow-c);white-space:nowrap}
 .sticker-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.sticker-btn{background:none;border:0;cursor:pointer;padding:6px}
-.chat-list{max-height:42dvh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px 0}
+.chat-list{height:42dvh;min-height:120px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;display:flex;flex-direction:column;gap:6px;padding:6px 0;scroll-behavior:auto}.chat-list>:first-child{margin-top:auto}
 .chat-msg{align-self:flex-start;max-width:80%;background:var(--card);border:var(--bw) solid var(--edge);border-radius:12px;padding:6px 10px}.chat-msg.me{align-self:flex-end;background:var(--yellow);color:#17140e}
 .chat-msg p{margin:0;word-break:break-word}.chat-msg small{font-weight:800;opacity:.7}
 /* ===== Tebak kata, ketik, anagram, rebutan ===== */
