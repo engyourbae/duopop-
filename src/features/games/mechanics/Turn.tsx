@@ -201,7 +201,7 @@ function LadderView({ s, names, onMove, active }: { s: LadderState; viewer: numb
           return <div key={num} className={`lcell ${(r + c) % 2 ? 'alt' : ''} ${j ? (j > num ? 'up' : 'down') : ''}`}><small>{num}</small>{num === 100 && <b className="goal">🏆</b>}</div>; }))}</div>
         <svg className="lsvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{JUMP_LIST.map(([f, t], k) => <JumpArt key={f} from={f} to={t} k={k} />)}</svg>
         {disp.map((p, i) => {
-          const [bx, by] = p === 0 ? [5 + i * 7, 106] as [number, number] : cellXY(p), same = disp.filter((q) => q === p).length, idx = disp.slice(0, i).filter((q) => q === p).length, o = same > 1 ? (OFFS[idx % 4] as [number, number]) : [0, 0];
+          const [bx, by] = p === 0 ? [5 + i * 7, 106] as [number, number] : cellXY(p), same = disp.filter((q) => q === p).length, idx = disp.slice(0, i).filter((q) => q === p).length, o: [number, number] = same > 1 ? (OFFS[idx % 4] as [number, number]) : [0, 0];
           return <span key={i} className={`ltoken ${s.cur === i && s.win < 0 ? 'now' : ''} ${slide && s.last?.who === i ? 'slide' : ''}`} style={{ left: `${bx + o[0]}%`, top: `${by + o[1]}%`, background: PCOL[i] }} title={names[i]} />;
         })}
       </div></div>
