@@ -4,10 +4,16 @@ import type { TurnEngine } from './types';
 /** Kartu domino = a*7+b dengan a ≤ b (0–6). */
 export const tile = (a: number, b: number) => Math.min(a, b) * 7 + Math.max(a, b);
 export const pips = (t: number): [number, number] => [Math.floor(t / 7), t % 7];
-export interface GapleState { n: number; hands: number[][]; row: [number, number][]; cur: number; passes: number; win: number }
+export interface GapleState { n: number; hands: number[][]; row: [number, number][]; cur: number; passes: number; win: number; last?: { who: number; tile: number; pass: boolean } | null }
 export const MOVE_PASS = 2, playMove = (idx: number, side: 0 | 1) => 100 + idx * 2 + side;
 const ends = (s: GapleState): [number, number] | null => (s.row.length ? [s.row[0]![0], s.row[s.row.length - 1]![1]] : null);
-export function canPlay(s: GapleState, t: number, side: 0 | 1): boolean { const e = ends(s); if (!e) return true; const [a, b] = pips(t), v = e[side]; return a === v || b === v; }
+/** Langkah pertama: pemegang balak tertinggi wajib memasangnya (bila punya balak). */
+export function startTile(s: GapleState): number | null {
+  if (s.row.length) return null; let best = -1, bt: number | null = null;
+  for (const t of s.hands[s.cur] as number[]) { const [a, b] = pips(t); if (a === b && a > best) { best = a; bt = t; } }
+  return bt;
+}
+export function canPlay(s: GapleState, t: number, side: 0 | 1): boolean { const e = ends(s); if (!e) { const st = startTile(s); return st === null || t === st; } const [a, b] = pips(t), v = e[side]; return a === v || b === v; }
 export const hasMove = (s: GapleState, p: number) => (s.hands[p] as number[]).some((t) => canPlay(s, t, 0) || canPlay(s, t, 1));
 const sum = (h: number[]) => h.reduce((x, t) => x + pips(t)[0] + pips(t)[1], 0);
 export const gaple: TurnEngine<GapleState> = {
@@ -27,7 +33,7 @@ export const gaple: TurnEngine<GapleState> = {
     const hand = s.hands[s.cur] as number[];
     if (move === MOVE_PASS) {
       if (hasMove(s, s.cur)) return null;
-      s.passes++;
+      s.passes++; s.last = { who: s.cur, tile: -1, pass: true };
       if (s.passes >= s.n) { let w = 0; s.hands.forEach((h, p) => { if (sum(h) < sum(s.hands[w] as number[])) w = p; }); s.win = w; return s; }
       s.cur = (s.cur + 1) % s.n; return s;
     }
@@ -38,7 +44,7 @@ export const gaple: TurnEngine<GapleState> = {
     if (!e) s.row.push([a, b]);
     else if (side === 0) s.row.unshift(a === e[0] ? [b, a] : [a, b]);
     else s.row.push(a === e[1] ? [a, b] : [b, a]);
-    hand.splice(idx, 1); s.passes = 0;
+    hand.splice(idx, 1); s.passes = 0; s.last = { who: s.cur, tile: t, pass: false };
     if (hand.length === 0) { s.win = s.cur; return s; }
     s.cur = (s.cur + 1) % s.n;
     return s;
