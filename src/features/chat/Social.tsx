@@ -28,8 +28,9 @@ export function Social({ scope, me, title, floating = true }: { scope: Scope; me
   const { msgs, events, unread, send, clear } = useChat(scope, me, open);
   const toast = useToast();
   const [text, setText] = useState('');
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (open) end.current?.scrollIntoView?.({ block: 'end' }); }, [msgs.length, open]);
+  const listRef = useRef<HTMLDivElement>(null);
+  // selalu gulung ke pesan terbaru (bawah) di dalam daftar chat saja, bukan seluruh halaman
+  useEffect(() => { if (!open) return; const go = () => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; }; go(); const id = requestAnimationFrame(go); return () => cancelAnimationFrame(id); }, [msgs.length, open]);
   const fire = async (kind: 'react' | 'sticker', v: string) => { try { await send(kind, v); } catch (e) { toast(explainError(e), 'err'); } };
   const submit = async () => { const t = text.trim(); if (!t) return; try { if (await send('text', t)) setText(''); } catch (e) { toast(explainError(e), 'err'); } };
   return (
@@ -48,10 +49,9 @@ export function Social({ scope, me, title, floating = true }: { scope: Scope; me
       </Modal>
       <Modal open={open} title={title} onClose={() => setOpen(false)}>
         <p className="small muted">Pesan hanya numpang lewat (hilang dari server dalam 60 detik) dan disimpan di perangkat ini.</p>
-        <div className="chat-list" role="log" aria-live="polite">
+        <div className="chat-list" ref={listRef} role="log" aria-live="polite">
           {msgs.length === 0 && <p className="muted center small">Belum ada pesan.</p>}
           {msgs.map((m) => <div key={m.id} className={`chat-msg ${m.uid === me.uid ? 'me' : ''}`}><small>{m.uid === me.uid ? 'Kamu' : m.name}</small><p>{m.text}</p></div>)}
-          <div ref={end} />
         </div>
         <form className="row gap" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
           <input className="input" value={text} maxLength={200} onChange={(e) => setText(e.target.value)} placeholder="Tulis pesan…" aria-label="Pesan" />
