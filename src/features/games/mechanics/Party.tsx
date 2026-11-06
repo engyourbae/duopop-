@@ -19,6 +19,7 @@ export function WheelMech({ players, count, onDone }: MechProps) {
   const [opts, setOpts] = useState<string[]>(loadWheel);
   const [draft, setDraft] = useState('');
   const [edit, setEdit] = useState(false);
+  const endless = count >= 999;
   const n = opts.length, slice = 360 / n;
   const turn = i % players.length;
   const saveOpts = (l: string[]) => { setOpts(l); setRes(null); try { localStorage.setItem(WHEEL_KEY, JSON.stringify(l)); } catch { /* penyimpanan penuh */ } };
@@ -31,15 +32,15 @@ export function WheelMech({ players, count, onDone }: MechProps) {
   };
   const adv = (ok: boolean) => {
     const ns = scores.map((v, k) => v + (k === turn && ok ? 1 : 0)); const ng = good + (ok ? 1 : 0);
-    if (i + 1 >= count) { onDone({ scores: ns, correct: ng, total: count }); return; }
+    if (!endless && i + 1 >= count) { onDone({ scores: ns, correct: ng, total: count }); return; }
     setScores(ns); setGood(ng); setI(i + 1); setRes(null);
   };
   const pt = (a: number, r: number) => [150 + r * Math.sin((a * Math.PI) / 180), 150 - r * Math.cos((a * Math.PI) / 180)] as const;
   const colors = ['#7c4dff', '#ff5c8a', '#ffc83d', '#12b886', '#4c6ef5', '#f76707', '#e64980', '#0ca678'];
   return (
     <div className="center">
-      <ProgressBar value={i / count} />
-      <p className="muted small gap">Putaran {i + 1}/{count} · Giliran: <b>{players[turn]}</b></p>
+      {!endless && <ProgressBar value={i / count} />}
+      <p className="muted small gap">Putaran {i + 1}{endless ? ' · tanpa batas' : `/${count}`} · Giliran: <b>{players[turn]}</b></p>
       <div className="pointer" />
       <svg className="wheel" viewBox="0 0 300 300" style={{ transform: `rotate(${rot}deg)` }} role="img" aria-label="Roda tantangan">
         {opts.map((t, k) => {
@@ -53,6 +54,7 @@ export function WheelMech({ players, count, onDone }: MechProps) {
         <div className="gap"><div className="expl"><b>Tantanganmu: {opts[res]}</b></div>
           <div className="row"><Button variant="ghost" className="grow" onClick={() => adv(false)}>Lewati</Button><Button className="grow" onClick={() => adv(true)}>Selesai (+1)</Button></div></div>
       )}
+      {endless && !spinning && <Button className="gap" variant="ghost" onClick={() => onDone({ scores, correct: good, total: Math.max(1, i) })}>Akhiri permainan ({i} putaran selesai)</Button>}
       {!spinning && <button className="chip gap" onClick={() => setEdit(!edit)}>{edit ? 'Tutup pengaturan' : '✏️ Ubah pilihan roda'}</button>}
       {edit && !spinning && (
         <div className="card gap" style={{ textAlign: 'left' }}>
