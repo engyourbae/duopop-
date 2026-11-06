@@ -41,7 +41,7 @@ export function defaultsFor(g: GameDef): Cfg {
     case 'estimate': return { count: 8, secs: 0, counts: [5, 8, 16], secsOpts: null };
     case 'clues': return { count: 6, secs: 0, counts: [4, 6, 8], secsOpts: null };
     case 'lovelang': return { count: 10, secs: 0, counts: [10], secsOpts: null };
-    case 'wheel': return { count: 6, secs: 0, counts: [4, 6, 10], secsOpts: null };
+    case 'wheel': return { count: 6, secs: 0, counts: [4, 6, 10, 999], secsOpts: null };
     case 'story': return { count: 8, secs: 0, counts: [6, 8, 12], secsOpts: null };
     case 'wordchain': return { count: 1, secs: 10, counts: [1], secsOpts: [6, 10, 15] };
     case 'wordguess': return { count: 1, secs: 60, counts: [1], secsOpts: [30, 60, 90] };
@@ -147,7 +147,7 @@ export default function GamePage() {
           {quizLike && mode === 'level' && <div className="row wrap gap"><span className="small">Level:</span>{Array.from({ length: 10 }, (_, k) => k + 1).map((l) => <button key={l} className={`chip ${level === l ? 'on' : ''}`} disabled={l > passedLv + 1} onClick={() => setLevel(l)}>{l > passedLv + 1 ? `🔒${l}` : l}</button>)}</div>}
           {quizLike && mode === 'level' && <p className="small muted">Level {level}: 10 soal, waktu {lvSecs} detik. Lulus bila benar ≥ 70%. Makin tinggi, makin sulit.</p>}
           {quizLike && mode === 'endless' && <p className="small muted">3 nyawa, soal tak berhenti. Soal yang belum pernah kamu lihat didahulukan.</p>}
-          {d.counts.length > 1 && !(quizLike && mode !== 'santai') && <div className="row wrap gap"><span className="small">{game.mechanic === 'deck' || game.mechanic === 'wheel' ? 'Jumlah kartu/putaran:' : game.mechanic === 'memorymatch' ? 'Jumlah pasangan:' : game.group === 'arkade' ? 'Jumlah ronde:' : 'Jumlah soal/ronde:'}</span>{d.counts.map((c) => <button key={c} className={`chip ${cfg.count === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, count: c })}>{c}</button>)}</div>}
+          {d.counts.length > 1 && !(quizLike && mode !== 'santai') && <div className="row wrap gap"><span className="small">{game.mechanic === 'deck' || game.mechanic === 'wheel' ? 'Jumlah kartu/putaran:' : game.mechanic === 'memorymatch' ? 'Jumlah pasangan:' : game.group === 'arkade' ? 'Jumlah ronde:' : 'Jumlah soal/ronde:'}</span>{d.counts.map((c) => <button key={c} className={`chip ${cfg.count === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, count: c })}>{c >= 999 ? '∞ Tanpa batas' : c}</button>)}</div>}
           {d.secsOpts && !(quizLike && mode !== 'santai') && <div className="row wrap gap"><span className="small">Waktu (detik):</span>{d.secsOpts.map((c) => <button key={c} className={`chip ${cfg.secs === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, secs: c })}>{c}</button>)}</div>}
         </Card>
         <Button size="lg" icon="play" onClick={() => { setNames(names.map((n, i) => n.trim() || `Pemain ${i + 1}`)); start(); }}>{doneToday ? 'Berlatih' : 'Mulai main'}</Button>
