@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 
 export function Button({ variant = 'primary', size = 'md', icon, children, className = '', ...rest }:
@@ -23,14 +24,15 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
     return () => window.removeEventListener('keydown', f);
   }, [open, onClose]);
   if (!open) return null;
-  return (
+  // Portal ke <body>: tanpa ini, 'fixed' ikut terpotong oleh induk yang bertransformasi/animasi dan dialog tampil terpotong.
+  return createPortal(
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head"><h3>{title}</h3><button className="icon-btn" onClick={onClose} aria-label="Tutup"><Icon name="x" /></button></div>
         {children}
       </div>
     </div>
-  );
+  , document.body);
 }
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string }[]; value: T; onChange: (v: T) => void }) {
   return <div className="tabs" role="tablist">{tabs.map((t) => <button key={t.id} role="tab" aria-selected={value === t.id} className={value === t.id ? 'tab on' : 'tab'} onClick={() => onChange(t.id)}>{t.label}</button>)}</div>;
