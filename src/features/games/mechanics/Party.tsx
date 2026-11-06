@@ -7,6 +7,8 @@ import { storyStarters, wheelSlices, wordPairs } from '../../../data/content/par
 import { Scoreboard } from './Quiz';
 import type { MechProps } from './types';
 
+const WHEEL_KEY = 'duopop:wheel';
+const loadWheel = (): string[] => { try { const a = JSON.parse(localStorage.getItem(WHEEL_KEY) ?? 'null') as unknown; if (Array.isArray(a)) { const l = a.filter((x): x is string => typeof x === 'string' && x.trim() !== '').slice(0, 12); if (l.length >= 2) return l; } } catch { /* abaikan */ } return [...wheelSlices]; };
 export function WheelMech({ players, count, onDone }: MechProps) {
   const [rot, setRot] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -14,8 +16,13 @@ export function WheelMech({ players, count, onDone }: MechProps) {
   const [i, setI] = useState(0);
   const [scores, setScores] = useState<number[]>(() => players.map(() => 0));
   const [good, setGood] = useState(0);
-  const n = wheelSlices.length, slice = 360 / n;
+  const [opts, setOpts] = useState<string[]>(loadWheel);
+  const [draft, setDraft] = useState('');
+  const [edit, setEdit] = useState(false);
+  const n = opts.length, slice = 360 / n;
   const turn = i % players.length;
+  const saveOpts = (l: string[]) => { setOpts(l); setRes(null); try { localStorage.setItem(WHEEL_KEY, JSON.stringify(l)); } catch { /* penyimpanan penuh */ } };
+  const addOpt = () => { const t = draft.trim().slice(0, 40); if (!t || opts.length >= 12) return; saveOpts([...opts, t]); setDraft(''); };
   const spin = () => {
     const extra = 1080 + Math.floor(Math.random() * 360);
     const total = rot + extra;
@@ -35,7 +42,7 @@ export function WheelMech({ players, count, onDone }: MechProps) {
       <p className="muted small gap">Putaran {i + 1}/{count} · Giliran: <b>{players[turn]}</b></p>
       <div className="pointer" />
       <svg className="wheel" viewBox="0 0 300 300" style={{ transform: `rotate(${rot}deg)` }} role="img" aria-label="Roda tantangan">
-        {wheelSlices.map((t, k) => {
+        {opts.map((t, k) => {
           const [x1, y1] = pt(k * slice, 145), [x2, y2] = pt((k + 1) * slice, 145), [tx, ty] = pt((k + 0.5) * slice, 95);
           return (<g key={k}><path d={`M150 150L${x1} ${y1}A145 145 0 0 1 ${x2} ${y2}Z`} fill={colors[k % colors.length]} stroke="#fff" strokeWidth="3" />
             <text x={tx} y={ty} fill="#fff" fontSize="11" fontWeight="800" textAnchor="middle" transform={`rotate(${(k + 0.5) * slice} ${tx} ${ty})`}>{t.length > 14 ? t.slice(0, 13) + '…' : t}</text></g>);
@@ -43,8 +50,17 @@ export function WheelMech({ players, count, onDone }: MechProps) {
         <circle cx="150" cy="150" r="14" fill="#fff" />
       </svg>
       {res === null ? <Button size="lg" className="gap" onClick={spin} disabled={spinning}>{spinning ? 'Berputar…' : 'Putar roda!'}</Button> : (
-        <div className="gap"><div className="expl"><b>Tantanganmu: {wheelSlices[res]}</b></div>
+        <div className="gap"><div className="expl"><b>Tantanganmu: {opts[res]}</b></div>
           <div className="row"><Button variant="ghost" className="grow" onClick={() => adv(false)}>Lewati</Button><Button className="grow" onClick={() => adv(true)}>Selesai (+1)</Button></div></div>
+      )}
+      {!spinning && <button className="chip gap" onClick={() => setEdit(!edit)}>{edit ? 'Tutup pengaturan' : '✏️ Ubah pilihan roda'}</button>}
+      {edit && !spinning && (
+        <div className="card gap" style={{ textAlign: 'left' }}>
+          <p className="small muted">Tulis pilihanmu sendiri (2–12). Tersimpan di perangkat ini.</p>
+          <div className="row wrap">{opts.map((t, k) => <button key={k} className="chip" disabled={opts.length <= 2} onClick={() => saveOpts(opts.filter((_, j) => j !== k))} aria-label={`Hapus ${t}`}>{t} ✕</button>)}</div>
+          <div className="row gap"><input className="input" value={draft} maxLength={40} placeholder="Tambah pilihan…" aria-label="Pilihan baru" onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addOpt(); } }} /><Button onClick={addOpt} disabled={!draft.trim() || opts.length >= 12}>Tambah</Button></div>
+          <button className="chip gap" onClick={() => saveOpts([...wheelSlices])}>Kembalikan bawaan</button>
+        </div>
       )}
       <div className="gap" style={{ textAlign: 'left' }}><Scoreboard players={players} scores={scores} turn={turn} /></div>
     </div>
