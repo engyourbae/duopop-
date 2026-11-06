@@ -14,8 +14,13 @@ export function makeDeck(): number[] {
   for (let i = 0; i < 4; i++) { d.push(4 * 16 + 13); d.push(4 * 16 + 14); }
   return d; // 108 kartu
 }
-export interface UnoState { n: number; hands: number[][]; draw: number[]; discard: number[]; cur: number; dir: 1 | -1; color: number; drew: boolean; win: number; seed: string; moves: number }
-export const playable = (s: UnoState, c: number) => cardColor(c) === 4 || cardColor(c) === s.color || cardVal(c) === cardVal(s.discard[s.discard.length - 1] as number);
+export interface UnoState { n: number; hands: number[][]; draw: number[]; discard: number[]; cur: number; dir: 1 | -1; color: number; drew: boolean; win: number; seed: string; moves: number; pend: number; last: { who: number; card: number; draw: number } | null }
+/** Aturan tumpuk: saat ada hukuman (+2/+4) menunggu, hanya kartu sejenis yang boleh ditumpuk; selain itu pemain harus mengambil. */
+export const playable = (s: UnoState, c: number) => {
+  const topV = cardVal(s.discard[s.discard.length - 1] as number);
+  if (s.pend > 0) return (cardVal(c) === 12 || cardVal(c) === 14) && cardVal(c) === topV;
+  return cardColor(c) === 4 || cardColor(c) === s.color || cardVal(c) === topV;
+};
 const next = (s: UnoState, from: number, steps = 1) => ((from + s.dir * steps) % s.n + s.n) % s.n;
 function drawCards(s: UnoState, p: number, k: number) {
   for (let i = 0; i < k; i++) {
@@ -31,28 +36,32 @@ export const uno: TurnEngine<UnoState> = {
     let first = deck.findIndex((c) => cardColor(c) !== 4 && cardVal(c) < 10);
     if (first < 0) first = 0;
     const top = deck.splice(first, 1)[0] as number;
-    return { n, hands, draw: deck, discard: [top], cur: 0, dir: 1, color: cardColor(top), drew: false, win: -1, seed, moves: 0 };
+    return { n, hands, draw: deck, discard: [top], cur: 0, dir: 1, color: cardColor(top), drew: false, win: -1, seed, moves: 0, pend: 0, last: null };
   },
   actor: (s) => s.cur,
   winner: (s) => s.win,
   apply(s0, move) {
     if (s0.win >= 0) return null;
     const s: UnoState = { ...s0, hands: s0.hands.map((h) => h.slice()), draw: s0.draw.slice(), discard: s0.discard.slice(), moves: s0.moves + 1 };
-    const hand = s.hands[s.cur] as number[];
-    if (move === MOVE_DRAW) { if (s.drew) return null; drawCards(s, s.cur, 1); s.drew = true; return s; }
-    if (move === MOVE_PASS) { if (!s.drew) return null; s.cur = next(s, s.cur); s.drew = false; return s; }
+    const who = s.cur, hand = s.hands[who] as number[];
+    if (move === MOVE_DRAW) {
+      if (s.pend > 0) { const k = s.pend; drawCards(s, who, k); s.pend = 0; s.last = { who, card: -1, draw: k }; s.cur = next(s, who); s.drew = false; return s; }
+      if (s.drew) return null;
+      drawCards(s, who, 1); s.drew = true; s.last = { who, card: -1, draw: 1 }; return s;
+    }
+    if (move === MOVE_PASS) { if (!s.drew || s.pend > 0) return null; s.last = { who, card: -1, draw: 0 }; s.cur = next(s, who); s.drew = false; return s; }
     if (move < 100) return null;
     const idx = Math.floor((move - 100) / 5), chosen = (move - 100) % 5, card = hand[idx];
     if (card === undefined || !playable(s, card)) return null;
     if (cardColor(card) === 4 && chosen > 3) return null;
-    hand.splice(idx, 1); s.discard.push(card);
+    hand.splice(idx, 1); s.discard.push(card); s.last = { who, card, draw: 0 };
     s.color = cardColor(card) === 4 ? chosen : cardColor(card);
     if (hand.length === 0) { s.win = s.cur; return s; }
     const v = cardVal(card); let steps = 1;
     if (v === 10) steps = 2;
     else if (v === 11) { s.dir = (s.dir === 1 ? -1 : 1); if (s.n === 2) steps = 2; }
-    else if (v === 12) { drawCards(s, next(s, s.cur), 2); steps = 2; }
-    else if (v === 14) { drawCards(s, next(s, s.cur), 4); steps = 2; }
+    else if (v === 12) s.pend += 2;
+    else if (v === 14) s.pend += 4;
     s.cur = next(s, s.cur, steps); s.drew = false;
     return s;
   },
