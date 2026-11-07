@@ -28,7 +28,7 @@ function Shell() {
     const hit = t.find(([p]) => loc.pathname.startsWith(p));
     document.title = hit ? `${hit[1]} — DUOPOP` : 'DUOPOP — Play Closer, Know More';
   }, [loc.pathname]);
-  useMusic(loc.pathname.startsWith('/game/') || loc.pathname.startsWith('/ruang/') ? null : 'lobi');
+  useMusic(loc.pathname.startsWith('/game/') || loc.pathname.startsWith('/ruang/') ? null : 'utama');
   useEffect(() => { const f = () => unlockMusic(); window.addEventListener('pointerdown', f, { once: true }); return () => window.removeEventListener('pointerdown', f); }, []);
   useEffect(() => {
     const dark = p.settings.theme === 'gelap' || (p.settings.theme === 'sistem' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
