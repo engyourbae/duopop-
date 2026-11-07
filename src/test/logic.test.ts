@@ -1,4 +1,4 @@
-import { c4Winner, dropC4, emptyC4, memoryDeck, tttWinner, C4_COLS, type Cell } from '../features/games/logic';
+import { c4Winner, dropC4, emptyC4, memoryDeck, tttWinner, C4_COLS, type Cell, rpsOutcome } from '../features/games/logic';
 import { rng, seedFrom, shuffle } from '../utils/rng';
 
 describe('Tic-Tac-Toe', () => {
@@ -32,4 +32,14 @@ describe('Pasangan Kartu', () => {
     for (const k of new Set(d)) expect(d.filter((x) => x === k).length).toBe(2);
     expect(d).toEqual(memoryDeck(8, (a) => shuffle(a, rng(seedFrom('x')))));
   });
+});
+
+describe('rpsOutcome', () => {
+  it('menentukan menang, kalah, dan seri', () => {
+    expect(rpsOutcome([0, 1]).status).toEqual(['win', 'lose']);
+    expect(rpsOutcome([2, 2]).status).toEqual(['draw', 'draw']);
+    expect(rpsOutcome([0, 1, 2]).status).toEqual(['draw', 'draw', 'draw']);
+    expect(rpsOutcome([0, 0, 1]).status).toEqual(['win', 'win', 'lose']);
+  });
+  it('pemain yang tidak memilih ditandai none', () => { expect(rpsOutcome([0, undefined]).status).toEqual(['draw', 'none']); });
 });

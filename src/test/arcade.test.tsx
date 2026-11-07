@@ -49,6 +49,20 @@ describe('game papan', () => {
     for (const c of [1, 2, 1, 2, 1, 2, 1]) fireEvent.click(screen.getByLabelText(`Jatuhkan di kolom ${c}`));
     expect(screen.getByText(/Pemain 1 menang ronde ini/)).toBeInTheDocument();
   });
+  it('Suit: setelah dua pemain memilih, animasi tangan berjalan lalu hasil muncul', async () => {
+    window.location.hash = '#/game/suit'; render(<App />); await screen.findByText('Cara bermain');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Mulai main/ })); });
+    vi.useFakeTimers();
+    for (let p = 0; p < 2; p++) {
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Aku .*lanjut/ })); });
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Batu/ })); });
+    }
+    expect(screen.getByText('Siap…')).toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2100); });
+    expect(screen.getByText(/SUIT!/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Ronde berikutnya/ })).toBeInTheDocument();
+    vi.useRealTimers();
+  });
   it('Pasangan Kartu: membalik dua kartu tidak error', async () => {
     window.location.hash = '#/game/memorymatch'; render(<App />); await screen.findByText('Cara bermain');
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Mulai main/ })); });
