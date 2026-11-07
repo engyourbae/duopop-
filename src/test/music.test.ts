@@ -1,37 +1,39 @@
 import { vi } from 'vitest';
-import { refreshMusic, setTrack, unlockMusic } from '../utils/music';
-import { melodyFor, mtof, STYLES, type Track } from '../utils/musicEngine';
+import { refreshMusic, setTrack, trackForGame, TRACK_COUNT, unlockMusic } from '../utils/music';
 import { getProgress, patchSettings } from '../features/progression/store';
 
-const TRACKS: Track[] = ['lobi', 'game', 'arkade'];
-describe('musik latar', () => {
-  it('aman dipanggil tanpa dukungan audio', () => { expect(() => { setTrack('lobi'); unlockMusic(); refreshMusic(); }).not.toThrow(); });
-  it('frekuensi MIDI benar', () => { expect(mtof(69)).toBeCloseTo(440); expect(mtof(57)).toBeCloseTo(220); expect(mtof(60)).toBeCloseTo(261.63, 1); });
+describe('musik latar (mp3)', () => {
+  it('aman dipanggil tanpa dukungan audio', () => { expect(() => { setTrack('utama'); unlockMusic(); refreshMusic(); }).not.toThrow(); });
   it('volume bawaan sedang dan bisa diubah', () => { expect(getProgress().settings.musicVol).toBe(0.7); patchSettings({ musicVol: 1 }); expect(getProgress().settings.musicVol).toBe(1); patchSettings({ musicVol: 0.7 }); });
-  it('tiap lagu punya progresi 8 akor dan tempo wajar', () => { for (const t of TRACKS) { const s = STYLES[t]; expect(s.chords.length).toBe(8); expect(s.bpm).toBeGreaterThan(60); expect(s.bpm).toBeLessThan(200); } });
-  it('melodi deterministik, variatif antar bar, dan berada di tangga nada', () => {
-    for (const t of TRACKS) {
-      expect(melodyFor(t, 5)).toEqual(melodyFor(t, 5));
-      const bars = Array.from({ length: 8 }, (_, i) => JSON.stringify(melodyFor(t, i)));
-      expect(new Set(bars).size).toBeGreaterThan(3);
-      const s = STYLES[t], allowed = new Set(s.scale);
-      for (let b = 0; b < 8; b++) for (const n of melodyFor(t, b)) if (n != null) expect(allowed.has(((n - s.root) % 12 + 12) % 12)).toBe(true);
-    }
+  it('jumlah mp3 per kategori sesuai', () => { expect(TRACK_COUNT).toEqual({ utama: 4, cozy: 7, party: 2, quiz: 3, board: 3 }); });
+  it('game dipetakan ke kategori musik yang tepat', () => {
+    expect(trackForGame({ group: 'pengetahuan' })).toBe('quiz');
+    expect(trackForGame({ group: 'pasangan' })).toBe('cozy');
+    expect(trackForGame({ group: 'grup' })).toBe('party');
+    expect(trackForGame({ group: 'arkade', mechanic: 'whack' })).toBe('party');
+    expect(trackForGame({ group: 'kartu' })).toBe('board');
+    expect(trackForGame({ group: 'arkade', mechanic: 'tictactoe' })).toBe('board');
   });
-  it('menjadwalkan banyak nada saat aktif dan berhenti saat dimatikan', async () => {
+  it('memutar mp3 sesuai kategori, pindah kategori, dan berhenti saat dimatikan', async () => {
     vi.useFakeTimers();
-    let made = 0;
-    const node = (): unknown => new Proxy({}, { get: (_t, p) => (p === 'gain' || p === 'frequency' || p === 'detune' ? new Proxy({}, { get: () => () => undefined, set: () => true }) : () => undefined), set: () => true });
-    class FakeAC { currentTime = 0; sampleRate = 44100; state = 'running'; destination = {}; resume() { return Promise.resolve(); } suspend() { return Promise.resolve(); }
-      createGain() { return node(); } createOscillator() { made++; return node(); } createBiquadFilter() { return node(); } createConvolver() { return node(); } createDelay() { return node(); }
-      createDynamicsCompressor() { return node(); } createWaveShaper() { return node(); } createBufferSource() { return node(); }
-      createBuffer(_c: number, len: number) { return { getChannelData: () => new Float32Array(len) }; } }
+    const played: string[] = [];
+    class FakeAudio { src = ''; preload = ''; paused = true; duration = NaN; currentTime = 0; onended: unknown = null; onerror: unknown = null;
+      play() { this.paused = false; played.push(this.src); return Promise.resolve(); } pause() { this.paused = true; } }
+    const param = () => ({ value: 0, cancelScheduledValues() { /* */ }, setValueAtTime() { /* */ }, linearRampToValueAtTime() { /* */ }, setTargetAtTime() { /* */ } });
+    class FakeAC { currentTime = 0; state = 'running'; destination = {}; resume() { return Promise.resolve(); }
+      createGain() { return { gain: param(), connect() { /* */ } }; } createMediaElementSource() { return { connect() { /* */ } }; } }
     (window as unknown as { AudioContext: unknown }).AudioContext = FakeAC;
+    (window as unknown as { Audio: unknown }).Audio = FakeAudio;
+    (globalThis as unknown as { Audio: unknown }).Audio = FakeAudio;
     patchSettings({ music: true });
-    setTrack('game'); unlockMusic();
-    for (let i = 0; i < 6; i++) await vi.advanceTimersByTimeAsync(200);
-    expect(made).toBeGreaterThan(0);
-    patchSettings({ music: false }); refreshMusic(); const before = made; await vi.advanceTimersByTimeAsync(2000); expect(made).toBe(before);
+    setTrack('quiz'); unlockMusic();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(played.some((s) => /audio\/music\/quiz-[1-3]\.mp3$/.test(s))).toBe(true);
+    setTrack('party');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(played.some((s) => /audio\/music\/party-[1-2]\.mp3$/.test(s))).toBe(true);
+    patchSettings({ music: false }); refreshMusic();
+    const before = played.length; await vi.advanceTimersByTimeAsync(2000); expect(played.length).toBe(before);
     vi.useRealTimers();
   });
 });
