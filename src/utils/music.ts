@@ -33,7 +33,11 @@ function ensure(): boolean {
   if (!AC) return false;
   try {
     if (!ctx) {
-      const c = new AC(); const m = c.createGain(); m.connect(c.destination);
+      const c = new AC(); const m = c.createGain();
+      // penghalus suara: redam treble yang cempreng di speaker HP, lalu kompresor lembut menyamakan lantang antarlagu & mencegah pecah
+      const shelf = c.createBiquadFilter(); shelf.type = 'highshelf'; shelf.frequency.value = 5000; shelf.gain.value = -4;
+      const comp = c.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 14; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.25;
+      m.connect(shelf); shelf.connect(comp); comp.connect(c.destination);
       // dua elemen audio bergantian => lagu berikutnya bisa masuk sebelum lagu lama habis (crossfade, tanpa jeda)
       decks = [0, 1].map(() => { const el = new Audio(); el.preload = 'auto'; const g = c.createGain(); g.gain.value = 0; c.createMediaElementSource(el).connect(g); g.connect(m); return { el, g }; });
       ctx = c; master = m;
