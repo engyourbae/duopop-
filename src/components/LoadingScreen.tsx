@@ -32,7 +32,7 @@ export function LoadingScreen({ onDone, minMs = 2400 }: { onDone: () => void; mi
   }, [onDone]);
   useEffect(() => {
     markBooted();
-    setTrack('lobi'); unlockMusic(); // coba mulai musik; bila diblokir, mulai setelah sentuhan pertama
+    setTrack('utama'); unlockMusic(); // coba mulai musik; bila diblokir, mulai setelah sentuhan pertama
     const t0 = Date.now();
     let loaded = false;
     const fonts: Promise<unknown> = typeof document !== 'undefined' && document.fonts ? Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 3000))]) : Promise.resolve();
