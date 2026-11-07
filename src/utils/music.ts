@@ -100,7 +100,7 @@ export function setTrack(t: Track | null) { if (t) { want = t; apply(); } }
 /** Dipanggil pada sentuhan pertama pengguna (kebijakan autoplay browser). Aman dipanggil berulang. */
 export function unlockMusic() { started = true; if (ctx && ctx.state === 'suspended') void ctx.resume(); apply(); kick(); }
 export function refreshMusic() { apply(); }
-export const audioRunning = () => !!ctx && ctx.state === 'running' && !!decks[act] && !decks[act].el.paused;
+export const audioRunning = () => !!ctx && ctx.state === 'running' && decks[act]?.el.paused === false;
 /** Dulu jingle sintetis; kini tidak dipakai (musik utama sudah mp3). Dibiarkan agar pemanggil lama tetap jalan. */
 export function playIntro() { /* tidak ada */ }
 if (typeof document !== 'undefined') {
