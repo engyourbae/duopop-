@@ -21,7 +21,8 @@ describe('musik latar (mp3)', () => {
       play() { this.paused = false; played.push(this.src); return Promise.resolve(); } pause() { this.paused = true; } }
     const param = () => ({ value: 0, cancelScheduledValues() { /* */ }, setValueAtTime() { /* */ }, linearRampToValueAtTime() { /* */ }, setTargetAtTime() { /* */ } });
     class FakeAC { currentTime = 0; state = 'running'; destination = {}; resume() { return Promise.resolve(); }
-      createGain() { return { gain: param(), connect() { /* */ } }; } createMediaElementSource() { return { connect() { /* */ } }; } }
+      createGain() { return { gain: param(), connect() { /* */ } }; } createBiquadFilter() { return { type: '', frequency: { value: 0 }, gain: { value: 0 }, connect() { /* */ } }; }
+      createDynamicsCompressor() { return { threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 }, connect() { /* */ } }; } createMediaElementSource() { return { connect() { /* */ } }; } }
     (window as unknown as { AudioContext: unknown }).AudioContext = FakeAC;
     (window as unknown as { Audio: unknown }).Audio = FakeAudio;
     (globalThis as unknown as { Audio: unknown }).Audio = FakeAudio;
