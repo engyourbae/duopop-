@@ -16,6 +16,7 @@ import type { MechProps, Outcome } from './mechanics/types';
 import type { GameDef, GameResult } from '../../types';
 import { todayKey, uid } from '../../utils/rng';
 import { sfx } from '../../utils/sound';
+import { trackForGame } from '../../utils/music';
 import { isFirebaseConfigured } from '../../lib/firebase/config';
 import { useAuth } from '../auth/AuthContext';
 import { useMusic } from '../../hooks/useMusic';
@@ -86,7 +87,7 @@ export default function GamePage() {
   const [levelMsg, setLevelMsg] = useState('');
   const recorded = useRef(false);
   const d = useMemo(() => (game ? defaultsFor(game) : null), [game]);
-  useMusic(phase === 'play' && game ? (game.group === 'arkade' ? 'arkade' : 'game') : 'lobi');
+  useMusic(phase === 'play' && game ? trackForGame(game) : 'cozy');
   useEffect(() => {
     if (!game) return;
     const base = game.id === 'tim' ? ['Tim A', 'Tim B'] : Array.from({ length: Math.max(game.minPlayers, game.id === 'duel' || game.maxPlayers === 1 ? 1 : game.minPlayers) }, (_, i) => (i === 0 && (me?.handle ? me.displayName : prog.name) ? (me?.handle ? me.displayName : prog.name) : `Pemain ${i + 1}`));
