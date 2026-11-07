@@ -130,7 +130,6 @@ textarea.input{padding:12px 14px;min-height:90px}
 .ttt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:330px;margin:0 auto}
 .tcell{aspect-ratio:1;border:var(--bw) solid var(--edge);border-radius:var(--r-md);background:var(--card);display:grid;place-items:center;cursor:pointer;box-shadow:3px 3px 0 var(--shadow-c)}.tcell.win{background:var(--yellow)}
 .c4{display:grid;gap:4px;max-width:360px;margin:0 auto;background:var(--blue);border:var(--bw) solid var(--edge);border-radius:var(--r-md);padding:8px;box-shadow:var(--off) var(--off) 0 var(--shadow-c)}
-.c4head{border:0;background:transparent;color:#fff;font-size:1rem;cursor:pointer;min-height:34px}
 .c4cell{aspect-ratio:1;display:grid;place-items:center}.c4cell.win .disc{outline:3px solid #fff}
 .disc{width:86%;aspect-ratio:1;border-radius:50%;background:var(--paper);border:var(--bw) solid var(--edge)}.disc.d1{background:var(--red)}.disc.d2{background:var(--yellow)}
 
@@ -224,3 +223,50 @@ textarea.input{padding:12px 14px;min-height:90px}
 .die{display:inline-block;position:relative;width:64px;height:64px;flex:none;border-radius:14px;background:#fff;border:3px solid #17140e;box-shadow:3px 3px 0 var(--shadow-c)}
 .die .dhalf{position:absolute;inset:0;width:100%;height:100%}.die .dp{width:12px;height:12px}.die.tumble{animation:dieroll .4s linear infinite}
 @keyframes dieroll{to{transform:rotate(360deg)}}
+
+/* ===== Empat Sejajar: kolom besar bisa diketuk + cakram jatuh ===== */
+.c4col{display:flex;flex-direction:column;gap:4px;border:0;background:transparent;padding:0;margin:0;cursor:pointer;border-radius:10px;font:inherit;color:inherit;touch-action:manipulation;min-width:0}
+.c4col:disabled{cursor:default}
+.c4col:not(:disabled):hover,.c4col:focus-visible{background:rgba(255,255,255,.2);outline:none}
+.c4col:not(:disabled):active{background:rgba(255,255,255,.34)}
+.c4head{display:grid;place-items:center;min-height:38px;color:#fff;font-size:1.05rem;transition:transform .12s}
+.c4col:not(:disabled):hover .c4head,.c4col:not(:disabled):active .c4head{color:var(--tc,#fff);transform:scale(1.35)}
+.c4col:disabled .c4head{opacity:.35}
+.c4cell{width:100%;position:relative}
+.disc.drop{position:relative;z-index:2;animation:c4drop calc(.18s + var(--fall,1) * .05s) cubic-bezier(.45,0,.9,.55) both}
+@keyframes c4drop{0%{transform:translateY(calc(var(--fall,1) * -112%))}72%{transform:translateY(0)}86%{transform:translateY(-7%)}100%{transform:translateY(0)}}
+.c4cell.win .disc{animation:c4win .6s ease-in-out infinite alternate}
+@keyframes c4win{from{transform:scale(1)}to{transform:scale(1.12)}}
+.dot{display:inline-block;width:14px;height:14px;border-radius:50%;border:var(--bw) solid var(--edge);vertical-align:middle;margin:0 2px 0 10px}.dot.d1{background:var(--red)}.dot.d2{background:var(--yellow)}
+.c4legend{margin-bottom:10px}
+.rules-peek{background:var(--card);border:var(--bw) dashed var(--edge);border-radius:var(--r-md);padding:8px 12px;margin-bottom:12px;font-size:.9rem}
+.rules-peek summary{cursor:pointer;font-weight:800;min-height:28px;display:flex;align-items:center}
+.rules-peek ol{margin:8px 0 2px;padding-left:20px}.rules-peek li{margin-bottom:4px}
+
+/* ===== Suit: adu tangan beranimasi ===== */
+.rps-pick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.opt.rps-opt{flex-direction:column;justify-content:center;text-align:center;gap:4px;margin:0;min-height:128px;font-size:1rem}
+.rps-e{font-size:3.4rem;line-height:1.1}
+.rps-count{text-align:center;font-family:var(--font-head);font-weight:800;font-size:2rem;min-height:2.6rem;margin:4px 0 8px;animation:rpsCount .4s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes rpsCount{from{transform:scale(.5);opacity:0}to{transform:none;opacity:1}}
+.rps-stage{display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:12px;margin:6px 0 10px;cursor:pointer}
+.rps-stage.two{flex-wrap:nowrap;align-items:center;gap:6px}
+.rps-vs{font-family:var(--font-head);font-weight:800;font-size:1.1rem;color:var(--muted)}
+.rps-card{flex:1 1 128px;max-width:200px;min-width:0;border:var(--bw) solid var(--edge);border-radius:var(--r-lg);background:var(--card);box-shadow:var(--off) var(--off) 0 var(--shadow-c);padding:12px 6px 10px;text-align:center;transition:opacity .35s,filter .35s,transform .35s}
+.rps-stage.two .rps-card{flex:1 1 0}
+.rps-name{font-weight:800;font-size:.92rem;word-break:break-word;min-height:1.3em}
+.rps-flip{display:inline-block}.rps-flip.mirror{transform:scaleX(-1)}
+.rps-hand{display:inline-block;font-size:4.6rem;line-height:1.15;transform-origin:50% 90%}
+.rps-hand.shake{animation:rpsShake .55s ease-in-out infinite}
+@keyframes rpsShake{0%,100%{transform:translateY(8px) rotate(-10deg)}50%{transform:translateY(-26px) rotate(10deg)}}
+.rps-hand.pop{animation:rpsPop .55s cubic-bezier(.2,1.7,.4,1) both}
+@keyframes rpsPop{0%{transform:scale(.2) rotate(-30deg);opacity:0}100%{transform:none;opacity:1}}
+.rps-pname{font-weight:700;font-size:.85rem;min-height:1.2em}
+.rps-tag{font-weight:800;font-size:.85rem;min-height:1.3em;margin-top:2px}
+.rps-card.win{background:var(--yellow);color:#17140e;box-shadow:0 0 0 4px var(--green),var(--off) var(--off) 0 var(--shadow-c);animation:rpsWin .6s ease both}
+@keyframes rpsWin{0%{transform:scale(1)}40%{transform:scale(1.1) rotate(-2deg)}100%{transform:scale(1.05)}}
+.rps-card.lose{opacity:.55;filter:grayscale(.7);transform:scale(.93) rotate(2deg)}
+.rps-card.draw{animation:rpsBump .45s ease both}
+@keyframes rpsBump{0%,100%{transform:none}30%{transform:translateX(-6px)}60%{transform:translateX(6px)}}
+.rps-banner{text-align:center;animation:rise .25s ease both}
+@media (prefers-reduced-motion:reduce){.rps-hand.shake,.c4cell.win .disc{animation:none}}
