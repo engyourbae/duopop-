@@ -1,4 +1,6 @@
 import { getProgress } from '../features/progression/store';
+/** Ketukan detik jam di timer. true = bunyi, false = mati. */
+const CLOCK_TICK = false;
 let ctx: AudioContext | null = null, noise: AudioBuffer | null = null, flip = false;
 function ac(): AudioContext | null {
   if (!getProgress().settings.sound || typeof window === 'undefined') return null;
@@ -37,7 +39,7 @@ export const sfx = {
   tick: () => tone(520, 0.05),
   win: () => { tone(523, 0.15); tone(659, 0.15, 0.15); tone(784, 0.3, 0.3); },
   /** Ketukan detik jam untuk timer. urgent = true pada 5 detik terakhir (lebih tinggi & keras). */
-  clock: (urgent = false) => clock(urgent),
+  clock: (urgent = false) => { if (CLOCK_TICK) clock(urgent); },
   /** "Ting" kecil saat jawaban muncul. */
   reveal: () => { tone(784, 0.09, 0, 0.12); tone(1175, 0.18, 0.07, 0.12); },
 };
