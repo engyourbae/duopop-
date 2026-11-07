@@ -12,6 +12,9 @@ import { recordResult } from '../progression/store';
 import { buildRounds, roomCapacity, roomKind, roundComplete, scoreRounds, type RoomRound } from './rounds';
 import { replayBoard } from './board';
 import { FriendInviter } from './Invite';
+import { RulesPeek } from '../../components/Rules';
+import { C4Board } from '../games/mechanics/C4Board';
+import { RpsArena } from '../games/mechanics/Rps';
 import { Social } from '../chat/Social';
 import { LETTERS, type MechProps } from '../games/mechanics/types';
 import type { Room, RoomAnswer, RoomScore } from '../../services/rooms';
@@ -187,11 +190,11 @@ function RoomInner() {
     const play = (v: number) => { if (!myTurn) return; void act(async () => (await svc()).submitAnswer(code, me.uid, board.moves, v)); };
     const mark = (c: number) => (c === 1 ? 'X' : c === 2 ? 'O' : '');
     return (
-      <div className="page"><Header title={game.title} />
+      <div className="page"><Header title={game.title} /><RulesPeek rules={game.rules} defaultOpen />
         <p className="center"><b>{board.over ? (board.draw ? 'Seri!' : `${names[board.winner - 1]} menang!`) : myTurn ? 'Giliranmu!' : `Giliran ${room.players[turnUid ?? '']?.name ?? ''}`}</b></p>
         <p className="center muted small">{names[0]} = {game.mechanic === 'tictactoe' ? 'X' : 'merah'} · {names[1]} = {game.mechanic === 'tictactoe' ? 'O' : 'kuning'}</p>
         {game.mechanic === 'tictactoe' ? <div className="ttt">{board.cells.map((c, i) => <button key={i} className={`tcell ${board.winLine.includes(i) ? 'win' : ''}`} disabled={!myTurn || !!c} onClick={() => play(i)} aria-label={`Petak ${i + 1}`}><b style={{ fontSize: '2rem', color: c === 1 ? 'var(--blue)' : 'var(--red)' }}>{mark(c)}</b></button>)}</div>
-          : <div className="c4" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>{Array.from({ length: 7 }, (_, c) => <button key={`h${c}`} className="c4head" disabled={!myTurn} onClick={() => play(c)} aria-label={`Jatuhkan di kolom ${c + 1}`}>▼</button>)}{board.cells.map((c, i) => <div key={i} className={`c4cell ${board.winLine.includes(i) ? 'win' : ''}`}><span className={`disc ${c ? `d${c}` : ''}`} /></div>)}</div>}
+          : <C4Board cells={board.cells} winLine={board.winLine} onDrop={play} disabled={!myTurn} turn={((board.moves % 2) + 1) as 1 | 2} />}
       </div>);
   }
   if (!rd || !start) return <Spinner label="Menyiapkan ronde…" />;
@@ -204,6 +207,7 @@ function RoomInner() {
   return (
     <div className="page"><Header title={room.count >= 999 ? `Ronde ${round + 1} · tanpa batas` : `Ronde ${round + 1}/${rounds.length}`} />
       {isHost && room.count >= 999 && <div className="center"><Button size="sm" variant="ghost" onClick={() => void act(async () => (await svc()).finishRoom(code))}>Akhiri permainan</Button></div>}
+      <RulesPeek rules={game.rules} />
       <div className={`timer ${left < 4 ? 'low' : ''}`}><div style={{ width: `${(left / room.secs) * 100}%` }} /></div>
       {rd.kind === 'actor' && <p className="center small muted">Giliran: <b>{actorName}</b>{iAmActor ? ' (kamu)' : ''}</p>}
       {rd.hint && <p className="center small muted">{rd.hint}</p>}
@@ -212,7 +216,8 @@ function RoomInner() {
       {rd.textInput && canAnswer && <TextAnswer onSend={(t) => answer(0, t)} placeholder={rd.scoring === 'wordchain' ? 'Kata berikutnya…' : 'Tulis satu kalimat…'} />}
       {rd.textInput && !canAnswer && !reveal && <p className="center muted">Menunggu {actorName}…</p>}
       {!rd.textInput && rd.kind === 'actor' && !canAnswer && !reveal && <p className="center muted">Menunggu {actorName}…</p>}
-      {!rd.textInput && (rd.kind === 'all' || iAmActor) && rd.options.map((o, i) => {
+      {reveal && rd.scoring === 'rps' && <RpsArena key={round} names={names} picks={uids.map((u) => roundAns.find((a) => a.uid === u)?.choice)} />}
+      {!rd.textInput && (rd.kind === 'all' || iAmActor) && !(reveal && rd.scoring === 'rps') && rd.options.map((o, i) => {
         const chosen = myAns?.choice === i;
         const cls = !reveal ? (chosen ? 'sel' : '') : rd.scoring === 'quiz' ? (i === rd.correct ? 'right' : chosen ? 'wrong' : '') : chosen ? 'sel' : '';
         return <button key={i} className={`opt ${cls}`} disabled={!canAnswer} onClick={() => answer(i)}><span className="k">{LETTERS[i]}</span>{o}</button>;
