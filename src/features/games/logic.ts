@@ -8,6 +8,17 @@ export function tttWinner(b: readonly Cell[]): { winner: 1 | 2 | 0; line: readon
 /** Suit: 0 batu, 1 gunting, 2 kertas. */
 export const beats = (x: number, y: number) => (x - y + 3) % 3 === 2;
 export const rpsPoints = (picks: number[]) => picks.map((a) => picks.filter((b) => beats(a, b)).length);
+export type RpsStatus = 'win' | 'lose' | 'draw' | 'none';
+/** Hasil satu ronde suit. picks[i] = undefined berarti pemain tidak memilih (online, waktu habis). Semua poin sama = seri. */
+export function rpsOutcome(picks: readonly (number | undefined)[]): { pts: number[]; status: RpsStatus[] } {
+  const idx = picks.map((p, i) => (p === undefined ? -1 : i)).filter((i) => i >= 0);
+  const got = rpsPoints(idx.map((i) => picks[i] as number));
+  const max = Math.max(0, ...got);
+  const equal = got.every((v) => v === got[0]);
+  const pts = picks.map((_, i) => { const k = idx.indexOf(i); return k < 0 ? 0 : (got[k] ?? 0); });
+  const status = picks.map((_, i): RpsStatus => { const k = idx.indexOf(i); if (k < 0) return 'none'; if (equal) return 'draw'; return (got[k] ?? 0) === max ? 'win' : 'lose'; });
+  return { pts, status };
+}
 export const C4_COLS = 7, C4_ROWS = 6;
 export const emptyC4 = (): Cell[] => Array(C4_COLS * C4_ROWS).fill(0) as Cell[];
 /** Jatuhkan cakram di kolom; mengembalikan indeks sel atau -1 bila kolom penuh. Indeks = baris*7+kolom, baris 0 di atas. */

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Badge, Button, Card, EmptyState, Header, Select, useConfirm, useToast } from '../../components/ui';
 import { Icon } from '../../components/Icon';
+import { RulesPeek } from '../../components/Rules';
 import { BADGES, claimDaily, getProgress, recordResult, unlockLevel, useProgress } from '../progression/store';
 import { rankPlayers, xpForResult } from './engine';
 import { gameById, GROUP_LABEL, withVariant } from './registry';
@@ -10,6 +11,7 @@ import { AnagramMech, BuzzerMech, TapMech, TypingMech, WordleMech } from './mech
 import { QuizMech, OrderMech, EstimateMech, CluesMech } from './mechanics/Quiz';
 import { PairMech, PredictMech, LoveLangMech, DeckMech } from './mechanics/Social';
 import { WheelMech, WordChainMech, StoryMech, WordGuessMech } from './mechanics/Party';
+import { RpsMech } from './mechanics/Rps';
 import { Connect4Mech, MemoryMech, ReflexMech, TicTacToeMech } from './mechanics/Board';
 import { CatchMech, FlappyMech, SimonMech, SnakeMech, StroopMech, WhackMech } from './mechanics/Arcade';
 import type { MechProps, Outcome } from './mechanics/types';
@@ -60,7 +62,7 @@ export const MECH: Record<string, (p: MechProps) => ReactElement | null> = {
   mcq: QuizMech, tf: QuizMech, 'chain-tf': QuizMech, era: QuizMech, flag: QuizMech, order: OrderMech, estimate: EstimateMech, clues: CluesMech,
   pair: PairMech, match: PairMech, likely: PairMech, predict: PredictMech, deck: DeckMech, wheel: WheelMech, wordchain: WordChainMech,
   story: StoryMech, wordguess: WordGuessMech, lovelang: LoveLangMech,
-  uno: TurnMech, gaple: TurnMech, ladder: TurnMech, rps: PairMech, wordle: WordleMech, typing: TypingMech, tapbattle: TapMech, anagram: AnagramMech, buzzer: BuzzerMech,
+  uno: TurnMech, gaple: TurnMech, ladder: TurnMech, rps: RpsMech, wordle: WordleMech, typing: TypingMech, tapbattle: TapMech, anagram: AnagramMech, buzzer: BuzzerMech,
   memorymatch: MemoryMech, reflex: ReflexMech, tictactoe: TicTacToeMech, connect4: Connect4Mech,
   whack: WhackMech, stroop: StroopMech, simon: SimonMech, snake: SnakeMech, flappy: FlappyMech, catch: CatchMech,
 };
@@ -162,6 +164,7 @@ export default function GamePage() {
     return (
       <div className="page">
         <Header title={game.title} back={() => { void ask({ title: 'Keluar dari permainan?', text: 'Kemajuan ronde ini tidak disimpan.', ok: 'Keluar', danger: true }).then((y) => { if (y) setPhase('setup'); }); }} />
+        <RulesPeek rules={game.rules} defaultOpen={game.mechanic === 'connect4' || game.mechanic === 'rps'} />
         <M key={session.id} game={eg} players={names} seed={session.seed} count={quizLike && mode === 'level' ? 10 : cfg.count} secs={quizLike && mode === 'level' ? lvSecs : quizLike && mode === 'endless' ? 15 : cfg.secs || 20} onDone={finish} mode={quizLike ? mode : undefined} level={level} />
       </div>
     );
