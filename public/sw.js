@@ -23,6 +23,7 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // Firebase & layanan eksternal tidak di-cache
+  if (url.pathname.includes('/audio/')) return; // mp3 (Range request) langsung ke jaringan
   if (req.mode === 'navigate') {
     // Selalu ambil HTML terbaru dari jaringan (lewati cache HTTP) agar tidak merujuk berkas lama yang sudah dihapus.
     e.respondWith(fetch(new Request(req, { cache: 'no-store' })).then((r) => { const cp = r.clone(); if (r.ok) caches.open(VERSION).then((c) => c.put(abs('./'), cp)); return r; })
