@@ -62,7 +62,7 @@ function LobbyInner() {
   const toast = useToast();
   const online = useOnline();
   const prog = useProgress();
-  useMusic('lobi');
+  useMusic('party');
   const first = GAMES.find((g) => g.id === sp.get('game')) ? (sp.get('game') as string) : 'duel';
   const [gid, setGid] = useState(first);
   const [variant, setVariant] = useState(sp.get('v') ?? '');

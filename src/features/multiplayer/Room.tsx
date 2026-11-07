@@ -18,6 +18,7 @@ import type { Room, RoomAnswer, RoomScore } from '../../services/rooms';
 import { useMusic } from '../../hooks/useMusic';
 import { explainError } from '../../utils/errors';
 import { sfx } from '../../utils/sound';
+import { trackForGame } from '../../utils/music';
 
 export default function RoomPage() { return <RequireAuth need="Ruang online memerlukan akun."><RoomInner /><RoomSocialHost /></RequireAuth>; }
 /** Chat + reaksi sementara untuk semua tampilan ruang. */
@@ -58,7 +59,7 @@ function RoomInner() {
   const kind = game ? roomKind(game) : 'rounds';
   const uids = useMemo(() => Object.keys(room?.players ?? {}).sort(), [room?.players]);
   const names = uids.map((u) => room?.players[u]?.name ?? '?');
-  useMusic(room?.status === 'playing' ? (game?.group === 'arkade' ? 'arkade' : 'game') : 'lobi');
+  useMusic(room?.status === 'playing' && game ? trackForGame(game) : 'party');
   const rounds = useMemo(() => (room && game && kind === 'rounds' && room.status !== 'lobby' ? buildRounds(game, room.seed, room.count, names) : []), [room?.seed, room?.count, room?.status, game, kind, names.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
   const startsMs = useMemo(() => Object.fromEntries(Object.entries(room?.starts ?? {}).map(([k, v]) => [k, v ? v.toMillis() : null])), [room?.starts]);
   const lite = useMemo(() => answers.map((a) => ({ uid: a.uid, round: a.round, choice: a.choice, atMs: a.at ? a.at.toMillis() : null, text: a.text })), [answers]);
@@ -112,7 +113,9 @@ function RoomInner() {
     const t = setTimeout(() => { void svc().then((r) => r.nextRound(code, round, rounds.length)).catch(() => toast('Gagal melanjutkan ronde', 'err')); }, revealSecs * 1000);
     return () => clearTimeout(t);
   }, [reveal, round, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (reveal && rd?.scoring === 'quiz' && me) { const c = roundAns.find((a) => a.uid === me.uid)?.choice; if (c !== undefined) (c === rd.correct ? sfx.right : sfx.wrong)(); } }, [reveal]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!reveal) return; sfx.reveal(); if (rd?.scoring === 'quiz' && me) { const c = roundAns.find((a) => a.uid === me.uid)?.choice; if (c !== undefined) (c === rd.correct ? sfx.right : sfx.wrong)(0.25); } }, [reveal]); // eslint-disable-line react-hooks/exhaustive-deps
+  const leftSec = Math.ceil(left);
+  useEffect(() => { if (kind === 'rounds' && room?.status === 'playing' && !reveal && left > 0 && room && leftSec < room.secs) sfx.clock(leftSec <= 5); }, [leftSec]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- simpan hasil sekali ----
   useEffect(() => {
