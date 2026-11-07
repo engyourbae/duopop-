@@ -24,6 +24,14 @@ jobs:
         continue-on-error: true
       - run: npm test
         continue-on-error: true
+      - name: Cek berkas musik
+        run: |
+          for t in "utama 4" "cozy 7" "party 2" "quiz 3" "board 3"; do
+            read name n <<< "$t"
+            for i in $(seq 1 $n); do
+              [ -f "public/audio/music/$name-$i.mp3" ] || echo "::warning::Berkas hilang: public/audio/music/$name-$i.mp3"
+            done
+          done
       - run: npm run build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
