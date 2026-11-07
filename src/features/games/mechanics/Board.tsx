@@ -4,7 +4,8 @@ import { Icon } from '../../../components/Icon';
 import { sfx } from '../../../utils/sound';
 import { rng, seedFrom, shuffle } from '../../../utils/rng';
 import { Scoreboard } from './Quiz';
-import { c4Winner, C4_COLS, C4_ROWS, dropC4, emptyC4, memoryDeck, tttWinner, type Cell } from '../logic';
+import { C4Board } from './C4Board';
+import { c4Winner, dropC4, emptyC4, memoryDeck, tttWinner, type Cell } from '../logic';
 import type { MechProps } from './types';
 
 export function MemoryMech({ players, seed, count, onDone }: MechProps) {
@@ -161,7 +162,7 @@ export function Connect4Mech({ players, count, onDone }: MechProps) {
   const drop = (col: number) => {
     if (res) return;
     const idx = dropC4(board, col);
-    if (idx < 0) return;
+    if (idx < 0) { sfx.wrong(); return; }
     const nb = board.slice() as Cell[]; nb[idx] = turn; setBoard(nb); sfx.tick();
     const win = c4Winner(nb);
     if (win.winner) { setScores([scores[0] + (win.winner === 1 ? 1 : 0), scores[1] + (win.winner === 2 ? 1 : 0)]); setRes(`${players[win.winner - 1]} menang ronde ini!`); sfx.win(); }
@@ -176,10 +177,9 @@ export function Connect4Mech({ players, count, onDone }: MechProps) {
     <div>
       <p className="center muted small">Ronde {round + 1}/{count}</p>
       <p className="center"><b>{res ?? `Giliran ${players[turn - 1]}`}</b> {!res && <span className={`disc d${turn}`} style={{ display: 'inline-block', width: 16, height: 16, verticalAlign: 'middle' }} />}</p>
-      <div className="c4" style={{ gridTemplateColumns: `repeat(${C4_COLS}, 1fr)` }}>
-        {Array.from({ length: C4_COLS }, (_, c) => <button key={`h${c}`} className="c4head" onClick={() => drop(c)} disabled={!!res} aria-label={`Jatuhkan di kolom ${c + 1}`}>▼</button>)}
-        {Array.from({ length: C4_ROWS * C4_COLS }, (_, i) => <div key={i} className={`c4cell ${w.cells.includes(i) ? 'win' : ''}`}><span className={`disc ${board[i] ? `d${board[i]}` : ''}`} /></div>)}
-      </div>
+      <p className="center muted small">Ketuk kolom mana saja untuk menjatuhkan cakram. Susun 4 sejajar!</p>
+      <p className="center small c4legend"><span className="dot d1" /> {players[0]} <span className="dot d2" /> {players[1]}</p>
+      <C4Board cells={board} winLine={w.cells} onDrop={drop} disabled={!!res} turn={turn} />
       {res && <Button size="lg" className="gap" onClick={next}>{round + 1 >= count ? 'Lihat hasil' : 'Ronde berikutnya'}</Button>}
       <div className="gap"><Scoreboard players={players} scores={scores} turn={res ? undefined : turn - 1} /></div>
     </div>

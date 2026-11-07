@@ -9,7 +9,7 @@ import { Scoreboard } from './Quiz';
 import { rpsPoints } from '../logic';
 import { LETTERS, type MechProps } from './types';
 
-function Cover({ name, onGo, hint }: { name: string; onGo: () => void; hint?: string }) {
+export function Cover({ name, onGo, hint }: { name: string; onGo: () => void; hint?: string }) {
   return (
     <div className="card center gap">
       <div className="avatar" style={{ margin: '0 auto 8px' }}>{name.slice(0, 1).toUpperCase()}</div>
