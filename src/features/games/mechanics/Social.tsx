@@ -179,7 +179,7 @@ export function DeckMech({ game, players, seed, count, secs, onDone }: MechProps
     if (i + 1 >= cards.length) { onDone({ scores: ns, correct: ng, total: cards.length }); return; }
     setScores(ns); setGood(ng); setI(i + 1); setFlash(null);
   };
-  const left = useCountdown(secs, `${i}-${level}`, timed && level !== 0 && !flash, () => { setFlash('Waktu habis!'); sfx.wrong(); });
+  const left = useCountdown(secs, `${i}-${level}`, timed && level !== 0 && !flash, () => { setFlash('Waktu habis!'); sfx.wrong(); }, true);
   if (game.bank === 'deepTalk' && level === 0) {
     return (<div className="card center"><h2>Pilih tingkat percakapan</h2><p className="muted">Mulai dari ringan lalu naik pelan-pelan.</p>
       {([[1, 'Ringan'], [2, 'Sedang'], [3, 'Dalam']] as const).map(([l, t]) => <Button key={l} size="lg" variant="soft" className="gap" onClick={() => setLevel(l)}>{t}</Button>)}</div>);

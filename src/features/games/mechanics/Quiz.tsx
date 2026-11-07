@@ -28,9 +28,9 @@ export function QuizMech({ game, players, seed, count, secs, onDone, mode, level
   const item = items[s.index];
   const pause = usePauseSecs();
   const running = s.chosen === null && !s.done;
-  const left = useCountdown(secs, s.index, running, () => dispatch({ type: 'answer', choice: -1, timeFrac: 0 }));
+  const left = useCountdown(secs, s.index, running, () => dispatch({ type: 'answer', choice: -1, timeFrac: 0 }), true);
   useEffect(() => { if (s.done) onDone({ scores: s.scores, correct: s.correct, total: s.log.length }); }, [s.done]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (s.chosen !== null && item) { (s.chosen === item.correct ? sfx.right : sfx.wrong)(); if (mode) markSeen([item.id]); } }, [s.chosen]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (s.chosen !== null && item) { sfx.reveal(); (s.chosen === item.correct ? sfx.right : sfx.wrong)(0.25); if (mode) markSeen([item.id]); } }, [s.chosen]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!item || s.done) return null;
   const turn = s.index % players.length;
   return (

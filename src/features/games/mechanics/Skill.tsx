@@ -114,12 +114,12 @@ export function BuzzerMech({ game, players, seed, count, onDone }: MechProps) {
     return () => clearInterval(t);
   }, [phase, item]);
   useEffect(() => { if (phase === 'read' && shown > words.length + 18) { setPhase('reveal'); setChosen(null); setBuzz(-1); } }, [shown, phase, words.length]);
-  const left = useCountdown(8, `a${i}-${phase}`, phase === 'answer', () => answer(-1));
+  const left = useCountdown(8, `a${i}-${phase}`, phase === 'answer', () => answer(-1), true);
   if (!item) return null;
   const answer = (c: number) => {
     const ok = c === item.correct, add = ok ? 2 + (early ? 1 : 0) : -1;
     setScores((sc) => sc.map((v, k) => (k === buzz ? Math.max(0, v + add) : v))); if (ok) setGood((g) => g + 1);
-    setChosen(c); setPhase('reveal'); (ok ? sfx.right : sfx.wrong)();
+    setChosen(c); setPhase('reveal'); sfx.reveal(); (ok ? sfx.right : sfx.wrong)(0.25);
   };
   const next = () => { if (i + 1 >= items.length) onDone({ scores, correct: good, total: items.length }); else { setI(i + 1); setShown(0); setPhase('read'); setBuzz(-1); setChosen(null); setEarly(false); } };
   return (

@@ -89,7 +89,7 @@ export function WordChainMech({ players, seed, secs, onDone }: MechProps) {
     if (a.filter(Boolean).length <= 1) { finish(a, counts); return; }
     setTurn(nextAlive(turn, a)); setRound((r) => r + 1);
   };
-  const left = useCountdown(secs, round, true, timeout);
+  const left = useCountdown(secs, round, true, timeout, true);
   const submit = () => {
     const w = val.trim();
     if (w.length < 2) { setErr('Ketik minimal 2 huruf.'); return; }
@@ -165,7 +165,7 @@ export function WordGuessMech({ players, seed, secs, onDone }: MechProps) {
     if (t + 1 >= turns) { if (!doneRef.current) { doneRef.current = true; onDone({ scores, correct: good, total: good + skipped || 1 }); } return; }
     setT(t + 1);
   };
-  const left = useCountdown(secs, t, ready, () => { sfx.win(); endTurn(); });
+  const left = useCountdown(secs, t, ready, () => { sfx.win(); endTurn(); }, true);
   const w = words[wi % words.length];
   if (!ready) return (
     <div className="card center gap"><h2>Giliran {players[me]} menjelaskan</h2>
