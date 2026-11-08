@@ -1,4 +1,4 @@
-import type { GameDef } from '../../types';
+import type { Difficulty, GameDef } from '../../types';
 import { answerPoints, buildItems } from '../games/engine';
 import { challenges, rapidFire, storyStarters, wheelSlices, wordPairs } from '../../data/content/party';
 import { chemistryBank, deepTalk, knowMe, likelyBank, matchBank, memoryLane, thisOrThat, truthDare, wouldYouRather } from '../../data/content/couples';
@@ -19,19 +19,19 @@ export const roomCapacity = (g: GameDef) => (roomKind(g) === 'board' ? 2 : roomK
 export interface RoomRound {
   /** all = semua pemain menjawab; actor = hanya pemain giliran yang menjawab */
   kind: 'all' | 'actor'; actor: number; scoring: Scoring;
-  prompt: string; options: string[]; correct?: number; explanation?: string; big?: string; secret?: string; textInput?: boolean; hint?: string;
+  diff?: Difficulty; prompt: string; options: string[]; correct?: number; explanation?: string; big?: string; secret?: string; textInput?: boolean; hint?: string;
 }
 export const DONE_OPTS = ['Selesai', 'Lewati'];
 
 /** Membangun daftar ronde secara deterministik dari seed; semua klien menghasilkan hasil yang sama. */
-export function buildRounds(game: GameDef, seed: string, count: number, names: string[]): RoomRound[] {
+export function buildRounds(game: GameDef, seed: string, count: number, names: string[], difficulty?: Difficulty): RoomRound[] {
   const n = Math.max(1, names.length), r = rng(seedFrom(seed));
   const act = (i: number) => i % n;
   switch (game.mechanic) {
     case 'rps':
       return Array.from({ length: count }, (_, i) => ({ kind: 'all' as const, actor: act(i), scoring: 'rps' as const, prompt: 'Pilih senjatamu!', options: ['✊ Batu', '✌️ Gunting', '✋ Kertas'] }));
     case 'mcq': case 'buzzer': case 'tf': case 'era': case 'flag':
-      return buildItems(game, count, seed).map((it, i) => ({ kind: 'all', actor: act(i), scoring: 'quiz', prompt: it.prompt, options: it.options, correct: it.correct, explanation: it.explanation, big: it.big }));
+      return buildItems(game, count, seed, { difficulty }).map((it, i) => ({ kind: 'all', actor: act(i), scoring: 'quiz', diff: it.diff, prompt: it.prompt, options: it.options, correct: it.correct, explanation: it.explanation, big: it.big }));
     case 'pair': {
       const bank = game.bank === 'wouldYouRather' ? wouldYouRather : thisOrThat;
       return shuffle(bank, r).slice(0, count).map((p, i) => ({ kind: 'all', actor: act(i), scoring: 'plurality', prompt: game.bank === 'wouldYouRather' ? 'Kamu lebih pilih…' : 'Pilih salah satu:', options: [...p] }));

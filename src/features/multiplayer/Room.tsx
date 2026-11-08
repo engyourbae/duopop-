@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Card, ErrorState, Header, Spinner, useToast } from '../../components/ui';
+import { Badge, Button, Card, ErrorState, Header, Spinner, useToast } from '../../components/ui';
 import { ShareSheet } from '../../components/Share';
 import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
 import { gameById, withVariant } from '../games/registry';
 import { TurnBoard, TURN_ENGINES } from '../games/mechanics/Turn';
 import { replayTurns } from '../games/engines/types';
+import { DIFF_COLOR, DIFF_LABEL } from '../games/engine';
 import { MECH } from '../games/GamePage';
 import { recordResult } from '../progression/store';
 import { buildRounds, roomCapacity, roomKind, roundComplete, scoreRounds, type RoomRound } from './rounds';
@@ -63,7 +64,7 @@ function RoomInner() {
   const uids = useMemo(() => Object.keys(room?.players ?? {}).sort(), [room?.players]);
   const names = uids.map((u) => room?.players[u]?.name ?? '?');
   useMusic(room?.status === 'playing' && game ? trackForGame(game) : 'party');
-  const rounds = useMemo(() => (room && game && kind === 'rounds' && room.status !== 'lobby' ? buildRounds(game, room.seed, room.count, names) : []), [room?.seed, room?.count, room?.status, game, kind, names.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rounds = useMemo(() => (room && game && kind === 'rounds' && room.status !== 'lobby' ? buildRounds(game, room.seed, room.count, names, room.difficulty) : []), [room?.seed, room?.count, room?.status, room?.difficulty, game, kind, names.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
   const startsMs = useMemo(() => Object.fromEntries(Object.entries(room?.starts ?? {}).map(([k, v]) => [k, v ? v.toMillis() : null])), [room?.starts]);
   const lite = useMemo(() => answers.map((a) => ({ uid: a.uid, round: a.round, choice: a.choice, atMs: a.at ? a.at.toMillis() : null, text: a.text })), [answers]);
   const isHost = !!room && !!me && room.hostUid === me.uid;
@@ -211,6 +212,7 @@ function RoomInner() {
       <div className={`timer ${left < 4 ? 'low' : ''}`}><div style={{ width: `${(left / room.secs) * 100}%` }} /></div>
       {rd.kind === 'actor' && <p className="center small muted">Giliran: <b>{actorName}</b>{iAmActor ? ' (kamu)' : ''}</p>}
       {rd.hint && <p className="center small muted">{rd.hint}</p>}
+      {rd.diff && <div className="row gap" style={{ marginBottom: 6 }}><Badge color={DIFF_COLOR[rd.diff]}>Tingkat: {DIFF_LABEL[rd.diff]}</Badge></div>}
       <div className="qbox">{rd.big && <div className="bigemoji">{rd.big}</div>}{rd.prompt}{rd.secret && rd.scoring === 'actorDone' && iAmActor && <div className="gap"><span className="badge">Kata rahasia</span><div style={{ fontSize: '2rem', marginTop: 6 }}>{rd.secret}</div></div>}</div>
       {rd.textInput && earlier.length > 0 && <div className="card"><p className="muted small">Sejauh ini</p><p>{rd.scoring === 'wordchain' ? earlier.join(' → ') : earlier.join(' ')}</p></div>}
       {rd.textInput && canAnswer && <TextAnswer onSend={(t) => answer(0, t)} placeholder={rd.scoring === 'wordchain' ? 'Kata berikutnya…' : 'Tulis satu kalimat…'} />}

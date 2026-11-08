@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Card, Field, Header, Select, useToast } from '../../components/ui';
 import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
 import { GAMES, withVariant } from '../games/registry';
 import { defaultsFor } from '../games/GamePage';
+import { DIFF_LABEL, poolStats } from '../games/engine';
+import type { Difficulty } from '../../types';
 import { useProgress } from '../progression/store';
 import { useOnline } from '../../hooks/useOnline';
 import { useMusic } from '../../hooks/useMusic';
@@ -74,12 +76,28 @@ function LobbyInner() {
   const d = game ? defaultsFor(withVariant(game, variant)) : null;
   const [count, setCount] = useState(d?.count ?? 10);
   const [secs, setSecs] = useState((d?.secs ?? 0) || 20);
-  useEffect(() => { const dd = game ? defaultsFor(game) : null; if (dd) { setCount(dd.count); setSecs(dd.secs || 20); } if (!game?.variants?.some((v) => v.id === variant)) setVariant(game?.variants?.[0]?.id ?? ''); }, [gid]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [diff, setDiff] = useState<'semua' | Difficulty>('semua');
+  // Statistik jumlah soal per topik: label "maks", pilihan kesulitan, dan batas jumlah soal per ronde.
+  const statsAll = useMemo(() => (game.variants && (game.mechanic === 'mcq' || game.mechanic === 'buzzer') && game.id !== 'harian' ? Object.fromEntries(game.variants.map((v) => [v.id, poolStats(withVariant(game, v.id))])) : null), [gid]); // eslint-disable-line react-hooks/exhaustive-deps
+  const st = statsAll ? statsAll[variant] ?? null : null;
+  const avail = st ? (st.unlimited ? Infinity : diff === 'semua' ? st.total : st[diff]) : Infinity;
+  useEffect(() => {
+    if (!d || !Number.isFinite(avail) || count >= 999 || count <= avail) return;
+    const ok = d.counts.filter((c) => c <= avail && c < 999);
+    setCount(ok.length ? Math.max(...ok) : Math.max(1, avail));
+  }, [avail]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const dd = game ? defaultsFor(game) : null; if (dd) { setCount(dd.count); setSecs(dd.secs || 20); } if (!game?.variants?.some((v) => v.id === variant)) setVariant(game?.variants?.[0]?.id ?? ''); setDiff('semua'); }, [gid]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const f = () => setSearching(true); window.addEventListener('duopop:search-again', f); return () => window.removeEventListener('duopop:search-again', f); }, []);
   if (!me || !game || !d) return null;
+  const pickVariant = (id: string) => { setVariant(id); setDiff('semua'); };
+  const vLabel = (v: { id: string; label: string }) => { const s = statsAll?.[v.id]; return s ? `${v.label} · ${s.unlimited ? 'tanpa batas' : `maks ${s.total} soal`}` : v.label; };
+  const fit = Number.isFinite(avail) ? d.counts.filter((c) => c <= avail || c >= 999) : d.counts;
+  const shownCounts = fit.length ? fit : [Math.max(1, avail)];
+  const useDiff = game.mechanic === 'mcq' && !!st && !st.unlimited;
+  const chosenDiff = useDiff && diff !== 'semua' ? diff : undefined;
   const createFriends = async () => {
     setBusy(true);
-    try { const r = await import('../../services/rooms'); const c = await r.createRoom(me, gid, count, secs, prog.settings.pause ?? 6, variant); nav(`/ruang/${c}`); }
+    try { const r = await import('../../services/rooms'); const c = await r.createRoom(me, gid, count, secs, prog.settings.pause ?? 6, variant, chosenDiff); nav(`/ruang/${c}`); }
     catch (e) { toast(explainError(e), 'err'); } finally { setBusy(false); }
   };
   const join = async () => {
@@ -94,10 +112,12 @@ function LobbyInner() {
     <div className="page"><Header title="Main Online" back={() => nav(-1)} />
       {!online && <div className="expl bad">Kamu sedang offline. Main online membutuhkan koneksi real-time.</div>}
       <Select label="Pilih game" value={gid} onChange={setGid} options={GAMES.map((g) => ({ value: g.id, label: g.title }))} />
-      {game.variants && game.variants.length > 1 && <Select label="Topik / varian" value={variant} onChange={setVariant} options={game.variants.map((v) => ({ value: v.id, label: v.label }))} />}
-      {d.counts.length > 1 && <div className="row wrap"><span className="small">{game.mechanic === 'memorymatch' ? 'Pasangan:' : 'Ronde/soal:'}</span>{d.counts.map((c) => <button key={c} className={`chip ${count === c ? 'on' : ''}`} onClick={() => setCount(c)}>{c >= 999 ? '∞ Tanpa batas' : c}</button>)}</div>}
+      {game.variants && game.variants.length > 1 && <Select label="Topik / varian" value={variant} onChange={pickVariant} options={game.variants.map((v) => ({ value: v.id, label: vLabel(v) }))} />}
+      {d.counts.length > 1 && <div className="row wrap"><span className="small">{game.mechanic === 'memorymatch' ? 'Pasangan:' : 'Ronde/soal:'}</span>{shownCounts.map((c) => <button key={c} className={`chip ${count === c ? 'on' : ''}`} onClick={() => setCount(c)}>{c >= 999 ? '∞ Tanpa batas' : c}</button>)}</div>}
+      {useDiff && st && <div className="row wrap gap"><span className="small">Kesulitan:</span>{(['semua', 'mudah', 'sedang', 'sulit'] as const).map((k) => { const n = k === 'semua' ? st.total : st[k]; return <button key={k} className={`chip ${diff === k ? 'on' : ''}`} disabled={n === 0} onClick={() => setDiff(k)}>{k === 'semua' ? 'Semua' : DIFF_LABEL[k]} ({n})</button>; })}</div>}
+      {st && <p className="small muted">{st.unlimited ? 'Soal pada topik ini dibuat otomatis, jadi tanpa batas.' : `Tersedia ${st.total} soal di topik ini (Mudah ${st.mudah} · Sedang ${st.sedang} · Sulit ${st.sulit}). Maksimal ${avail} soal per ronde${diff !== 'semua' && useDiff ? ` untuk tingkat ${DIFF_LABEL[diff]}` : ''}.`}</p>}
       {d.secsOpts && <div className="row wrap gap"><span className="small">Detik:</span>{d.secsOpts.map((c) => <button key={c} className={`chip ${secs === c ? 'on' : ''}`} onClick={() => setSecs(c)}>{c}</button>)}</div>}
-      {searching ? <div className="gap"><Searching gameId={variant ? `${gid}#${variant}` : gid} count={count} secs={secs} onCancel={() => setSearching(false)} /></div> : (
+      {searching ? <div className="gap"><Searching gameId={chosenDiff ? `${gid}#${variant}#${chosenDiff}` : variant ? `${gid}#${variant}` : gid} count={count} secs={secs} onCancel={() => setSearching(false)} /></div> : (
         <div className="gap">
           <Card><h3>Cari lawan acak</h3><p className="muted small">Masuk antrean dan langsung dipertemukan dengan pemain online yang mencari game yang sama. Tanpa kode.</p>
             <Button size="lg" icon="users" onClick={() => setSearching(true)} disabled={!online}>Cari lawan sekarang</Button></Card>
