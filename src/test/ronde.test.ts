@@ -1,6 +1,8 @@
 import { buildItems, poolStats } from '../features/games/engine';
+import { buildRounds } from '../features/multiplayer/rounds';
 import { gameById, withVariant } from '../features/games/registry';
 
+const names = ['@a', '@b'];
 describe('statistik topik & filter kesulitan Duel Pengetahuan', () => {
   it('jumlah soal per tingkat konsisten dengan total', () => {
     const s = poolStats(withVariant(gameById('duel')!, 'sejarah'));
@@ -21,5 +23,16 @@ describe('statistik topik & filter kesulitan Duel Pengetahuan', () => {
   });
   it('ronde 30 soal tersusun penuh', () => {
     expect(buildItems(withVariant(gameById('duel')!, 'semua'), 30, 'uji-30').length).toBe(30);
+  });
+});
+describe('ruang online dengan tingkat kesulitan', () => {
+  const g = withVariant(gameById('duel')!, 'semua');
+  it('ronde online memakai filter kesulitan dan membawa label tingkat', () => {
+    const rs = buildRounds(g, 'seed-online', 25, names, 'sulit');
+    expect(rs.length).toBe(25);
+    expect(rs.every((r) => r.diff === 'sulit')).toBe(true);
+  });
+  it('seed dan kesulitan yang sama menghasilkan ronde yang sama pada semua pemain', () => {
+    expect(JSON.stringify(buildRounds(g, 's1', 20, names, 'mudah'))).toBe(JSON.stringify(buildRounds(g, 's1', 20, names, 'mudah')));
   });
 });
