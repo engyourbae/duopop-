@@ -1,4 +1,4 @@
-import type { ChoiceQuestion, GameDef, Question } from '../../types';
+import type { ChoiceQuestion, Difficulty, GameDef, Question } from '../../types';
 import { allQuestions, mythQuestions, eraQuestions, mcqBank, MYTH_OPTIONS } from '../../data/questions';
 import { countries, flagEmoji } from '../../data/content/countries';
 import { rng, seedFrom, shuffle } from '../../utils/rng';
@@ -6,12 +6,14 @@ import { genItems } from '../../data/questions/gen';
 import { fromDatasets } from '../../data/questions/packs';
 
 /** Item siap-main untuk pilihan ganda; urutan opsi sudah diacak. */
-export interface PlayItem { id: string; prompt: string; options: string[]; correct: number; explanation: string; big?: string }
+export interface PlayItem { id: string; prompt: string; options: string[]; correct: number; explanation: string; big?: string; diff?: Difficulty }
+export const DIFF_LABEL: Record<Difficulty, string> = { mudah: 'Mudah', sedang: 'Sedang', sulit: 'Sulit' };
+export const DIFF_COLOR: Record<Difficulty, string> = { mudah: '#2f9e44', sedang: '#f08c00', sulit: '#c92a2a' };
 
 export function toPlayItem(q: ChoiceQuestion, r: () => number): PlayItem {
-  if (q.type === 'tf3') return { id: q.id, prompt: q.question, options: MYTH_OPTIONS, correct: q.correctAnswer, explanation: q.explanation };
+  if (q.type === 'tf3') return { id: q.id, prompt: q.question, options: MYTH_OPTIONS, correct: q.correctAnswer, explanation: q.explanation, diff: q.difficulty };
   const order = shuffle(q.options.map((_, i) => i), r);
-  return { id: q.id, prompt: q.question, options: order.map((i) => q.options[i] as string), correct: order.indexOf(q.correctAnswer), explanation: q.explanation };
+  return { id: q.id, prompt: q.question, options: order.map((i) => q.options[i] as string), correct: order.indexOf(q.correctAnswer), explanation: q.explanation, diff: q.difficulty };
 }
 
 export function flagItems(r: () => number): PlayItem[] {
@@ -52,14 +54,24 @@ export function pickByLevel(pool: ChoiceQuestion[], count: number, level: number
   return picks;
 }
 
-export interface BuildOpts { level?: number; seen?: Set<string> }
+export interface BuildOpts { level?: number; seen?: Set<string>; difficulty?: Difficulty }
+
+/** Jumlah soal tersedia pada satu pilihan topik (per tingkat kesulitan). unlimited = soal dibuat otomatis oleh generator. */
+export interface PoolStats { total: number; mudah: number; sedang: number; sulit: number; unlimited: boolean }
+export function poolStats(game: GameDef): PoolStats {
+  if (game.bank?.startsWith('gen:')) return { total: 0, mudah: 0, sedang: 0, sulit: 0, unlimited: true };
+  const extra = game.mechanic === 'mcq' || game.mechanic === 'buzzer' ? fromDatasets(game.categories, 240, rng(seedFrom('statistik-pool'))) : [];
+  const pool = [...poolFor(game), ...extra], n = (d: Difficulty) => pool.filter((q) => q.difficulty === d).length;
+  return { total: pool.length, mudah: n('mudah'), sedang: n('sedang'), sulit: n('sulit'), unlimited: false };
+}
 export function buildItems(game: GameDef, count: number, seed: string, opts: BuildOpts = {}): PlayItem[] {
   const r = rng(seedFrom(seed));
   if (game.mechanic === 'flag') { const out: PlayItem[] = []; while (out.length < count) out.push(...flagItems(r)); return out.slice(0, count); }
   if (game.bank === 'daily') return shuffle(mcqBank, r).slice(0, 6).map((q) => toPlayItem(q, r));
   if (game.bank?.startsWith('gen:')) return genItems(game.bank.slice(4), count, seed, opts.level ?? 1);
   const extra = game.mechanic === 'mcq' || game.mechanic === 'buzzer' ? fromDatasets(game.categories, 240, r) : [];
-  return pickByLevel([...poolFor(game), ...extra], count, opts.level, r, opts.seen).map((q) => toPlayItem(q, r));
+  const all = [...poolFor(game), ...extra], filtered = opts.difficulty ? all.filter((q) => q.difficulty === opts.difficulty) : all;
+  return pickByLevel(filtered.length ? filtered : all, count, opts.level, r, opts.seen).map((q) => toPlayItem(q, r));
 }
 
 export const QUESTION_COUNT = allQuestions.length;

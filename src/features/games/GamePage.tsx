@@ -4,7 +4,7 @@ import { Badge, Button, Card, EmptyState, Header, Select, useConfirm, useToast }
 import { Icon } from '../../components/Icon';
 import { RulesPeek } from '../../components/Rules';
 import { BADGES, claimDaily, getProgress, recordResult, unlockLevel, useProgress } from '../progression/store';
-import { rankPlayers, xpForResult } from './engine';
+import { DIFF_LABEL, poolStats, rankPlayers, xpForResult } from './engine';
 import { gameById, GROUP_LABEL, withVariant } from './registry';
 import { TurnMech } from './mechanics/Turn';
 import { AnagramMech, BuzzerMech, TapMech, TypingMech, WordleMech } from './mechanics/Skill';
@@ -15,7 +15,7 @@ import { RpsMech } from './mechanics/Rps';
 import { Connect4Mech, MemoryMech, ReflexMech, TicTacToeMech } from './mechanics/Board';
 import { CatchMech, FlappyMech, SimonMech, SnakeMech, StroopMech, WhackMech } from './mechanics/Arcade';
 import type { MechProps, Outcome } from './mechanics/types';
-import type { GameDef, GameResult } from '../../types';
+import type { Difficulty, GameDef, GameResult } from '../../types';
 import { todayKey, uid } from '../../utils/rng';
 import { sfx } from '../../utils/sound';
 import { trackForGame } from '../../utils/music';
@@ -51,10 +51,11 @@ export function defaultsFor(g: GameDef): Cfg {
     case 'deck': return g.bank === 'rapidFire' ? { count: 10, secs: 8, counts: [5, 10, 15], secsOpts: [5, 8, 12] } : { count: 10, secs: 0, counts: [5, 10, 15], secsOpts: null };
     case 'pair': case 'match': case 'likely': case 'predict': return { count: 10, secs: 0, counts: [5, 10, 15], secsOpts: null };
     default:
-      if (g.id === 'hitung') return { count: 10, secs: 15, counts: [5, 10, 15], secsOpts: [10, 15, 25] };
+      if (g.id === 'hitung') return { count: 10, secs: 15, counts: [5, 10, 20, 25, 30], secsOpts: [10, 15, 25] };
       if (g.id === 'kilat') return { count: 10, secs: 10, counts: [10], secsOpts: null };
       if (g.id === 'harian') return { count: 6, secs: 20, counts: [6], secsOpts: null };
-      if (g.id === 'logika') return { count: 10, secs: 30, counts: [5, 10], secsOpts: [20, 30, 45] };
+      if (g.id === 'logika') return { count: 10, secs: 30, counts: [5, 10, 20, 25, 30], secsOpts: [20, 30, 45] };
+      if (g.mechanic === 'mcq' || g.mechanic === 'flag') return { count: 20, secs: 20, counts: [10, 20, 25, 30], secsOpts: [10, 20, 30] };
       return { count: 10, secs: 20, counts: [5, 10, 15], secsOpts: [10, 20, 30] };
   }
 }
@@ -86,15 +87,25 @@ export default function GamePage() {
   const [variant, setVariant] = useState('');
   const [mode, setMode] = useState<'santai' | 'level' | 'endless'>('santai');
   const [level, setLevel] = useState(1);
+  const [diff, setDiff] = useState<'semua' | Difficulty>('semua');
   const [levelMsg, setLevelMsg] = useState('');
   const recorded = useRef(false);
   const d = useMemo(() => (game ? defaultsFor(game) : null), [game]);
   useMusic(phase === 'play' && game ? trackForGame(game) : 'cozy');
+  // Statistik jumlah soal per pilihan topik (untuk label "maks", pilihan tingkat kesulitan, dan batas jumlah soal per ronde).
+  const statsAll = useMemo(() => (game && game.variants && game.id !== 'harian' && (game.mechanic === 'mcq' || game.mechanic === 'buzzer') ? Object.fromEntries(game.variants.map((v) => [v.id, poolStats(withVariant(game, v.id))])) : null), [game]);
+  const st = statsAll ? statsAll[variant] ?? null : null;
+  const avail = st ? (st.unlimited ? Infinity : diff === 'semua' ? st.total : st[diff]) : Infinity;
+  useEffect(() => {
+    if (!cfg || !d || !Number.isFinite(avail) || cfg.count >= 999 || cfg.count <= avail) return;
+    const ok = d.counts.filter((c) => c <= avail && c < 999);
+    setCfg({ ...cfg, count: ok.length ? Math.max(...ok) : Math.max(1, avail) });
+  }, [avail]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!game) return;
     const base = game.id === 'tim' ? ['Tim A', 'Tim B'] : Array.from({ length: Math.max(game.minPlayers, game.id === 'duel' || game.maxPlayers === 1 ? 1 : game.minPlayers) }, (_, i) => (i === 0 && (me?.handle ? me.displayName : prog.name) ? (me?.handle ? me.displayName : prog.name) : `Pemain ${i + 1}`));
     setNames(base); if (d) setCfg({ count: d.count, secs: d.secs });
-    setPhase('setup'); setOut(null); recorded.current = false; setVariant(game.variants?.[0]?.id ?? '');
+    setPhase('setup'); setOut(null); recorded.current = false; setVariant(game.variants?.[0]?.id ?? ''); setDiff('semua');
   }, [game?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!game || !d || !cfg) return <EmptyState icon="search" title="Game tidak ditemukan" action={<Link to="/game"><Button>Lihat semua game</Button></Link>} />;
   const eg = withVariant(game, variant);
@@ -130,6 +141,10 @@ export default function GamePage() {
   if (phase === 'setup') {
     const setN = (i: number, v: string) => setNames(names.map((n, k) => (k === i ? v : n)));
     const canMulti = game.maxPlayers > 1 && !daily && game.id !== 'tim';
+    const pickVariant = (id: string) => { setVariant(id); setDiff('semua'); };
+    const vLabel = (v: { id: string; label: string }) => { const s = statsAll?.[v.id]; return s ? `${v.label} · ${s.unlimited ? 'tanpa batas' : `maks ${s.total} soal`}` : v.label; };
+    const fit = Number.isFinite(avail) ? d.counts.filter((c) => c <= avail || c >= 999) : d.counts;
+    const shownCounts = fit.length ? fit : [Math.max(1, avail)];
     return (
       <div className="page">
         <Header title={game.title} back={() => nav('/game')} />
@@ -145,12 +160,14 @@ export default function GamePage() {
                 <button key={n} className={`chip ${names.length === n ? 'on' : ''}`} onClick={() => setNames(Array.from({ length: n }, (_, i) => names[i] ?? `Pemain ${i + 1}`))}>{n}</button>))}
             </div>)}
           {names.map((n, i) => <label key={i} className="field gap"><span>{game.id === 'tim' ? `Nama tim ${i + 1}` : `Nama pemain ${i + 1}`}</span><input value={n} maxLength={20} onChange={(e) => setN(i, e.target.value)} /></label>)}
-          {game.variants && game.variants.length > 1 && (game.variants.length > 6 ? <div className="gap"><Select label="Topik / varian" value={variant} onChange={setVariant} options={game.variants.map((v) => ({ value: v.id, label: v.label }))} /></div> : <div className="row wrap gap"><span className="small">Varian:</span>{game.variants.map((v) => <button key={v.id} className={`chip ${variant === v.id ? 'on' : ''}`} onClick={() => setVariant(v.id)}>{v.label}</button>)}</div>)}
+          {game.variants && game.variants.length > 1 && (game.variants.length > 6 ? <div className="gap"><Select label="Topik / varian" value={variant} onChange={pickVariant} options={game.variants.map((v) => ({ value: v.id, label: vLabel(v) }))} /></div> : <div className="row wrap gap"><span className="small">Varian:</span>{game.variants.map((v) => <button key={v.id} className={`chip ${variant === v.id ? 'on' : ''}`} onClick={() => pickVariant(v.id)}>{vLabel(v)}</button>)}</div>)}
           {quizLike && <div className="row wrap gap"><span className="small">Mode:</span>{([['santai', 'Santai'], ['level', 'Level'], ['endless', 'Tanpa batas']] as const).map(([m, t]) => <button key={m} className={`chip ${mode === m ? 'on' : ''}`} onClick={() => setMode(m)}>{t}</button>)}</div>}
           {quizLike && mode === 'level' && <div className="row wrap gap"><span className="small">Level:</span>{Array.from({ length: 10 }, (_, k) => k + 1).map((l) => <button key={l} className={`chip ${level === l ? 'on' : ''}`} disabled={l > passedLv + 1} onClick={() => setLevel(l)}>{l > passedLv + 1 ? `🔒${l}` : l}</button>)}</div>}
           {quizLike && mode === 'level' && <p className="small muted">Level {level}: 10 soal, waktu {lvSecs} detik. Lulus bila benar ≥ 70%. Makin tinggi, makin sulit.</p>}
           {quizLike && mode === 'endless' && <p className="small muted">3 nyawa, soal tak berhenti. Soal yang belum pernah kamu lihat didahulukan.</p>}
-          {d.counts.length > 1 && !(quizLike && mode !== 'santai') && <div className="row wrap gap"><span className="small">{game.mechanic === 'deck' || game.mechanic === 'wheel' ? 'Jumlah kartu/putaran:' : game.mechanic === 'memorymatch' ? 'Jumlah pasangan:' : game.group === 'arkade' ? 'Jumlah ronde:' : 'Jumlah soal/ronde:'}</span>{d.counts.map((c) => <button key={c} className={`chip ${cfg.count === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, count: c })}>{c >= 999 ? '∞ Tanpa batas' : c}</button>)}</div>}
+          {d.counts.length > 1 && !(quizLike && mode !== 'santai') && <div className="row wrap gap"><span className="small">{game.mechanic === 'deck' || game.mechanic === 'wheel' ? 'Jumlah kartu/putaran:' : game.mechanic === 'memorymatch' ? 'Jumlah pasangan:' : game.group === 'arkade' ? 'Jumlah ronde:' : 'Jumlah soal/ronde:'}</span>{shownCounts.map((c) => <button key={c} className={`chip ${cfg.count === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, count: c })}>{c >= 999 ? '∞ Tanpa batas' : c}</button>)}</div>}
+          {quizLike && mode === 'santai' && game.mechanic === 'mcq' && st && !st.unlimited && <div className="row wrap gap"><span className="small">Kesulitan:</span>{(['semua', 'mudah', 'sedang', 'sulit'] as const).map((k) => { const n = k === 'semua' ? st.total : st[k]; return <button key={k} className={`chip ${diff === k ? 'on' : ''}`} disabled={n === 0} onClick={() => setDiff(k)}>{k === 'semua' ? 'Semua' : DIFF_LABEL[k]} ({n})</button>; })}</div>}
+          {st && <p className="small muted">{st.unlimited ? 'Soal pada topik ini dibuat otomatis, jadi tanpa batas.' : `Tersedia ${st.total} soal di topik ini (Mudah ${st.mudah} · Sedang ${st.sedang} · Sulit ${st.sulit}).${quizLike && mode === 'santai' ? ` Maksimal ${avail} soal per ronde${diff !== 'semua' ? ` untuk tingkat ${DIFF_LABEL[diff]}` : ''}.` : ''}`}</p>}
           {d.secsOpts && !(quizLike && mode !== 'santai') && <div className="row wrap gap"><span className="small">Waktu (detik):</span>{d.secsOpts.map((c) => <button key={c} className={`chip ${cfg.secs === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, secs: c })}>{c}</button>)}</div>}
         </Card>
         <Button size="lg" icon="play" onClick={() => { setNames(names.map((n, i) => n.trim() || `Pemain ${i + 1}`)); start(); }}>{doneToday ? 'Berlatih' : 'Mulai main'}</Button>
@@ -165,7 +182,7 @@ export default function GamePage() {
       <div className="page">
         <Header title={game.title} back={() => { void ask({ title: 'Keluar dari permainan?', text: 'Kemajuan ronde ini tidak disimpan.', ok: 'Keluar', danger: true }).then((y) => { if (y) setPhase('setup'); }); }} />
         <RulesPeek rules={game.rules} defaultOpen={game.mechanic === 'connect4' || game.mechanic === 'rps'} />
-        <M key={session.id} game={eg} players={names} seed={session.seed} count={quizLike && mode === 'level' ? 10 : cfg.count} secs={quizLike && mode === 'level' ? lvSecs : quizLike && mode === 'endless' ? 15 : cfg.secs || 20} onDone={finish} mode={quizLike ? mode : undefined} level={level} />
+        <M key={session.id} game={eg} players={names} seed={session.seed} count={quizLike && mode === 'level' ? 10 : cfg.count} secs={quizLike && mode === 'level' ? lvSecs : quizLike && mode === 'endless' ? 15 : cfg.secs || 20} onDone={finish} mode={quizLike ? mode : undefined} level={level} difficulty={quizLike && mode === 'santai' && game.mechanic === 'mcq' ? diff : undefined} />
       </div>
     );
   }
