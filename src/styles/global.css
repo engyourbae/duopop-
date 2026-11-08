@@ -39,9 +39,9 @@ a{color:var(--brand);font-weight:700}
 .card-tap{cursor:pointer}.card-tap:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--shadow-c)}
 .badge{display:inline-flex;align-items:center;gap:4px;background:var(--yellow);color:#17140e;border:var(--bw) solid var(--edge);border-radius:8px;padding:1px 8px;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .progress{height:16px;background:var(--card);border:var(--bw) solid var(--edge);border-radius:99px;overflow:hidden}.progress-fill{height:100%;background:var(--yellow);border-right:var(--bw) solid var(--edge);transition:width .3s}
-.tabs{display:flex;gap:0;border:var(--bw) solid var(--edge);border-radius:var(--r-md);margin-bottom:16px;overflow:hidden;background:var(--card)}
-.tab{flex:1;white-space:nowrap;border:0;background:transparent;color:var(--ink);font:inherit;font-weight:800;padding:10px 12px;cursor:pointer;min-height:44px;border-right:var(--bw) solid var(--edge)}.tab:last-child{border-right:0}
-.tab.on{background:var(--ink);color:var(--paper)}
+.tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px;margin-bottom:16px}
+.tab{min-width:0;border:var(--bw) solid var(--edge);border-radius:var(--r-md);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:clamp(.78rem,3.5vw,.95rem);line-height:1.2;text-align:center;overflow-wrap:anywhere;padding:10px 6px;cursor:pointer;min-height:44px;box-shadow:2px 2px 0 var(--shadow-c)}
+.tab.on{background:var(--ink);color:var(--paper);box-shadow:none;transform:translate(2px,2px)}
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:var(--bw) solid var(--edge);padding-bottom:env(safe-area-inset-bottom)}
 .nav-in{display:flex;max-width:760px;margin:0 auto}
 .nav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:var(--nav-h);text-decoration:none;color:var(--muted);font-size:.7rem;font-weight:800}
