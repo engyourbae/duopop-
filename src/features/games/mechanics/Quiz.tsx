@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
-import { Button, ProgressBar } from '../../../components/ui';
+import { Badge, Button, ProgressBar } from '../../../components/ui';
 import { useCountdown } from '../../../hooks/useCountdown';
 import { usePauseSecs } from '../../../hooks/usePause';
 import { sfx } from '../../../utils/sound';
 import { rng, seedFrom, shuffle } from '../../../utils/rng';
 import { clueItems, estimateQuestions, orderQuestions } from '../../../data/questions';
 import { getProgress, markSeen } from '../../progression/store';
-import { buildItems, type PlayItem, cluePoints, estimatePoints, initialQuiz, orderPoints, quizReducer, type QuizAction, type QuizState } from '../engine';
+import { buildItems, DIFF_COLOR, DIFF_LABEL, type PlayItem, cluePoints, estimatePoints, initialQuiz, orderPoints, quizReducer, type QuizAction, type QuizState } from '../engine';
 import { LETTERS, type MechProps } from './types';
 
 /** Batang hitung mundur jeda penjelasan + tombol lanjut. */
@@ -19,11 +19,11 @@ export function Scoreboard({ players, scores, turn }: { players: string[]; score
   return <div>{players.map((p, i) => <div key={i} className={`score-row ${i === turn ? 'turn' : ''}`}><span>{i === turn ? '▶ ' : ''}{p}</span><span>{scores[i] ?? 0}</span></div>)}</div>;
 }
 
-export function QuizMech({ game, players, seed, count, secs, onDone, mode, level }: MechProps) {
+export function QuizMech({ game, players, seed, count, secs, onDone, mode, level, difficulty }: MechProps) {
   const chain = game.mechanic === 'chain-tf';
   const endless = mode === 'endless';
   // Daftar soal DIBEKUKAN sekali per sesi: initializer useState hanya jalan sekali, jadi progres (markSeen) tidak mengacak ulang soal.
-  const [items] = useState<PlayItem[]>(() => buildItems(game, endless ? 300 : chain ? 30 : count, seed, { level: mode === 'level' ? level : undefined, seen: mode ? new Set(getProgress().seenQ) : undefined }));
+  const [items] = useState<PlayItem[]>(() => buildItems(game, endless ? 300 : chain ? 30 : count, seed, { level: mode === 'level' ? level : undefined, seen: mode ? new Set(getProgress().seenQ) : undefined, difficulty: difficulty && difficulty !== 'semua' ? difficulty : undefined }));
   const [s, dispatch] = useReducer((st: QuizState, a: QuizAction) => quizReducer(st, a, items, chain, endless ? 3 : 0), initialQuiz(players.length));
   const item = items[s.index];
   const pause = usePauseSecs();
@@ -41,6 +41,7 @@ export function QuizMech({ game, players, seed, count, secs, onDone, mode, level
         {players.length > 1 ? <b>Giliran: {players[turn]}</b> : <b>Skor: {s.scores[0]}</b>}
       </div>
       <div className={`timer ${left < 4 ? 'low' : ''}`} aria-hidden="true"><div style={{ width: `${(left / secs) * 100}%` }} /></div>
+      {item.diff && <div className="row gap" style={{ marginBottom: 6 }}><Badge color={DIFF_COLOR[item.diff]}>Tingkat: {DIFF_LABEL[item.diff]}</Badge></div>}
       <div className="qbox">{item.big && <div className="bigemoji" role="img" aria-label="bendera">{item.big}</div>}{item.prompt}</div>
       {item.options.map((o, i) => {
         const cls = s.chosen === null ? '' : i === item.correct ? 'right' : i === s.chosen ? 'wrong' : '';
