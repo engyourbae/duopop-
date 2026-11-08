@@ -3,9 +3,10 @@ import { db } from '../lib/firebase/client';
 import { makeCode } from '../utils/rng';
 import { gameById } from '../features/games/registry';
 import { roomCapacity } from '../features/multiplayer/rounds';
+import type { Difficulty } from '../types';
 
 export interface Room {
-  variant?: string;
+  variant?: string; difficulty?: Difficulty;
   code: string; hostUid: string; gameId: string; seed: string; count: number; secs: number; pause?: number; auto?: boolean;
   status: 'lobby' | 'playing' | 'finished'; round: number;
   players: Record<string, { name: string }>; starts: Record<string, Timestamp | null>;
@@ -13,12 +14,12 @@ export interface Room {
 export interface RoomAnswer { uid: string; round: number; choice: number; at: Timestamp | null; text?: string }
 export interface RoomScore { uid: string; score: number; at: Timestamp | null }
 
-export async function createRoom(host: { uid: string; displayName: string }, gameId: string, count: number, secs: number, pause = 6, variant = ''): Promise<string> {
+export async function createRoom(host: { uid: string; displayName: string }, gameId: string, count: number, secs: number, pause = 6, variant = '', difficulty?: Difficulty): Promise<string> {
   for (let i = 0; i < 5; i++) {
     const code = makeCode(5);
     const ref = doc(db(), 'rooms', code);
     if ((await getDoc(ref)).exists()) continue;
-    await setDoc(ref, { code, hostUid: host.uid, gameId, ...(variant ? { variant } : {}), seed: `${code}-${Date.now()}`, count, secs, pause, status: 'lobby', round: 0, players: { [host.uid]: { name: host.displayName } }, starts: {}, createdAt: serverTimestamp() });
+    await setDoc(ref, { code, hostUid: host.uid, gameId, ...(variant ? { variant } : {}), ...(difficulty ? { difficulty } : {}), seed: `${code}-${Date.now()}`, count, secs, pause, status: 'lobby', round: 0, players: { [host.uid]: { name: host.displayName } }, starts: {}, createdAt: serverTimestamp() });
     return code;
   }
   throw new Error('kode-gagal');

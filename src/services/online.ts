@@ -49,8 +49,9 @@ export async function tryMatch(me: Who, gameId: string, count = 10, secs = 15): 
         const meRef = doc(db(), 'matchQueue', me.uid), otherRef = doc(db(), 'matchQueue', c.uid), roomRef = doc(db(), 'rooms', code);
         const [m, o, r] = await Promise.all([tx.get(meRef), tx.get(otherRef), tx.get(roomRef)]);
         if (!m.exists() || (m.data() as QueueEntry).status !== 'waiting' || !o.exists() || (o.data() as QueueEntry).status !== 'waiting' || r.exists()) return false;
-        const [gid, variant] = gameId.split('#');
-        tx.set(roomRef, { code, hostUid: me.uid, gameId: gid, ...(variant ? { variant } : {}), seed: `${code}-${Date.now()}`, count, secs, status: 'lobby', round: 0, auto: true, players: { [me.uid]: { name: me.displayName } }, starts: {}, createdAt: Date.now() });
+        const [gid, variant, dif] = gameId.split('#');
+        const difficulty = dif === 'mudah' || dif === 'sedang' || dif === 'sulit' ? dif : undefined; // kunci antrean: game#topik#kesulitan
+        tx.set(roomRef, { code, hostUid: me.uid, gameId: gid, ...(variant ? { variant } : {}), ...(difficulty ? { difficulty } : {}), seed: `${code}-${Date.now()}`, count, secs, status: 'lobby', round: 0, auto: true, players: { [me.uid]: { name: me.displayName } }, starts: {}, createdAt: Date.now() });
         tx.update(otherRef, { status: 'matched', roomCode: code });
         tx.update(meRef, { status: 'matched', roomCode: code });
         return true;
