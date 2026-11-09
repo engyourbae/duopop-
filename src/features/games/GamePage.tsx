@@ -7,6 +7,7 @@ import { BADGES, claimDaily, getProgress, recordResult, unlockLevel, useProgress
 import { DIFF_LABEL, poolStats, rankPlayers, xpForResult } from './engine';
 import { gameById, GROUP_LABEL, withVariant } from './registry';
 import { TurnMech } from './mechanics/Turn';
+import { MonopolyMech } from './mechanics/Monopoly';
 import { AnagramMech, BuzzerMech, TapMech, TypingMech, WordleMech } from './mechanics/Skill';
 import { QuizMech, OrderMech, EstimateMech, CluesMech } from './mechanics/Quiz';
 import { PairMech, PredictMech, LoveLangMech, DeckMech } from './mechanics/Social';
@@ -28,7 +29,7 @@ interface Cfg { count: number; secs: number; counts: number[]; secsOpts: number[
 export function defaultsFor(g: GameDef): Cfg {
   switch (g.mechanic) {
     case 'rps': return { count: 5, secs: 0, counts: [3, 5, 7], secsOpts: null };
-    case 'uno': case 'gaple': case 'ladder': case 'wordle': return { count: 1, secs: 0, counts: [1], secsOpts: null };
+    case 'uno': case 'gaple': case 'ladder': case 'monopoly': case 'wordle': return { count: 1, secs: 0, counts: [1], secsOpts: null };
     case 'typing': return { count: 1, secs: 45, counts: [1], secsOpts: [30, 45, 60] };
     case 'tapbattle': return { count: 1, secs: 10, counts: [1], secsOpts: [10, 15, 20] };
     case 'anagram': return { count: 1, secs: 60, counts: [1], secsOpts: [45, 60, 90] };
@@ -64,7 +65,7 @@ export const MECH: Record<string, (p: MechProps) => ReactElement | null> = {
   mcq: QuizMech, tf: QuizMech, 'chain-tf': QuizMech, era: QuizMech, flag: QuizMech, order: OrderMech, estimate: EstimateMech, clues: CluesMech,
   pair: PairMech, match: PairMech, likely: PairMech, predict: PredictMech, deck: DeckMech, wheel: WheelMech, wordchain: WordChainMech,
   story: StoryMech, wordguess: WordGuessMech, lovelang: LoveLangMech,
-  uno: TurnMech, gaple: TurnMech, ladder: TurnMech, rps: RpsMech, wordle: WordleMech, typing: TypingMech, tapbattle: TapMech, anagram: AnagramMech, buzzer: BuzzerMech,
+  uno: TurnMech, gaple: TurnMech, ladder: TurnMech, monopoly: MonopolyMech, rps: RpsMech, wordle: WordleMech, typing: TypingMech, tapbattle: TapMech, anagram: AnagramMech, buzzer: BuzzerMech,
   memorymatch: MemoryMech, reflex: ReflexMech, tictactoe: TicTacToeMech, connect4: Connect4Mech,
   whack: WhackMech, stroop: StroopMech, simon: SimonMech, snake: SnakeMech, flappy: FlappyMech, catch: CatchMech,
 };
