@@ -8,6 +8,9 @@ import { Scoreboard } from './Quiz';
 import type { MechProps } from './types';
 
 const WHEEL_KEY = 'duopop:wheel';
+const WHEEL_MODE_KEY = 'duopop:wheel-mode';
+type WheelMode = 'roda' | 'kartu';
+const loadMode = (): WheelMode => { try { return localStorage.getItem(WHEEL_MODE_KEY) === 'kartu' ? 'kartu' : 'roda'; } catch { return 'roda'; } };
 const loadWheel = (): string[] => { try { const a = JSON.parse(localStorage.getItem(WHEEL_KEY) ?? 'null') as unknown; if (Array.isArray(a)) { const l = a.filter((x): x is string => typeof x === 'string' && x.trim() !== '').slice(0, 12); if (l.length >= 2) return l; } } catch { /* abaikan */ } return [...wheelSlices]; };
 export function WheelMech({ players, count, onDone }: MechProps) {
   const [rot, setRot] = useState(0);
@@ -19,6 +22,10 @@ export function WheelMech({ players, count, onDone }: MechProps) {
   const [opts, setOpts] = useState<string[]>(loadWheel);
   const [draft, setDraft] = useState('');
   const [edit, setEdit] = useState(false);
+  const [mode, setModeState] = useState<WheelMode>(loadMode);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [deckSeed, setDeckSeed] = useState(0);
+  const setMode = (m: WheelMode) => { setModeState(m); setRes(null); setPicked(null); try { localStorage.setItem(WHEEL_MODE_KEY, m); } catch { /* abaikan */ } };
   const endless = count >= 999;
   const n = opts.length, slice = 360 / n;
   const turn = i % players.length;
@@ -30,7 +37,11 @@ export function WheelMech({ players, count, onDone }: MechProps) {
     setSpinning(true); setRes(null); setRot(total);
     setTimeout(() => { const ang = (360 - (total % 360)) % 360; setRes(Math.floor(ang / slice)); setSpinning(false); sfx.win(); }, 3300);
   };
+  // Mode 2 "Pilih Kartu": beberapa kartu tertutup, pemain mengetuk satu, tantangannya terbuka. Tidak ada putaran.
+  const cardIdx = useMemo(() => shuffle(opts.map((_, k) => k), rng(seedFrom(`kartu-${deckSeed}-${opts.join('|')}`))).slice(0, Math.min(6, opts.length)), [deckSeed, opts]);
+  const pickCard = (pos: number) => { if (picked !== null) return; setPicked(pos); setRes(cardIdx[pos] ?? 0); sfx.win(); };
   const adv = (ok: boolean) => {
+    setPicked(null); setDeckSeed((s) => s + 1);
     const ns = scores.map((v, k) => v + (k === turn && ok ? 1 : 0)); const ng = good + (ok ? 1 : 0);
     if (!endless && i + 1 >= count) { onDone({ scores: ns, correct: ng, total: count }); return; }
     setScores(ns); setGood(ng); setI(i + 1); setRes(null);
@@ -41,16 +52,22 @@ export function WheelMech({ players, count, onDone }: MechProps) {
     <div className="center">
       {!endless && <ProgressBar value={i / count} />}
       <p className="muted small gap">Putaran {i + 1}{endless ? ' · tanpa batas' : `/${count}`} · Giliran: <b>{players[turn]}</b></p>
-      <div className="pointer" />
-      <svg className="wheel" viewBox="0 0 300 300" style={{ transform: `rotate(${rot}deg)` }} role="img" aria-label="Roda tantangan">
+      <div className="row wrap" style={{ justifyContent: 'center', margin: '8px 0' }}>
+        <button className={`chip ${mode === 'roda' ? 'on' : ''}`} disabled={spinning} onClick={() => setMode('roda')}>🎡 Roda putar</button>
+        <button className={`chip ${mode === 'kartu' ? 'on' : ''}`} disabled={spinning} onClick={() => setMode('kartu')}>🃏 Pilih kartu</button>
+      </div>
+      {mode === 'kartu' && <div className="cards-pick" role="group" aria-label="Kartu tantangan">{cardIdx.map((oi, pos) => (
+        <button key={pos} className={`pcard ${picked === pos ? 'open' : picked !== null ? 'dim' : ''}`} disabled={picked !== null} onClick={() => pickCard(pos)} aria-label={picked === pos ? String(opts[oi]) : `Kartu ${pos + 1}`}>{picked === pos ? opts[oi] : '?'}</button>))}</div>}
+      {mode === 'roda' && <div className="pointer" />}
+      {mode === 'roda' && <svg className="wheel" viewBox="0 0 300 300" style={{ transform: `rotate(${rot}deg)` }} role="img" aria-label="Roda tantangan">
         {opts.map((t, k) => {
           const [x1, y1] = pt(k * slice, 145), [x2, y2] = pt((k + 1) * slice, 145), [tx, ty] = pt((k + 0.5) * slice, 95);
           return (<g key={k}><path d={`M150 150L${x1} ${y1}A145 145 0 0 1 ${x2} ${y2}Z`} fill={colors[k % colors.length]} stroke="#fff" strokeWidth="3" />
             <text x={tx} y={ty} fill="#fff" fontSize="11" fontWeight="800" textAnchor="middle" transform={`rotate(${(k + 0.5) * slice} ${tx} ${ty})`}>{t.length > 14 ? t.slice(0, 13) + '…' : t}</text></g>);
         })}
         <circle cx="150" cy="150" r="14" fill="#fff" />
-      </svg>
-      {res === null ? <Button size="lg" className="gap" onClick={spin} disabled={spinning}>{spinning ? 'Berputar…' : 'Putar roda!'}</Button> : (
+      </svg>}
+      {res === null ? (mode === 'roda' ? <Button size="lg" className="gap" onClick={spin} disabled={spinning}>{spinning ? 'Berputar…' : 'Putar roda!'}</Button> : <p className="muted gap">Ketuk satu kartu untuk membuka tantanganmu!</p>) : (
         <div className="gap"><div className="expl"><b>Tantanganmu: {opts[res]}</b></div>
           <div className="row"><Button variant="ghost" className="grow" onClick={() => adv(false)}>Lewati</Button><Button className="grow" onClick={() => adv(true)}>Selesai (+1)</Button></div></div>
       )}
