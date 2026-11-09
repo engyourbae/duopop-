@@ -14,7 +14,6 @@ export function trackForGame(g: { group: GameGroup; mechanic?: string }): Track 
   return 'party'; // grup & arkade
 }
 
-const XF_SONG = 1.0;    // detik: lagu berikutnya masuk saat lagu lama tinggal sekian detik (tumpang-tindih => tanpa jeda). Kecilkan = lebih cepat/rapat.
 const XF_SWITCH = 0.35; // detik: fade cepat saat pindah kategori
 const XF_FIRST = 0.25;  // detik: fade-in saat musik pertama kali mulai
 const MASTER = 0.8;
@@ -113,10 +112,11 @@ function advance(sec: number) {
   act = ni;
   setTimeout(() => { if (decks[act]?.el !== from.el) from.el.pause(); }, sec * 1000 + 80);
 }
+/** Tanpa tumpang-tindih dua lagu: dua dekoder sekaligus bikin HP kelas bawah kresek-kresek. Lagu berikutnya baru jalan setelah lagu lama selesai. */
 function watch() {
   if (!decks.length || !cur) return;
-  const el = (decks[act] as Deck).el, dur = el.duration;
-  if (!el.paused && Number.isFinite(dur) && dur > 0 && dur - el.currentTime <= XF_SONG + 0.05) advance(XF_SONG);
+  const el = (decks[act] as Deck).el;
+  if (el.ended) advance(0.05);
 }
 function kick() { const el = decks[act]?.el; if (cur && el?.src && el.paused && enabled()) void el.play()?.catch(() => undefined); }
 function stop() {
@@ -132,7 +132,7 @@ function apply() {
   cur = want; queue = []; fails = 0;
   if (!timer) timer = setInterval(watch, 250);
   advance(first ? XF_FIRST : XF_SWITCH);
-  if (first) prime((decks[1 - act] as Deck).el, url(cur, 1));
+  if (first && ctx) prime((decks[1 - act] as Deck).el, url(cur, 1)); // hanya iOS; di Android tidak perlu dan menambah beban dekoder
 }
 /** Pilih kategori musik (null = biarkan). */
 export function setTrack(t: Track | null) { if (t) { want = t; apply(); } }
