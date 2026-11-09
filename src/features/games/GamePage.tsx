@@ -22,6 +22,7 @@ import { trackForGame } from '../../utils/music';
 import { isFirebaseConfigured } from '../../lib/firebase/config';
 import { useAuth } from '../auth/AuthContext';
 import { useMusic } from '../../hooks/useMusic';
+import { Emo } from '../../components/Emo';
 
 interface Cfg { count: number; secs: number; counts: number[]; secsOpts: number[] | null }
 export function defaultsFor(g: GameDef): Cfg {
@@ -162,7 +163,7 @@ export default function GamePage() {
           {names.map((n, i) => <label key={i} className="field gap"><span>{game.id === 'tim' ? `Nama tim ${i + 1}` : `Nama pemain ${i + 1}`}</span><input value={n} maxLength={20} onChange={(e) => setN(i, e.target.value)} /></label>)}
           {game.variants && game.variants.length > 1 && (game.variants.length > 6 ? <div className="gap"><Select label="Topik / varian" value={variant} onChange={pickVariant} options={game.variants.map((v) => ({ value: v.id, label: vLabel(v) }))} /></div> : <div className="row wrap gap"><span className="small">Varian:</span>{game.variants.map((v) => <button key={v.id} className={`chip ${variant === v.id ? 'on' : ''}`} onClick={() => pickVariant(v.id)}>{vLabel(v)}</button>)}</div>)}
           {quizLike && <div className="row wrap gap"><span className="small">Mode:</span>{([['santai', 'Santai'], ['level', 'Level'], ['endless', 'Tanpa batas']] as const).map(([m, t]) => <button key={m} className={`chip ${mode === m ? 'on' : ''}`} onClick={() => setMode(m)}>{t}</button>)}</div>}
-          {quizLike && mode === 'level' && <div className="row wrap gap"><span className="small">Level:</span>{Array.from({ length: 10 }, (_, k) => k + 1).map((l) => <button key={l} className={`chip ${level === l ? 'on' : ''}`} disabled={l > passedLv + 1} onClick={() => setLevel(l)}>{l > passedLv + 1 ? `🔒${l}` : l}</button>)}</div>}
+          {quizLike && mode === 'level' && <div className="row wrap gap"><span className="small">Level:</span>{Array.from({ length: 10 }, (_, k) => k + 1).map((l) => <button key={l} className={`chip ${level === l ? 'on' : ''}`} disabled={l > passedLv + 1} onClick={() => setLevel(l)}>{l > passedLv + 1 ? <><Emo t="🔒" />{l}</> : l}</button>)}</div>}
           {quizLike && mode === 'level' && <p className="small muted">Level {level}: 10 soal, waktu {lvSecs} detik. Lulus bila benar ≥ 70%. Makin tinggi, makin sulit.</p>}
           {quizLike && mode === 'endless' && <p className="small muted">3 nyawa, soal tak berhenti. Soal yang belum pernah kamu lihat didahulukan.</p>}
           {d.counts.length > 1 && !(quizLike && mode !== 'santai') && <div className="row wrap gap"><span className="small">{game.mechanic === 'deck' || game.mechanic === 'wheel' ? 'Jumlah kartu/putaran:' : game.mechanic === 'memorymatch' ? 'Jumlah pasangan:' : game.group === 'arkade' ? 'Jumlah ronde:' : 'Jumlah soal/ronde:'}</span>{shownCounts.map((c) => <button key={c} className={`chip ${cfg.count === c ? 'on' : ''}`} onClick={() => setCfg({ ...cfg, count: c })}>{c >= 999 ? '∞ Tanpa batas' : c}</button>)}</div>}
@@ -191,7 +192,7 @@ export default function GamePage() {
   return (
     <div className="page">
       <Header title="Hasil" />
-      <div className="hero center"><div style={{ fontSize: '3rem' }}>🏆</div><h2>{ranked.length > 1 ? (tie ? 'Seri! Kalian sama kuat.' : `${ranked[0]?.name} menang!`) : 'Permainan selesai!'}</h2>
+      <div className="hero center"><div style={{ fontSize: '3rem' }}><Emo t="🏆" /></div><h2>{ranked.length > 1 ? (tie ? 'Seri! Kalian sama kuat.' : `${ranked[0]?.name} menang!`) : 'Permainan selesai!'}</h2>
         <p>{out?.headline ?? `${out?.correct} dari ${out?.total} berhasil`}{xpGot > 0 ? ` · +${xpGot} XP` : ''}</p></div>
       {levelMsg && <div className="expl"><b>{levelMsg}</b></div>}
       {out?.summary}
