@@ -23,6 +23,7 @@ import { useMusic } from '../../hooks/useMusic';
 import { explainError } from '../../utils/errors';
 import { sfx } from '../../utils/sound';
 import { trackForGame } from '../../utils/music';
+import { clearActiveRoom, setActiveRoom } from './activeRoom';
 
 export default function RoomPage() { return <RequireAuth need="Ruang online memerlukan akun."><RoomInner /><RoomSocialHost /></RequireAuth>; }
 /** Chat + reaksi sementara untuk semua tampilan ruang. */
@@ -68,6 +69,11 @@ function RoomInner() {
   const startsMs = useMemo(() => Object.fromEntries(Object.entries(room?.starts ?? {}).map(([k, v]) => [k, v ? v.toMillis() : null])), [room?.starts]);
   const lite = useMemo(() => answers.map((a) => ({ uid: a.uid, round: a.round, choice: a.choice, atMs: a.at ? a.at.toMillis() : null, text: a.text })), [answers]);
   const isHost = !!room && !!me && room.hostUid === me.uid;
+  // catat ruang aktif agar pemain yang meminimalkan layar tetap ikut saat host menekan Mulai
+  useEffect(() => {
+    if (!room || !me) return;
+    if (room.players[me.uid] && room.status !== 'finished') setActiveRoom(code); else clearActiveRoom();
+  }, [room?.status, room?.players, me?.uid, code]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- skor per jenis ----
   const board = useMemo(() => (game && kind === 'board' ? replayBoard(game.mechanic as 'tictactoe' | 'connect4', [...lite].sort((a, b) => a.round - b.round)) : null), [lite, game, kind]);
@@ -142,7 +148,7 @@ function RoomInner() {
   if (room.status === 'lobby') {
     const cap = roomCapacity(game);
     return (
-      <div className="page"><Header title="Ruang Tunggu" back={() => nav('/lobi')} />
+      <div className="page"><Header title="Ruang Tunggu" back={() => nav('/')} />
         <Card className="center"><p className="muted">{game.title}{room.auto ? ' · pertandingan cepat' : ''}</p>
           {room.auto ? <h2>{uids.length < 2 ? 'Menunggu lawan bergabung…' : 'Lawan ditemukan! Mulai sebentar lagi…'}</h2> : <><div className="code">{room.code}</div>
             <div className="row"><Button variant="soft" icon="copy" className="grow" onClick={() => { void navigator.clipboard?.writeText(room.code).then(() => toast('Kode disalin', 'ok')).catch(() => toast('Tidak bisa menyalin', 'err')); }}>Salin kode</Button>
@@ -152,8 +158,9 @@ function RoomInner() {
         <h3>Pemain ({uids.length}/{cap})</h3>
         {uids.map((u) => <div key={u} className="score-row"><span>{room.players[u]?.name}{u === room.hostUid ? ' · Host' : ''}{u === me.uid ? ' (kamu)' : ''}</span></div>)}
         {isHost && !room.auto && uids.length < cap && <><h3 className="gap">Undang teman online</h3><FriendInviter code={room.code} gameId={room.gameId} /></>}
-        <div className="row gap"><Button variant="ghost" onClick={() => void act(async () => { const r = await svc(); await r.leaveRoom(code, me.uid); nav('/lobi'); })}>Keluar</Button>
-          {isHost && !room.auto ? <Button className="grow" disabled={uids.length < 2} onClick={() => void act(async () => (await svc()).startRoom(code))}>{uids.length < 2 ? 'Menunggu pemain lain…' : 'Mulai permainan'}</Button> : <p className="muted grow center">{room.auto ? 'Memulai otomatis…' : 'Menunggu host memulai…'}</p>}</div>
+        <div className="row wrap gap"><Button variant="ghost" onClick={() => void act(async () => { const r = await svc(); await r.exitRoom(code, me.uid); clearActiveRoom(); nav('/lobi'); })}>Keluar lobi</Button>
+          <Button variant="soft" onClick={() => nav('/')}>Minimalkan</Button>
+          {isHost && !room.auto ? <Button className="grow" style={{ minWidth: '100%' }} disabled={uids.length < 2} onClick={() => void act(async () => (await svc()).startRoom(code))}>{uids.length < 2 ? 'Menunggu pemain lain…' : 'Mulai permainan'}</Button> : <p className="muted grow center">{room.auto ? 'Memulai otomatis…' : 'Menunggu host memulai…'}</p>}</div>
       </div>
     );
   }
