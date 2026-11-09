@@ -8,6 +8,8 @@ import { useOnline } from '../hooks/useOnline';
 import { useMusic } from '../hooks/useMusic';
 import { unlockMusic } from '../utils/music';
 import { GlobalWatchers } from '../features/multiplayer/Invite';
+import { ActiveRoomWatcher } from '../features/multiplayer/ActiveRoomWatcher';
+import { UpdateBanner } from '../components/UpdateBanner';
 import { LoadingScreen, wasLoaded } from '../components/LoadingScreen';
 import { markBooted } from '../utils/recover';
 import { Games, Help, HistoryPage, Home, NotFound, Notifications, OfflinePage, Profile, Settings, Splash, Stats } from './Pages';
@@ -41,6 +43,8 @@ function Shell() {
     <>
       {!online && <div className="offline-bar" role="status">Offline — game solo tetap bisa dimainkan</div>}
       <GlobalWatchers />
+      <ActiveRoomWatcher />
+      <UpdateBanner />
       <main className="app"><Suspense fallback={<Spinner />}><Outlet /></Suspense></main>
       <nav className="nav" aria-label="Navigasi utama"><div className="nav-in">{nav.map(([to, ic, l]) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}><Icon name={ic} /><span>{l}</span></NavLink>)}</div></nav>
     </>
