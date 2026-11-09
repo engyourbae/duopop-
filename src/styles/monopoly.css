@@ -1,0 +1,63 @@
+/* Monopoli Nusantara */
+.mn{--mn-felt:#0c6b4a}
+.mn-top{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}.mn-top::-webkit-scrollbar{display:none}
+.mn-pl{position:relative;flex:1 0 76px;min-width:76px;border:var(--bw,2px) solid var(--edge,#17140e);border-radius:14px;background:var(--card,#fff);padding:4px 6px 5px;display:flex;flex-direction:column;align-items:center;gap:0;transition:transform .2s,background .2s,box-shadow .2s}
+.mn-pl.turn{background:var(--yellow,#ffc414);transform:translateY(-2px);box-shadow:3px 3px 0 var(--shadow-c,#17140e)}.mn-pl.out{opacity:.4;filter:grayscale(1)}
+.mn-pl b{font-size:.68rem;max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mn-pl .cash{font-size:.78rem;font-weight:800;font-variant-numeric:tabular-nums}
+.mn-pl .tag{position:absolute;top:-7px;right:-4px;background:#17140e;color:#fff;border-radius:8px;font-size:.55rem;padding:1px 5px;font-weight:800}
+.mn-float{position:absolute;left:50%;top:-4px;transform:translateX(-50%);font-weight:900;font-size:.9rem;pointer-events:none;animation:mnfloat 1.4s ease-out forwards;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff;z-index:9}
+.mn-float.up{color:#0b8a4d}.mn-float.dn{color:#d7263d}
+@keyframes mnfloat{0%{opacity:0;transform:translate(-50%,8px) scale(.7)}15%{opacity:1;transform:translate(-50%,-4px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-34px) scale(1)}}
+.mn-info{display:flex;justify-content:space-between;align-items:center;font-size:.72rem;font-weight:800;margin-bottom:4px}
+.mn-scroll{overflow:auto;border-radius:18px;-webkit-overflow-scrolling:touch}
+.mn-board{position:relative;width:100%;aspect-ratio:1;background:var(--mn-felt);border:3px solid var(--edge,#17140e);border-radius:18px;box-shadow:4px 4px 0 var(--shadow-c,#17140e);overflow:hidden;touch-action:manipulation}
+.mn-board svg.bd{position:absolute;inset:0;width:100%;height:100%;display:block}
+.mn-tile{cursor:pointer}.mn-tile:active rect.hit{fill:#fff4;}
+.mn-tile.now rect.glow{animation:mnglow 1s ease-in-out infinite}
+@keyframes mnglow{0%,100%{opacity:.15}50%{opacity:.75}}
+.mn-pawn{position:absolute;width:6.2%;aspect-ratio:1;transform:translate(-50%,-72%);transition:left .2s ease,top .2s ease;z-index:5;pointer-events:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+.mn-pawn svg{width:100%;height:100%;display:block}
+.mn-pawn.now{animation:mnhop .7s ease-in-out infinite;z-index:7}.mn-pawn.warp{transition:left .55s ease-in-out,top .55s ease-in-out}
+@keyframes mnhop{0%,100%{margin-top:0}50%{margin-top:-5px}}
+.mn-pawn.hop{animation:mnstep .22s ease-out}
+@keyframes mnstep{0%{margin-top:0}50%{margin-top:-9px}100%{margin-top:0}}
+.mn-center{position:absolute;left:12%;top:12%;width:76%;height:76%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none}
+.mn-center>*{pointer-events:auto}
+.mn-logo{font-family:var(--font-display,inherit);font-weight:900;letter-spacing:.06em;color:#fff;text-align:center;line-height:1;text-shadow:2px 2px 0 rgba(0,0,0,.35);transform:rotate(-8deg);font-size:clamp(.9rem,5.4vw,1.7rem)}
+.mn-logo small{display:block;font-size:.5em;letter-spacing:.3em;color:#ffe066;margin-top:3px}
+.mn-decks{display:flex;gap:14px;align-items:flex-end}.mn-decks div{display:flex;flex-direction:column;align-items:center;font-size:.55rem;font-weight:800;color:#e9fff3;gap:2px}
+.mn-dice{display:flex;gap:10px;perspective:400px;min-height:50px}
+.mn-die{display:inline-block;filter:drop-shadow(0 3px 0 rgba(0,0,0,.35))}.mn-die.tumble{animation:mnroll .42s linear infinite}
+@keyframes mnroll{0%{transform:rotate3d(1,1,0,0) translateY(0)}25%{transform:rotate3d(1,1,0,120deg) translateY(-14px)}50%{transform:rotate3d(1,1,1,240deg) translateY(0)}75%{transform:rotate3d(0,1,1,300deg) translateY(-8px)}100%{transform:rotate3d(1,1,0,360deg) translateY(0)}}
+.mn-die.land{animation:mnland .35s ease-out}@keyframes mnland{0%{transform:scale(1.35) rotate(12deg)}100%{transform:scale(1) rotate(0)}}
+.mn-msg{text-align:center;font-weight:800;font-size:.8rem;background:rgba(0,0,0,.28);color:#fff;padding:3px 10px;border-radius:10px;max-width:96%}
+.mn-act{margin:10px 0 6px;padding:10px;border:var(--bw,2px) solid var(--edge,#17140e);border-radius:16px;background:var(--card,#fff);display:flex;flex-direction:column;gap:8px}
+.mn-act.turn{background:#fff7d6}.mn-act h4{margin:0;font-size:.9rem}.mn-act p{margin:0;font-size:.78rem}
+.mn-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.mn-row>.btn{flex:1 1 auto}
+.mn-tabs{display:flex;gap:6px;flex-wrap:wrap}.mn-tabs .chip{display:inline-flex;align-items:center;gap:5px;flex:1 1 auto;justify-content:center}
+.mn-prog{height:8px;background:#0001;border-radius:6px;overflow:hidden;border:1.5px solid #17140e}.mn-prog i{display:block;height:100%;background:#2e9e5b}
+.mn-ch{display:flex;gap:10px;align-items:center;padding:8px;border:2px solid #17140e;border-radius:12px;margin-bottom:6px;background:#fff}.mn-ch.done{background:#e6f9ee}.mn-ch>div{flex:1}.mn-ch b{font-size:.82rem}.mn-ch small{display:block;opacity:.75;font-size:.7rem}
+.mn-deed{border:3px solid #17140e;border-radius:10px;background:#fffdf5;overflow:hidden;color:#17140e;max-width:290px;margin:0 auto}
+.mn-deed .band{padding:8px 6px;text-align:center;border-bottom:3px solid #17140e;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.4)}.mn-deed .band small{display:block;font-size:.6rem;letter-spacing:.14em}.mn-deed .band b{font-size:1.05rem}
+.mn-deed .body{padding:8px 12px;font-size:.78rem}.mn-deed table{width:100%;border-collapse:collapse}.mn-deed td{padding:1.5px 0}.mn-deed td:last-child{text-align:right;font-weight:800}
+.mn-deed .foot{border-top:2px dashed #17140e55;margin-top:6px;padding-top:6px;text-align:center;font-size:.7rem}
+.mn-own{display:inline-flex;align-items:center;gap:5px;font-weight:800;font-size:.75rem}
+.mn-assets{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto}
+.mn-as{display:flex;align-items:center;gap:8px;border:2px solid #17140e;border-radius:12px;padding:5px 8px;background:#fff}.mn-as.mort{background:repeating-linear-gradient(45deg,#eee,#eee 6px,#ddd 6px,#ddd 12px)}
+.mn-as .sw{width:10px;align-self:stretch;border-radius:4px;border:1.5px solid #17140e;flex:none}.mn-as .nm{flex:1;font-weight:800;font-size:.78rem;line-height:1.15}.mn-as .nm small{display:block;font-weight:600;opacity:.7;font-size:.65rem}
+.mn-as .bt{display:flex;gap:4px}.mn-as .bt button{border:2px solid #17140e;border-radius:9px;background:#fff;min-width:34px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#17140e;font-weight:800;font-size:.65rem;gap:2px;padding:0 5px}
+.mn-as .bt button:disabled{opacity:.3;cursor:default}.mn-as .bt button:active:not(:disabled){transform:translateY(2px)}
+.mn-card-bg{position:fixed;inset:0;background:rgba(10,10,10,.55);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;perspective:900px;animation:mnfade .2s}
+@keyframes mnfade{from{opacity:0}to{opacity:1}}
+.mn-flip{width:min(270px,80vw);aspect-ratio:3/4;position:relative;transform-style:preserve-3d;animation:mnflip .8s ease-out forwards}
+@keyframes mnflip{0%{transform:translateY(60px) rotateY(180deg) scale(.7)}70%{transform:translateY(-6px) rotateY(-8deg) scale(1.04)}100%{transform:translateY(0) rotateY(0) scale(1)}}
+.mn-face{position:absolute;inset:0;border:4px solid #17140e;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:18px;text-align:center;backface-visibility:hidden;box-shadow:5px 5px 0 #17140e}
+.mn-face h3{margin:0;letter-spacing:.12em;font-size:1rem;color:#fff}.mn-face p{margin:0;font-weight:800;font-size:.95rem;line-height:1.35;color:#17140e}
+.mn-face.front{background:#fffdf5}.mn-face.front .hd{width:100%;padding:6px;border-radius:10px;border:3px solid #17140e}
+.mn-auc{background:#fff0c9;border:2px dashed #17140e;border-radius:12px;padding:8px;text-align:center}.mn-auc .bid{font-size:1.5rem;font-weight:900}
+.mn-log{max-height:50vh;overflow:auto;display:flex;flex-direction:column;gap:3px;font-size:.76rem}.mn-log div{padding:3px 6px;border-radius:7px;background:#0000000d}
+.mn-win{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;pointer-events:none}.mn-conf{position:absolute;top:-10px;width:8px;height:12px;border-radius:2px;animation:mnconf 2.4s linear forwards}
+@keyframes mnconf{to{transform:translateY(520px) rotate(720deg);opacity:.2}}
+.mn-setup .opt-row{display:flex;gap:6px;flex-wrap:wrap}.mn-pick{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.mn-pawnpick{border:2px solid #17140e;border-radius:12px;background:#fff;padding:2px;cursor:pointer}.mn-pawnpick.on{background:#ffc414;box-shadow:2px 2px 0 #17140e}
+@media (prefers-reduced-motion:reduce){.mn-die.tumble,.mn-pawn.now,.mn-flip,.mn-conf,.mn-tile.now rect.glow{animation:none}}
