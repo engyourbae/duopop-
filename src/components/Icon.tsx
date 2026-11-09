@@ -1,4 +1,5 @@
 const P: Record<string, string> = {
+  monopoly: 'M3 21V9l5-3v15M8 21V4l6-2v19M14 21V8l7 3v10M2 21h20M10.5 8h.01M10.5 12h.01M10.5 16h.01',
   home: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
   grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
