@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useProgress } from '../features/progression/store';
 import { audioRunning, playIntro, setTrack, unlockMusic } from '../utils/music';
 import { markBooted } from '../utils/recover';
+import { Emo } from './Emo';
 
 export const LOADED_KEY = 'duopop:loaded';
 const TIPS = [
@@ -60,7 +61,7 @@ export function LoadingScreen({ onDone, minMs = 2400 }: { onDone: () => void; mi
         <img className="ld-logo" src={`${import.meta.env.BASE_URL}icon-512.png`} alt="duopop" aria-label="duopop" style={{ width: 180, height: 180 }} />
         <p className="ld-tag">Play Closer, Know More</p>
         <div className="ld-bar" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Memuat"><div className="ld-fill" style={{ width: `${pct}%` }} /></div>
-        {needsTap ? <button className="ld-btn" onClick={() => enter(true)}>Ketuk untuk mulai 🔊</button> : <p className="ld-tip">{ready ? 'Siap!' : tip}</p>}
+        {needsTap ? <button className="ld-btn" onClick={() => enter(true)}>Ketuk untuk mulai <Emo t="🔊" /></button> : <p className="ld-tip">{ready ? 'Siap!' : tip}</p>}
       </div>
     </div>
   );

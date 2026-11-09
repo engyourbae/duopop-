@@ -55,7 +55,28 @@ const P: Record<string, string> = {
   hammer: 'M14 4l6 6-3 3-6-6zM12 8L4 16l4 4 8-8',
   chevron: 'M6 9l6 6 6-6',
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14',
+  shuffle: 'M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
+  edit: 'M4 20l1-4L16 5l3 3L8 19zM14 7l3 3',
+  sound: 'M4 9h4l5-4v14l-5-4H4zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11',
+  wheel: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4',
+  cards: 'M8 4h9a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM4 7v13a1 1 0 0 0 1 1h9M12 9v4M10 11h4',
+  rock: 'M6 11h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5zM6 11V8.5a1.5 1.5 0 0 1 3 0V11M9 11V7.5a1.5 1.5 0 0 1 3 0V11M12 11V8a1.5 1.5 0 0 1 3 0v3M15 11V9.5a1.5 1.5 0 0 1 3 0V11',
+  paper: 'M6 13V6a1.5 1.5 0 0 1 3 0v5M9 11V4a1.5 1.5 0 0 1 3 0v7M12 11V4.5a1.5 1.5 0 0 1 3 0V11M15 11V6a1.5 1.5 0 0 1 3 0v8M6 13v3c0 3 3 5 6 5s6-2 6-5v-2',
+  scissors: 'M7 19a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM17 19a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM9 16.5L17 4M15 16.5L7 4',
+  crown: 'M4 18h16M4 18L3 8l5 4 4-7 4 7 5-4-1 10',
+  boom: 'M12 2l2 5 5-2-2 5 5 2-5 2 2 5-5-2-2 5-2-5-5 2 2-5-5-2 5-2-2-5 5 2z',
+  ladder: 'M7 3v18M17 3v18M7 7h10M7 12h10M7 17h10',
+  snake: 'M6 4c5-1 7 2 4 5s0 5 5 4 4 5 3 7M6 4h.01',
+  thumb: 'M7 11v9H4v-9zM7 11l4-7c2 0 2.5 1.5 2 3l-.7 3H19a2 2 0 0 1 2 2.3l-1.3 6A2 2 0 0 1 17.7 20H7',
+  laugh: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 10l2 1M16 10l-2 1M7.5 14h9a4.5 4.5 0 0 1-9 0z',
+  wow: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 10h.01M15.5 10h.01M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+  cry: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 10h.01M15.5 10h.01M8 17c1-1.5 2.5-2 4-2s3 .5 4 2M8.5 12.5v3',
+  think: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 11h.01M15.5 11h.01M9 16h5M7.5 7.5l3-1',
+  cool: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM6 9.5h5v3H6zM13 9.5h5v3h-5zM11 11h2M9 16c1 1 2 1.5 3 1.5s2-.5 3-1.5',
+  clap: 'M8 13l-3-3a1.5 1.5 0 0 1 2-2l3 3M10 11l4-4a1.5 1.5 0 0 1 2 2l-2 2M12 17l4-4M6 17c1 3 4 4 7 3l5-4-1-6',
+  party: 'M4 20l4-11 7 7zM10 6l1-2M15 8l3-2M16 12h3M13 4h.01M19 9h.01',
 };
+export const iconPath = (n: string): string | undefined => P[n];
 export type IconName = keyof typeof P | string;
 export function Icon({ name, size = 22, className }: { name: IconName; size?: number; className?: string }) {
   const d = P[name] ?? P.sparkle;
