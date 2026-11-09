@@ -13,6 +13,7 @@ import { allQuestions } from '../data/questions';
 import { loadedPacks } from '../data/questions/packs';
 import { initial } from '../utils/presence';
 import type { GameDef, GameGroup } from '../types';
+import { RenameCard } from '../features/auth/RenameCard';
 
 export const toneOf = (id: string) => `t${[...id].reduce((n, c) => n + c.charCodeAt(0), 0) % 5}`;
 export function GameCard({ g }: { g: GameDef }) {
@@ -95,6 +96,7 @@ export function Profile() {
       <Card className="center"><div className="avatar" style={{ margin: '0 auto 8px', width: 72, height: 72, fontSize: '1.8rem' }}>{initial(me?.displayName ?? p.name ?? 'P')}</div>
         <h2>{me?.displayName ?? (p.name || 'Tamu')}</h2><p className="muted small">{me ? 'Hanya @username ini yang terlihat orang lain. Nama Google-mu disembunyikan.' : 'Mode tamu — progres tersimpan di perangkat ini'}</p>
         <p>Level {li.level}</p><ProgressBar value={li.pct} label="Progres level" /><p className="small muted">{li.into}/{li.need} XP ke level berikutnya</p></Card>
+      {me && <RenameCard />}
       {!me && <Card><Field label="Nama panggilan"><input value={name} maxLength={20} onChange={(e) => setName(e.target.value)} /></Field><Button size="sm" onClick={() => { patchProgress({ name: name.trim() }); toast('Nama disimpan', 'ok'); }}>Simpan</Button></Card>}
       <Card><h3>Tema profil</h3><div className="row wrap gap">{THEMES.map((t) => { const ok = li.level >= t.min; return <button key={t.id} className={`chip ${p.theme === t.id ? 'on' : ''}`} disabled={!ok} style={ok ? undefined : { opacity: 0.5 }} onClick={() => patchProgress({ theme: t.id })}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: t.color, marginRight: 6, border: '2px solid var(--edge)' }} />{t.name}{ok ? '' : ` (Lv ${t.min})`}</button>; })}</div></Card>
       <div className="grid"><Link to="/statistik" style={{ textDecoration: 'none' }}><Button variant="soft" size="lg" icon="trophy">Statistik</Button></Link><Link to="/riwayat" style={{ textDecoration: 'none' }}><Button variant="soft" size="lg" icon="clock">Riwayat</Button></Link>
