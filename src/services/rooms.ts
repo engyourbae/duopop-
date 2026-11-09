@@ -39,6 +39,16 @@ export async function joinRoom(me: { uid: string; displayName: string }, rawCode
   return 'ok';
 }
 export const leaveRoom = (code: string, uid: string) => updateDoc(doc(db(), 'rooms', code), { [`players.${uid}`]: deleteField() });
+/** Keluar dari ruang tunggu. Jika host yang keluar, ruang ditutup (aturan keamanan hanya mengizinkan host mengubah status) dan dibersihkan. */
+export async function exitRoom(code: string, uid: string): Promise<void> {
+  const ref = doc(db(), 'rooms', code);
+  const s = await getDoc(ref);
+  if (!s.exists()) return;
+  const r = s.data() as Room;
+  if (!r.players[uid]) return;
+  if (r.hostUid === uid) { await updateDoc(ref, { status: 'finished' }); await cleanupRoom(code); return; }
+  if (r.status === 'lobby') await leaveRoom(code, uid);
+}
 export const startRoom = (code: string) => updateDoc(doc(db(), 'rooms', code), { status: 'playing', round: 0, 'starts.0': serverTimestamp() });
 export const nextRound = (code: string, round: number, total: number) =>
   round + 1 >= total ? updateDoc(doc(db(), 'rooms', code), { status: 'finished' }) : updateDoc(doc(db(), 'rooms', code), { round: round + 1, [`starts.${round + 1}`]: serverTimestamp() });
