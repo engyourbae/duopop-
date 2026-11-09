@@ -6,7 +6,8 @@ const SHELL = ['./', './offline.html', './manifest.webmanifest', './icon.svg', '
 const abs = (u) => new URL(u, SCOPE).href;
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => Promise.all(SHELL.map((u) => c.add(new Request(abs(u), { cache: 'reload' }))))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => Promise.all(SHELL.map((u) => c.add(new Request(abs(u), { cache: 'reload' }))))));
+  // Tidak skipWaiting otomatis: versi baru menunggu, lalu pengguna menekan "Muat ulang" (pesan SKIP_WAITING).
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
@@ -37,8 +38,7 @@ self.addEventListener('fetch', (e) => {
     }));
     return;
   }
-  e.respondWith(caches.match(req).then((hit) => {
-    const net = fetch(req).then((r) => { if (r.ok) { const cp = r.clone(); caches.open(VERSION).then((c) => c.put(req, cp)); } return r; }).catch(() => hit);
-    return hit || net;
-  }));
+  // Berkas lain (paket soal, manifest, ikon): jaringan dulu supaya selalu yang terbaru, cache hanya cadangan saat offline.
+  e.respondWith(fetch(new Request(req, { cache: 'no-cache' })).then((r) => { if (r.ok) { const cp = r.clone(); caches.open(VERSION).then((c) => c.put(req, cp)); } return r; })
+    .catch(async () => (await caches.match(req)) || Response.error()));
 });
