@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Button, ProgressBar, useToast } from '../../../components/ui';
 import { useCountdown } from '../../../hooks/useCountdown';
 import { sfx } from '../../../utils/sound';
@@ -6,6 +6,8 @@ import { rng, seedFrom, shuffle } from '../../../utils/rng';
 import { storyStarters, wheelSlices, wordPairs } from '../../../data/content/party';
 import { Scoreboard } from './Quiz';
 import type { MechProps } from './types';
+import { Emo } from '../../../components/Emo';
+import { Icon } from '../../../components/Icon';
 
 const WHEEL_KEY = 'duopop:wheel';
 const WHEEL_MODE_KEY = 'duopop:wheel-mode';
@@ -24,8 +26,9 @@ export function WheelMech({ players, count, onDone }: MechProps) {
   const [edit, setEdit] = useState(false);
   const [mode, setModeState] = useState<WheelMode>(loadMode);
   const [picked, setPicked] = useState<number | null>(null);
+  const [shuffling, setShuffling] = useState(false);
   const [deckSeed, setDeckSeed] = useState(0);
-  const setMode = (m: WheelMode) => { setModeState(m); setRes(null); setPicked(null); try { localStorage.setItem(WHEEL_MODE_KEY, m); } catch { /* abaikan */ } };
+  const setMode = (m: WheelMode) => { if (shuffling) return; setModeState(m); setRes(null); setPicked(null); try { localStorage.setItem(WHEEL_MODE_KEY, m); } catch { /* abaikan */ } };
   const endless = count >= 999;
   const n = opts.length, slice = 360 / n;
   const turn = i % players.length;
@@ -39,7 +42,12 @@ export function WheelMech({ players, count, onDone }: MechProps) {
   };
   // Mode 2 "Pilih Kartu": beberapa kartu tertutup, pemain mengetuk satu, tantangannya terbuka. Tidak ada putaran.
   const cardIdx = useMemo(() => shuffle(opts.map((_, k) => k), rng(seedFrom(`kartu-${deckSeed}-${opts.join('|')}`))).slice(0, Math.min(6, opts.length)), [deckSeed, opts]);
-  const pickCard = (pos: number) => { if (picked !== null) return; setPicked(pos); setRes(cardIdx[pos] ?? 0); sfx.win(); };
+  // Satu tombol "Acak": kartu mengacak dengan animasi, lalu satu kartu terbuka dan tantangannya muncul.
+  const doShuffle = () => {
+    if (shuffling || cardIdx.length === 0) return;
+    setPicked(null); setRes(null); setShuffling(true);
+    setTimeout(() => { const pos = Math.floor(Math.random() * cardIdx.length); setShuffling(false); setPicked(pos); setRes(cardIdx[pos] ?? 0); sfx.win(); }, 1800);
+  };
   const adv = (ok: boolean) => {
     setPicked(null); setDeckSeed((s) => s + 1);
     const ns = scores.map((v, k) => v + (k === turn && ok ? 1 : 0)); const ng = good + (ok ? 1 : 0);
@@ -53,11 +61,13 @@ export function WheelMech({ players, count, onDone }: MechProps) {
       {!endless && <ProgressBar value={i / count} />}
       <p className="muted small gap">Putaran {i + 1}{endless ? ' · tanpa batas' : `/${count}`} · Giliran: <b>{players[turn]}</b></p>
       <div className="row wrap" style={{ justifyContent: 'center', margin: '8px 0' }}>
-        <button className={`chip ${mode === 'roda' ? 'on' : ''}`} disabled={spinning} onClick={() => setMode('roda')}>🎡 Roda putar</button>
-        <button className={`chip ${mode === 'kartu' ? 'on' : ''}`} disabled={spinning} onClick={() => setMode('kartu')}>🃏 Pilih kartu</button>
+        <button className={`chip ${mode === 'roda' ? 'on' : ''}`} disabled={spinning || shuffling} onClick={() => setMode('roda')}><Emo t="🎡" /> Roda putar</button>
+        <button className={`chip ${mode === 'kartu' ? 'on' : ''}`} disabled={spinning || shuffling} onClick={() => setMode('kartu')}><Emo t="🃏" /> Kartu acak</button>
       </div>
       {mode === 'kartu' && <div className="cards-pick" role="group" aria-label="Kartu tantangan">{cardIdx.map((oi, pos) => (
-        <button key={pos} className={`pcard ${picked === pos ? 'open' : picked !== null ? 'dim' : ''}`} disabled={picked !== null} onClick={() => pickCard(pos)} aria-label={picked === pos ? String(opts[oi]) : `Kartu ${pos + 1}`}>{picked === pos ? opts[oi] : '?'}</button>))}</div>}
+        <div key={pos} className={`pcard ${shuffling ? 'mix' : picked === pos ? 'open' : picked !== null ? 'dim' : ''}`}
+          style={{ '--dx': `${(((pos * 37) % 5) - 2) * 22}px`, '--dy': `${(((pos * 53) % 5) - 2) * 20}px`, '--rot': `${(((pos * 29) % 7) - 3) * 6}deg`, animationDelay: `${pos * 0.05}s` } as CSSProperties}
+          aria-label={picked === pos ? String(opts[oi]) : `Kartu ${pos + 1}`}>{picked === pos && !shuffling ? opts[oi] : '?'}</div>))}</div>}
       {mode === 'roda' && <div className="pointer" />}
       {mode === 'roda' && <svg className="wheel" viewBox="0 0 300 300" style={{ transform: `rotate(${rot}deg)` }} role="img" aria-label="Roda tantangan">
         {opts.map((t, k) => {
@@ -67,16 +77,16 @@ export function WheelMech({ players, count, onDone }: MechProps) {
         })}
         <circle cx="150" cy="150" r="14" fill="#fff" />
       </svg>}
-      {res === null ? (mode === 'roda' ? <Button size="lg" className="gap" onClick={spin} disabled={spinning}>{spinning ? 'Berputar…' : 'Putar roda!'}</Button> : <p className="muted gap">Ketuk satu kartu untuk membuka tantanganmu!</p>) : (
+      {res === null ? (mode === 'roda' ? <Button size="lg" className="gap" onClick={spin} disabled={spinning}>{spinning ? 'Berputar…' : 'Putar roda!'}</Button> : <Button size="lg" className="gap" onClick={doShuffle} disabled={shuffling}><Icon name="shuffle" size={20} /> {shuffling ? 'Mengacak…' : 'Acak'}</Button>) : (
         <div className="gap"><div className="expl"><b>Tantanganmu: {opts[res]}</b></div>
           <div className="row"><Button variant="ghost" className="grow" onClick={() => adv(false)}>Lewati</Button><Button className="grow" onClick={() => adv(true)}>Selesai (+1)</Button></div></div>
       )}
       {endless && !spinning && <Button className="gap" variant="ghost" onClick={() => onDone({ scores, correct: good, total: Math.max(1, i) })}>Akhiri permainan ({i} putaran selesai)</Button>}
-      {!spinning && <button className="chip gap" onClick={() => setEdit(!edit)}>{edit ? 'Tutup pengaturan' : '✏️ Ubah pilihan roda'}</button>}
+      {!spinning && !shuffling && <button className="chip gap" onClick={() => setEdit(!edit)}>{edit ? 'Tutup pengaturan' : <><Emo t="✏️" /> Ubah pilihan roda</>}</button>}
       {edit && !spinning && (
         <div className="card gap" style={{ textAlign: 'left' }}>
           <p className="small muted">Tulis pilihanmu sendiri (2–12). Tersimpan di perangkat ini.</p>
-          <div className="row wrap">{opts.map((t, k) => <button key={k} className="chip" disabled={opts.length <= 2} onClick={() => saveOpts(opts.filter((_, j) => j !== k))} aria-label={`Hapus ${t}`}>{t} ✕</button>)}</div>
+          <div className="row wrap">{opts.map((t, k) => <button key={k} className="chip" disabled={opts.length <= 2} onClick={() => saveOpts(opts.filter((_, j) => j !== k))} aria-label={`Hapus ${t}`}>{t} <Emo t="✕" /></button>)}</div>
           <div className="row gap"><input className="input" value={draft} maxLength={40} placeholder="Tambah pilihan…" aria-label="Pilihan baru" onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addOpt(); } }} /><Button onClick={addOpt} disabled={!draft.trim() || opts.length >= 12}>Tambah</Button></div>
           <button className="chip gap" onClick={() => saveOpts([...wheelSlices])}>Kembalikan bawaan</button>
         </div>
@@ -127,7 +137,7 @@ export function WordChainMech({ players, seed, secs, onDone }: MechProps) {
       {err && <p className="field-err" role="alert">{err}</p>}
       <p className="muted small gap">Rantai: {words.join(' → ')}</p>
       <Button variant="ghost" size="sm" onClick={() => finish(alive, counts)}>Akhiri permainan</Button>
-      {players.map((p, k) => <div key={k} className={`score-row ${k === turn ? 'turn' : ''}`}><span>{alive[k] ? '' : '❌ '}{p}</span><span>{counts[k]} kata</span></div>)}
+      {players.map((p, k) => <div key={k} className={`score-row ${k === turn ? 'turn' : ''}`}><span>{alive[k] ? null : <><Emo t="❌" /> </>}{p}</span><span>{counts[k]} kata</span></div>)}
     </div>
   );
 }

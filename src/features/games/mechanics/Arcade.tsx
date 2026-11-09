@@ -4,6 +4,7 @@ import { useCountdown } from '../../../hooks/useCountdown';
 import { beep, sfx } from '../../../utils/sound';
 import { STROOP } from '../logic';
 import type { MechProps, Outcome } from './types';
+import { Emo } from '../../../components/Emo';
 
 /** Menjalankan game arkade satu pemain secara bergiliran untuk 1–4 pemain, lalu merangkum skor. */
 export function TurnRunner({ players, hint, xpPer, render, onDone }: { players: string[]; hint: string; xpPer: number; render: (end: (score: number) => void, idx: number) => ReactNode; onDone: (o: Outcome) => void }) {
@@ -241,7 +242,7 @@ function Catch({ secs, end }: { secs: number; end: (s: number) => void }) {
     return () => { cancelAnimationFrame(raf); window.removeEventListener('keydown', kd); window.removeEventListener('keyup', kd); S.done = true; };
   }, [end, secs]);
   return (
-    <div className="center"><div className="row" style={{ justifyContent: 'space-between' }}><b>Skor: {hud.score}</b><b>Nyawa: {'♥'.repeat(Math.max(0, hud.lives))}</b><b>{Math.ceil(hud.t)} dtk</b></div>
+    <div className="center"><div className="row" style={{ justifyContent: 'space-between' }}><b>Skor: {hud.score}</b><b>Nyawa: <Emo t={'♥'.repeat(Math.max(0, hud.lives))} /></b><b>{Math.ceil(hud.t)} dtk</b></div>
       <canvas ref={cv} width={CW} height={CH} className="arcade-cv" style={{ touchAction: 'none' }} onPointerMove={(e) => mv(e.clientX)} onPointerDown={(e) => mv(e.clientX)} />
       <p className="muted small">Geser jari untuk menggerakkan keranjang · bulat gelap = bom</p></div>
   );

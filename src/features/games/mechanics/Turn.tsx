@@ -6,6 +6,7 @@ import { gaple, canPlay, hasMove, pips, startTile, playMove as gaplePlay, MOVE_P
 import { ladder, JUMPS, MOVE_ROLL, type LadderState } from '../engines/ladder';
 import type { TurnEngine } from '../engines/types';
 import type { MechProps } from './types';
+import { Emo } from '../../../components/Emo';
 
 export const TURN_ENGINES: Record<string, TurnEngine<never>> = { uno: uno as TurnEngine<never>, gaple: gaple as TurnEngine<never>, ladder: ladder as TurnEngine<never> };
 const PCOL = ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414'];
@@ -198,7 +199,7 @@ function LadderView({ s, names, onMove, active }: { s: LadderState; viewer: numb
       <div className="row wrap" style={{ justifyContent: 'center', marginBottom: 6 }}>{names.map((n, i) => <span key={i} className={`badge ${s.cur === i && s.win < 0 ? '' : 'dim'}`} style={{ background: PCOL[i], color: i === 3 ? '#17140e' : '#fff' }}>{s.cur === i && s.win < 0 ? '▶ ' : ''}{n}: {s.pos[i] === 0 ? 'Start' : s.pos[i]}</span>)}</div>
       <div className="lwrap"><div className="lgrid">
         <div className="lboard">{Array.from({ length: 10 }, (_, rr) => 9 - rr).map((r) => Array.from({ length: 10 }, (_, c) => { const num = r % 2 === 0 ? r * 10 + c + 1 : r * 10 + (9 - c) + 1, j = JUMPS[num];
-          return <div key={num} className={`lcell ${(r + c) % 2 ? 'alt' : ''} ${j ? (j > num ? 'up' : 'down') : ''}`}><small>{num}</small>{num === 100 && <b className="goal">🏆</b>}</div>; }))}</div>
+          return <div key={num} className={`lcell ${(r + c) % 2 ? 'alt' : ''} ${j ? (j > num ? 'up' : 'down') : ''}`}><small>{num}</small>{num === 100 && <b className="goal"><Emo t="🏆" /></b>}</div>; }))}</div>
         <svg className="lsvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{JUMP_LIST.map(([f, t], k) => <JumpArt key={f} from={f} to={t} k={k} />)}</svg>
         {disp.map((p, i) => {
           const [bx, by] = p === 0 ? [5 + i * 7, 106] as [number, number] : cellXY(p), same = disp.filter((q) => q === p).length, idx = disp.slice(0, i).filter((q) => q === p).length, o: [number, number] = same > 1 ? (OFFS[idx % 4] as [number, number]) : [0, 0];
@@ -207,9 +208,9 @@ function LadderView({ s, names, onMove, active }: { s: LadderState; viewer: numb
       </div></div>
       <div className="row gap" style={{ justifyContent: 'center', alignItems: 'center' }}>
         <Die v={face} tumble={tumble} />
-        <div style={{ maxWidth: 220 }}><p className="small" style={{ margin: 0 }}><b>{msg}</b></p><p className="small muted" style={{ margin: '4px 0 0' }}>{s.win >= 0 ? '' : active ? 'Giliranmu' : `Giliran ${names[s.cur]}`}</p></div>
+        <div style={{ maxWidth: 220 }}><p className="small" style={{ margin: 0 }}><b><Emo t={msg} /></b></p><p className="small muted" style={{ margin: '4px 0 0' }}>{s.win >= 0 ? '' : active ? 'Giliranmu' : `Giliran ${names[s.cur]}`}</p></div>
       </div>
-      {s.win < 0 && <Button size="lg" className="gap" style={{ width: '100%' }} disabled={!canRoll} onClick={roll}>{tumble ? '🎲 Berputar…' : busy ? 'Bidak berjalan…' : '🎲 Lempar dadu'}</Button>}
+      {s.win < 0 && <Button size="lg" className="gap" style={{ width: '100%' }} disabled={!canRoll} onClick={roll}><Emo t={tumble ? '🎲 Berputar…' : busy ? 'Bidak berjalan…' : '🎲 Lempar dadu'} /></Button>}
     </div>
   );
 }

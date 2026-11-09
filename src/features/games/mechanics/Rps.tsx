@@ -5,6 +5,7 @@ import { rpsOutcome } from '../logic';
 import { Scoreboard } from './Quiz';
 import { Cover } from './Social';
 import type { MechProps } from './types';
+import { Emo } from '../../../components/Emo';
 
 export const HANDS = [{ e: '✊', n: 'Batu' }, { e: '✌️', n: 'Gunting' }, { e: '✋', n: 'Kertas' }] as const;
 const COUNT_TEXT = ['Siap…', 'Batu!', 'Gunting!', 'Kertas!'];
@@ -34,7 +35,7 @@ export function RpsArena({ names, picks, streaks, onReveal }: { names: string[];
   const answered = status.filter((s) => s !== 'none').length;
   return (
     <div>
-      <div className="rps-count" key={beat} aria-live="polite">{shown ? 'SUIT! 💥' : COUNT_TEXT[beat]}</div>
+      <div className="rps-count" key={beat} aria-live="polite"><Emo t={shown ? 'SUIT! 💥' : (COUNT_TEXT[beat] ?? '')} /></div>
       <div className={`rps-stage ${two ? 'two' : ''}`} onClick={skip} role="presentation">
         {names.map((nm, i) => {
           const st = status[i] ?? 'none';
@@ -47,10 +48,10 @@ export function RpsArena({ names, picks, streaks, onReveal }: { names: string[];
               <div className={`rps-card ${shown ? st : ''}`}>
                 <div className="rps-name">{nm}</div>
                 <span className={`rps-flip ${two && i === 1 ? 'mirror' : ''}`}>
-                  <span key={shown ? 'p' : 's'} className={`rps-hand ${shown ? 'pop' : 'shake'}`} style={{ animationDelay: shown ? '0s' : `${i * 0.08}s` }} aria-label={shown && pick !== undefined ? HANDS[pick]?.n : undefined}>{hand}</span>
+                  <span key={shown ? 'p' : 's'} className={`rps-hand ${shown ? 'pop' : 'shake'}`} style={{ animationDelay: shown ? '0s' : `${i * 0.08}s` }} aria-label={shown && pick !== undefined ? HANDS[pick]?.n : undefined}><Emo t={hand} /></span>
                 </span>
                 <div className="rps-pname">{shown && pick !== undefined ? HANDS[pick]?.n : ''}</div>
-                <div className="rps-tag">{shown ? `${TAG[st]}${st === 'win' && streak >= 2 ? ` · 🔥${streak}` : ''}` : ''}</div>
+                <div className="rps-tag"><Emo t={shown ? `${TAG[st]}${st === 'win' && streak >= 2 ? ` · 🔥${streak}` : ''}` : ''} /></div>
               </div>
             </Fragment>
           );
@@ -98,7 +99,7 @@ export function RpsMech({ players, count, onDone }: MechProps) {
       )}
       {revealing && <RpsArena key={round} names={players} picks={picks} streaks={streaks} onReveal={() => setRevealed(true)} />}
       {revealing && revealed && <Button size="lg" onClick={next}>{round + 1 >= count ? 'Lihat hasil' : 'Ronde berikutnya'}</Button>}
-      <p className="center muted small gap">✊ Batu menang atas ✌️ Gunting · ✌️ Gunting menang atas ✋ Kertas · ✋ Kertas menang atas ✊ Batu</p>
+      <p className="center muted small gap"><Emo t="✊ Batu menang atas ✌️ Gunting · ✌️ Gunting menang atas ✋ Kertas · ✋ Kertas menang atas ✊ Batu" /></p>
       <div className="gap"><Scoreboard players={players} scores={shownScores} /></div>
     </div>
   );

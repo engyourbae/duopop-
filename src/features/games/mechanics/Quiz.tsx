@@ -8,6 +8,7 @@ import { clueItems, estimateQuestions, orderQuestions } from '../../../data/ques
 import { getProgress, markSeen } from '../../progression/store';
 import { buildItems, DIFF_COLOR, DIFF_LABEL, type PlayItem, cluePoints, estimatePoints, initialQuiz, orderPoints, quizReducer, type QuizAction, type QuizState } from '../engine';
 import { LETTERS, type MechProps } from './types';
+import { Emo } from '../../../components/Emo';
 
 /** Batang hitung mundur jeda penjelasan + tombol lanjut. */
 export function PauseBar({ secs, onNext, label = 'Lanjut' }: { secs: number; onNext: () => void; label?: string }) {
@@ -37,7 +38,7 @@ export function QuizMech({ game, players, seed, count, secs, onDone, mode, level
     <div>
       <ProgressBar value={endless ? Math.min(1, s.correct / 50) : s.index / items.length} label="Kemajuan soal" />
       <div className="row gap" style={{ justifyContent: 'space-between' }}>
-        <span className="muted small">{chain ? `Rantai: ${s.streak}` : endless ? `Nyawa: ${'♥'.repeat(Math.max(0, 3 - s.wrong))} · Benar: ${s.correct}` : `${mode === 'level' ? `Level ${level} · ` : ''}Soal ${s.index + 1}/${items.length}`}</span>
+        <span className="muted small">{chain ? `Rantai: ${s.streak}` : endless ? <>Nyawa: <Emo t={'♥'.repeat(Math.max(0, 3 - s.wrong))} /> · Benar: {s.correct}</> : `${mode === 'level' ? `Level ${level} · ` : ''}Soal ${s.index + 1}/${items.length}`}</span>
         {players.length > 1 ? <b>Giliran: {players[turn]}</b> : <b>Skor: {s.scores[0]}</b>}
       </div>
       <div className={`timer ${left < 4 ? 'low' : ''}`} aria-hidden="true"><div style={{ width: `${(left / secs) * 100}%` }} /></div>
@@ -45,7 +46,7 @@ export function QuizMech({ game, players, seed, count, secs, onDone, mode, level
       <div className="qbox">{item.big && <div className="bigemoji" role="img" aria-label="bendera">{item.big}</div>}{item.prompt}</div>
       {item.options.map((o, i) => {
         const cls = s.chosen === null ? '' : i === item.correct ? 'right' : i === s.chosen ? 'wrong' : '';
-        return <button key={i} className={`opt ${cls}`} disabled={s.chosen !== null} onClick={() => dispatch({ type: 'answer', choice: i, timeFrac: left / secs })}><span className="k">{LETTERS[i]}</span>{o}</button>;
+        return <button key={i} className={`opt ${cls}`} disabled={s.chosen !== null} onClick={() => dispatch({ type: 'answer', choice: i, timeFrac: left / secs })}><span className="k">{LETTERS[i]}</span><Emo t={o} /></button>;
       })}
       {s.chosen !== null && (
         <>
