@@ -20,7 +20,13 @@ service cloud.firestore {
       allow create: if isSelf(uid) && request.resource.data.uid == uid
         && request.resource.data.handle is string && request.resource.data.handle.matches('^[a-z0-9_]{3,20}$')
         && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 40;
-      allow update: if isSelf(uid) && request.resource.data.uid == uid && request.resource.data.handle == resource.data.handle;
+      // Ubah profil: handle tetap, ATAU ganti nama pengguna ke handle baru yang sudah dipesan atas nama sendiri (transaksi atomik)
+      allow update: if isSelf(uid) && request.resource.data.uid == uid && (
+        request.resource.data.handle == resource.data.handle
+        || (request.resource.data.handle.matches('^[a-z0-9_]{3,20}$')
+            && request.resource.data.handleLower == request.resource.data.handle
+            && request.resource.data.displayName == '@' + request.resource.data.handle
+            && getAfter(/databases/$(database)/documents/handles/$(request.resource.data.handle)).data.uid == request.auth.uid));
       allow delete: if false;
 
       match /friends/{friendUid} {
@@ -29,7 +35,9 @@ service cloud.firestore {
         allow create: if (isSelf(uid) && exists(/databases/$(database)/documents/friendRequests/$(friendUid + '_' + uid)))
                       || (isSelf(friendUid) && exists(/databases/$(database)/documents/friendRequests/$(uid + '_' + friendUid)));
         allow delete: if isSelf(uid) || isSelf(friendUid);
-        allow update: if false;
+        // Teman boleh memperbarui salinan namanya sendiri (saat ganti nama pengguna), hanya jika memang berteman
+        allow update: if isSelf(friendUid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'handle'])
+                      && exists(/databases/$(database)/documents/users/$(friendUid)/friends/$(uid));
       }
       match /history/{id} {
         allow read, create: if isSelf(uid);
@@ -39,7 +47,8 @@ service cloud.firestore {
     match /handles/{h} {
       allow read: if signedIn();
       allow create: if signedIn() && !exists(/databases/$(database)/documents/handles/$(h)) && request.resource.data.uid == request.auth.uid;
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid; // dilepas saat pemilik mengganti nama pengguna
     }
 
     // ---- Permintaan pertemanan: id = pengirim_penerima (mencegah ganda) ----
