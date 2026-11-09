@@ -24,6 +24,7 @@ import { explainError } from '../../utils/errors';
 import { sfx } from '../../utils/sound';
 import { trackForGame } from '../../utils/music';
 import { clearActiveRoom, setActiveRoom } from './activeRoom';
+import { Emo } from '../../components/Emo';
 
 export default function RoomPage() { return <RequireAuth need="Ruang online memerlukan akun."><RoomInner /><RoomSocialHost /></RequireAuth>; }
 /** Chat + reaksi sementara untuk semua tampilan ruang. */
@@ -169,7 +170,7 @@ function RoomInner() {
     const top = ranked[0], tie = ranked.length > 1 && ranked[0]?.score === ranked[1]?.score;
     return (
       <div className="page"><Header title="Hasil Akhir" />
-        <div className="hero center"><div style={{ fontSize: '3rem' }}>🏆</div><h2>{kind === 'board' && board?.draw ? 'Seri!' : tie || !top?.score ? 'Permainan selesai!' : `${top.name} juara!`}</h2></div>
+        <div className="hero center"><div style={{ fontSize: '3rem' }}><Emo t="🏆" /></div><h2>{kind === 'board' && board?.draw ? 'Seri!' : tie || !top?.score ? 'Permainan selesai!' : `${top.name} juara!`}</h2></div>
         {ranked.map((p, i) => <div key={p.uid} className={`score-row ${i === 0 && !tie && p.score > 0 ? 'top' : ''}`}><span>{i + 1}. {p.name}</span><span>{p.score}</span></div>)}
         <Button size="lg" className="gap" onClick={() => nav('/lobi')}>Main lagi</Button>
         <Button size="lg" variant="ghost" className="gap" onClick={() => nav('/')}>Beranda</Button></div>
@@ -229,7 +230,7 @@ function RoomInner() {
       {!rd.textInput && (rd.kind === 'all' || iAmActor) && !(reveal && rd.scoring === 'rps') && rd.options.map((o, i) => {
         const chosen = myAns?.choice === i;
         const cls = !reveal ? (chosen ? 'sel' : '') : rd.scoring === 'quiz' ? (i === rd.correct ? 'right' : chosen ? 'wrong' : '') : chosen ? 'sel' : '';
-        return <button key={i} className={`opt ${cls}`} disabled={!canAnswer} onClick={() => answer(i)}><span className="k">{LETTERS[i]}</span>{o}</button>;
+        return <button key={i} className={`opt ${cls}`} disabled={!canAnswer} onClick={() => answer(i)}><span className="k">{LETTERS[i]}</span><Emo t={o} /></button>;
       })}
       {!reveal && myAns && <p className="center muted">Jawaban terkirim ({roundAns.length}/{rd.kind === 'all' ? uids.length : 1})…</p>}
       {reveal && (
