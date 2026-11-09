@@ -28,7 +28,7 @@ export type Mechanic =
   | 'mcq' | 'tf' | 'chain-tf' | 'era' | 'flag' | 'order' | 'estimate' | 'clues'
   | 'memorymatch' | 'reflex' | 'tictactoe' | 'connect4' | 'whack' | 'stroop' | 'simon' | 'snake' | 'flappy' | 'catch'
   | 'uno' | 'gaple' | 'ladder' | 'rps' | 'wordle' | 'typing' | 'tapbattle' | 'anagram' | 'buzzer'
-  | 'pair' | 'predict' | 'match' | 'likely' | 'deck' | 'wheel' | 'wordchain' | 'story' | 'wordguess' | 'lovelang';
+  | 'monopoly' | 'pair' | 'predict' | 'match' | 'likely' | 'deck' | 'wheel' | 'wordchain' | 'story' | 'wordguess' | 'lovelang';
 export type GameGroup = 'pasangan' | 'pengetahuan' | 'grup' | 'arkade' | 'kartu';
 export interface GameVariant { id: string; label: string; bank?: string; categories?: string[] }
 
