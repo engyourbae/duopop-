@@ -3,12 +3,14 @@ import { Button, Modal } from '../../../components/ui';
 import { sfx } from '../../../utils/sound';
 import { uno, cardColor, cardVal, playable, playMove as unoPlay, MOVE_DRAW, MOVE_PASS as UNO_PASS, COLORS, type UnoState } from '../engines/uno';
 import { gaple, canPlay, hasMove, pips, startTile, playMove as gaplePlay, MOVE_PASS as GAPLE_PASS, type GapleState } from '../engines/gaple';
+import { monopoly } from '../engines/monopoly';
+import { MonopolyView } from './Monopoly';
 import { ladder, JUMPS, MOVE_ROLL, type LadderState } from '../engines/ladder';
 import type { TurnEngine } from '../engines/types';
 import type { MechProps } from './types';
 import { Emo } from '../../../components/Emo';
 
-export const TURN_ENGINES: Record<string, TurnEngine<never>> = { uno: uno as TurnEngine<never>, gaple: gaple as TurnEngine<never>, ladder: ladder as TurnEngine<never> };
+export const TURN_ENGINES: Record<string, TurnEngine<never>> = { uno: uno as TurnEngine<never>, gaple: gaple as TurnEngine<never>, ladder: ladder as TurnEngine<never>, monopoly: monopoly as TurnEngine<never> };
 const PCOL = ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414'];
 const SYM: Record<number, string> = { 10: '⊘', 11: '⇄', 12: '+2', 13: '★', 14: '+4' };
 const cardLabel = (c: number) => SYM[cardVal(c)] ?? String(cardVal(c));
@@ -218,6 +220,7 @@ function LadderView({ s, names, onMove, active }: { s: LadderState; viewer: numb
 /** Tampilan sesuai game; dipakai gantian (offline) dan online (ruang). */
 export function TurnBoard({ kind, state, viewer, names, onMove, active }: { kind: string; state: unknown; viewer: number; names: string[]; onMove: (m: number) => void; active: boolean }) {
   if (kind === 'uno') return <UnoView s={state as UnoState} viewer={viewer} names={names} onMove={onMove} active={active} />;
+  if (kind === 'monopoly') return <MonopolyView s={state as never} viewer={viewer} names={names} onMove={onMove} active={active} />;
   if (kind === 'gaple') return <GapleView s={state as GapleState} viewer={viewer} names={names} onMove={onMove} active={active} />;
   return <LadderView s={state as LadderState} viewer={viewer} names={names} onMove={onMove} active={active} />;
 }
