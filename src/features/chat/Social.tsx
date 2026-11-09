@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon';
 import { explainError } from '../../utils/errors';
 import type { Scope } from '../../services/chat';
 import { useChat } from './useChat';
+import { Emo } from '../../components/Emo';
 
 export const EMOTES = ['👍', '😂', '😮', '🔥', '❤️', '👏', '🎉', '😭', '🤔', '😎'];
 /** Stiker kustom datar (bukan emoji) — dirender dari data agar konsisten dengan desain. */
@@ -35,16 +36,16 @@ export function Social({ scope, me, title, floating = true }: { scope: Scope; me
   const submit = async () => { const t = text.trim(); if (!t) return; try { if (await send('text', t)) setText(''); } catch (e) { toast(explainError(e), 'err'); } };
   return (
     <>
-      <div className="fx-layer" aria-hidden="true">{events.map((e) => <div key={e.id} className="fx-bubble" style={{ left: `${10 + (e.id.charCodeAt(0) * 7) % 70}%` }}>{e.kind === 'sticker' ? <Sticker id={e.text} size={1.4} /> : <span className="fx-emoji">{e.text}</span>}<small>{e.name}</small></div>)}</div>
+      <div className="fx-layer" aria-hidden="true">{events.map((e) => <div key={e.id} className="fx-bubble" style={{ left: `${10 + (e.id.charCodeAt(0) * 7) % 70}%` }}>{e.kind === 'sticker' ? <Sticker id={e.text} size={1.4} /> : <span className="fx-emoji"><Emo t={e.text} /></span>}<small>{e.name}</small></div>)}</div>
       {!floating && <Button size="sm" variant="soft" icon="chat" onClick={() => setOpen(true)}>Chat{unread > 0 ? ` (${unread})` : ''}</Button>}
       {floating && (
         <div className="fx-bar">
-          {EMOTES.slice(0, 6).map((em) => <button key={em} className="fx-btn" onClick={() => void fire('react', em)} aria-label={`Reaksi ${em}`}>{em}</button>)}
+          {EMOTES.slice(0, 6).map((em) => <button key={em} className="fx-btn" onClick={() => void fire('react', em)} aria-label={`Reaksi ${em}`}><Emo t={em} /></button>)}
           <button className="fx-btn" onClick={() => setStick(true)} aria-label="Stiker"><Icon name="sparkle" size={20} /></button>
           <button className="fx-btn chat" onClick={() => setOpen(true)} aria-label="Chat"><Icon name="chat" size={20} />{unread > 0 && <b className="fx-dot">{unread}</b>}</button>
         </div>)}
       <Modal open={stick} title="Stiker & emote" onClose={() => setStick(false)}>
-        <div className="row wrap">{EMOTES.map((em) => <button key={em} className="fx-btn big" onClick={() => { void fire('react', em); setStick(false); }}>{em}</button>)}</div>
+        <div className="row wrap">{EMOTES.map((em) => <button key={em} className="fx-btn big" onClick={() => { void fire('react', em); setStick(false); }}><Emo t={em} /></button>)}</div>
         <div className="sticker-grid gap">{STICKERS.map((s) => <button key={s.id} className="sticker-btn" onClick={() => { void fire('sticker', s.id); setStick(false); }}><Sticker id={s.id} /></button>)}</div>
       </Modal>
       <Modal open={open} title={title} onClose={() => setOpen(false)}>
