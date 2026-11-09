@@ -20,7 +20,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
       if (reg.waiting && navigator.serviceWorker.controller) announce();
       reg.addEventListener('updatefound', () => {
         const w = reg.installing;
-        w?.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) announce(); });
+        if (!w) return;
+        w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) announce(); });
       });
       check(); setInterval(check, 10 * 60 * 1000); // cek versi baru tiap 10 menit
       document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); }); // dan tiap aplikasi dibuka lagi
