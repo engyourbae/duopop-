@@ -78,7 +78,7 @@ function LobbyInner() {
   const [secs, setSecs] = useState((d?.secs ?? 0) || 20);
   const [diff, setDiff] = useState<'semua' | Difficulty>('semua');
   // Statistik jumlah soal per topik: label "maks", pilihan kesulitan, dan batas jumlah soal per ronde.
-  const statsAll = useMemo(() => (game.variants && (game.mechanic === 'mcq' || game.mechanic === 'buzzer') && game.id !== 'harian' ? Object.fromEntries(game.variants.map((v) => [v.id, poolStats(withVariant(game, v.id))])) : null), [gid]); // eslint-disable-line react-hooks/exhaustive-deps
+  const statsAll = useMemo(() => (game?.variants && (game.mechanic === 'mcq' || game.mechanic === 'buzzer') && game.id !== 'harian' ? Object.fromEntries(game.variants.map((v) => [v.id, poolStats(withVariant(game, v.id))])) : null), [gid]); // eslint-disable-line react-hooks/exhaustive-deps
   const st = statsAll ? statsAll[variant] ?? null : null;
   const avail = st ? (st.unlimited ? Infinity : diff === 'semua' ? st.total : st[diff]) : Infinity;
   useEffect(() => {
