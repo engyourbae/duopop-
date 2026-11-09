@@ -1,5 +1,5 @@
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, signOut, updateProfile, type User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase/client';
 
 export interface AppUser { uid: string; displayName: string; handle: string | null; email: string | null }
@@ -73,5 +73,14 @@ export async function renameHandle(uid: string, oldHandle: string, next: string)
     const snap = await getDocs(collection(db(), 'users', uid, 'friends'));
     await Promise.allSettled(snap.docs.map((d) => updateDoc(doc(db(), 'users', d.id, 'friends', uid), { name: `@${h}`, handle: h })));
   } catch { /* nama di daftar teman akan menyusul bila gagal */ }
+  // nama di grup & permintaan pertemanan yang masih menggantung ikut diperbarui
+  const nm = `@${h}`;
+  const jobs: Promise<unknown>[] = [];
+  try { (await getDocs(query(collection(db(), 'groups'), where('members', 'array-contains', uid)))).docs.forEach((d) => jobs.push(updateDoc(d.ref, { [`memberNames.${uid}`]: nm }))); } catch { /* abaikan */ }
+  try {
+    (await getDocs(query(collection(db(), 'friendRequests'), where('from', '==', uid)))).docs.forEach((d) => jobs.push(updateDoc(d.ref, { fromName: nm, fromHandle: h })));
+    (await getDocs(query(collection(db(), 'friendRequests'), where('to', '==', uid)))).docs.forEach((d) => jobs.push(updateDoc(d.ref, { toName: nm, toHandle: h })));
+  } catch { /* abaikan */ }
+  await Promise.allSettled(jobs);
   return h;
 }
