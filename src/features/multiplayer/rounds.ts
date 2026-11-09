@@ -11,10 +11,10 @@ export type Scoring = 'quiz' | 'plurality' | 'most' | 'predict' | 'actorDone' | 
 const ROUND_MECHS = ['mcq', 'buzzer', 'rps', 'tf', 'era', 'flag', 'pair', 'match', 'likely', 'predict', 'deck', 'wheel', 'story', 'wordchain', 'wordguess'];
 export function roomKind(g: GameDef): RoomKind {
   if (g.mechanic === 'tictactoe' || g.mechanic === 'connect4') return 'board';
-  if (g.mechanic === 'uno' || g.mechanic === 'gaple' || g.mechanic === 'ladder') return 'turn';
+  if (g.mechanic === 'uno' || g.mechanic === 'gaple' || g.mechanic === 'ladder' || g.mechanic === 'monopoly') return 'turn';
   return ROUND_MECHS.includes(g.mechanic) ? 'rounds' : 'race';
 }
-export const roomCapacity = (g: GameDef) => (roomKind(g) === 'board' ? 2 : roomKind(g) === 'turn' ? 4 : 8);
+export const roomCapacity = (g: GameDef) => (roomKind(g) === 'board' ? 2 : roomKind(g) === 'turn' ? (g.mechanic === 'monopoly' ? 6 : 4) : 8);
 
 export interface RoomRound {
   /** all = semua pemain menjawab; actor = hanya pemain giliran yang menjawab */

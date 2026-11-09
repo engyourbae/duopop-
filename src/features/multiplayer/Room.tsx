@@ -7,6 +7,8 @@ import { useAuth } from '../auth/AuthContext';
 import { gameById, withVariant } from '../games/registry';
 import { TurnBoard, TURN_ENGINES } from '../games/mechanics/Turn';
 import { replayTurns } from '../games/engines/types';
+import { modeSeed, type MonoState } from '../games/engines/monopoly';
+import { monoScores } from '../games/mechanics/Monopoly';
 import { DIFF_COLOR, DIFF_LABEL } from '../games/engine';
 import { MECH } from '../games/GamePage';
 import { recordResult } from '../progression/store';
@@ -78,15 +80,16 @@ function RoomInner() {
 
   // ---- skor per jenis ----
   const board = useMemo(() => (game && kind === 'board' ? replayBoard(game.mechanic as 'tictactoe' | 'connect4', [...lite].sort((a, b) => a.round - b.round)) : null), [lite, game, kind]);
-  const turn = useMemo(() => (game && kind === 'turn' && room ? replayTurns(TURN_ENGINES[game.mechanic] as never, uids, room.seed, [...lite].sort((a, b) => a.round - b.round || (a.atMs ?? 0) - (b.atMs ?? 0))) : null), [lite, game, kind, room?.seed, uids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const turn = useMemo(() => (game && kind === 'turn' && room ? replayTurns(TURN_ENGINES[game.mechanic] as never, uids, modeSeed(game, room.seed), [...lite].sort((a, b) => a.round - b.round || (a.atMs ?? 0) - (b.atMs ?? 0))) : null), [lite, game, kind, room?.seed, uids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
   const turnWin = turn && game ? (TURN_ENGINES[game.mechanic] as unknown as { winner: (s: unknown) => number }).winner(turn.s) : -1;
   const scores: Record<string, number> = useMemo(() => {
     if (!room) return {};
+    if (kind === 'turn' && game?.mechanic === 'monopoly' && turn) { const sc = monoScores(turn.s as MonoState); return Object.fromEntries(uids.map((u, i) => [u, sc[i] ?? 0])); }
     if (kind === 'turn') return Object.fromEntries(uids.map((u, i) => [u, turnWin === i ? 1 : 0]));
     if (kind === 'rounds') return scoreRounds(rounds, lite, startsMs, room.secs, uids);
     if (kind === 'board') return Object.fromEntries(uids.map((u, i) => [u, board?.winner === i + 1 ? 1 : 0]));
     return Object.fromEntries(uids.map((u) => [u, scoreDocs.find((s) => s.uid === u)?.score ?? 0]));
-  }, [room, kind, rounds, lite, startsMs, uids, board, scoreDocs, turnWin]);
+  }, [room, kind, rounds, lite, startsMs, uids, board, scoreDocs, turnWin, turn, game]);
 
   const finalScores = room?.status === 'finished' ? (frozen.current ?? (Object.keys(scores).length ? (frozen.current = scores) : scores)) : scores;
   // Host membersihkan ruang 45 dtk setelah selesai (atau saat keluar dari layar hasil)
