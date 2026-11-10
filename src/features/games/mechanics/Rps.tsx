@@ -6,6 +6,7 @@ import { Scoreboard } from './Quiz';
 import { Cover } from './Social';
 import type { MechProps } from './types';
 import { Emo } from '../../../components/Emo';
+import { HandArt } from '../../../components/HandArt';
 
 export const HANDS = [{ e: '✊', n: 'Batu' }, { e: '✌️', n: 'Gunting' }, { e: '✋', n: 'Kertas' }] as const;
 const COUNT_TEXT = ['Siap…', 'Batu!', 'Gunting!', 'Kertas!'];
@@ -40,7 +41,7 @@ export function RpsArena({ names, picks, streaks, onReveal }: { names: string[];
         {names.map((nm, i) => {
           const st = status[i] ?? 'none';
           const pick = picks[i];
-          const hand = shown ? (pick === undefined ? '❔' : (HANDS[pick]?.e ?? '❔')) : '✊';
+          const hand = shown ? (pick === undefined ? -1 : pick) : 0;
           const streak = (streaks?.[i] ?? 0) + 1;
           return (
             <Fragment key={i}>
@@ -48,7 +49,7 @@ export function RpsArena({ names, picks, streaks, onReveal }: { names: string[];
               <div className={`rps-card ${shown ? st : ''}`}>
                 <div className="rps-name">{nm}</div>
                 <span className={`rps-flip ${two && i === 1 ? 'mirror' : ''}`}>
-                  <span key={shown ? 'p' : 's'} className={`rps-hand ${shown ? 'pop' : 'shake'}`} style={{ animationDelay: shown ? '0s' : `${i * 0.08}s` }} aria-label={shown && pick !== undefined ? HANDS[pick]?.n : undefined}><Emo t={hand} /></span>
+                  <span key={shown ? 'p' : 's'} className={`rps-hand ${shown ? 'pop' : 'shake'}`} style={{ animationDelay: shown ? '0s' : `${i * 0.08}s` }} aria-label={shown && pick !== undefined ? HANDS[pick]?.n : undefined}><HandArt kind={hand} px={96} /></span>
                 </span>
                 <div className="rps-pname">{shown && pick !== undefined ? HANDS[pick]?.n : ''}</div>
                 <div className="rps-tag"><Emo t={shown ? `${TAG[st]}${st === 'win' && streak >= 2 ? ` · 🔥${streak}` : ''}` : ''} /></div>
@@ -94,7 +95,7 @@ export function RpsMech({ players, count, onDone }: MechProps) {
       {!revealing && !covered && (
         <div>
           <p className="center muted small">Giliran <b>{players[voter]}</b> memilih</p>
-          <div className="rps-pick">{HANDS.map((h, k) => <button key={k} className="opt rps-opt" onClick={() => choose(k)}><span className="rps-e">{h.e}</span>{h.n}</button>)}</div>
+          <div className="rps-pick">{HANDS.map((h, k) => <button key={k} className="opt rps-opt" onClick={() => choose(k)}><span className="rps-e"><HandArt kind={k} px={64} /></span>{h.n}</button>)}</div>
         </div>
       )}
       {revealing && <RpsArena key={round} names={players} picks={picks} streaks={streaks} onReveal={() => setRevealed(true)} />}
