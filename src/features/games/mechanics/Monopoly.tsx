@@ -4,11 +4,11 @@ import { Button, Modal, Select } from '../../../components/ui';
 import { mono } from '../../../utils/monoSound';
 import { sfx } from '../../../utils/sound';
 import {
-  BID_STEPS, CHALLENGES, FINISH_ROUND, MV, alive, canBuild, canMortgage, canSell, canUnmortgage, challengeXp, monopoly, netWorth, ownedBy, tradeMove, unmortCost, validTrade,
+  BID_STEPS, CHALLENGES, FINISH_ROUND, MV, alive, canBuild, hotelCount, houseCount, canMortgage, canSell, canUnmortgage, challengeXp, monopoly, netWorth, ownedBy, tradeMove, unmortCost, validTrade,
   mvBid, mvBuild, mvMort, mvSell, mvUnmort, type MonoEv, type MonoState,
 } from '../engines/monopoly';
 import { botMove } from '../engines/monopolyBot';
-import { CHANCE, CHEST, GROUPS, MODES, PAWNS, PAWN_NAME, PCOL, TILES, money, type Tile } from '../engines/monopolyData';
+import { CHANCE, CHEST, GROUPS, GROUP_TILES, MAX_HOTELS, MAX_HOUSES, MODES, PAWNS, PAWN_NAME, PCOL, TILES, money, type Tile } from '../engines/monopolyData';
 import { Banknote, DeckArt, DieFace, HotelArt, HouseArt, MonoIcon, PawnArt, TileIcon } from './MonoArt';
 import type { MechProps } from './types';
 
@@ -78,6 +78,22 @@ function describe(e: MonoEv, n: string[]): string {
 }
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 export const monoScores = (s: MonoState) => s.cash.map((_, i) => (s.out[i] ? 0 : Math.round(netWorth(s, i))));
+
+/** Alasan kenapa tombol bangun aktif / mati, ditampilkan di daftar aset. */
+function buildHint(s: MonoState, me: number, t: number, names: string[], can: boolean): string {
+  const x = TILES[t] as Tile;
+  if (x.kind !== 'prop') return 'Stasiun dan utilitas tidak bisa dibangun.';
+  const g = GROUP_TILES[x.group] as number[], house = (GROUPS[x.group] as { house: number }).house, l = s.lvl[t] as number;
+  const missing = g.filter((k) => s.owner[k] !== me);
+  if (missing.length) return `Set belum lengkap. Kurang: ${missing.map((k) => `${tn(k)} (${s.owner[k] === -1 ? 'belum dimiliki' : nm(names, s.owner[k] as number)})`).join(', ')}.`;
+  if (g.some((k) => s.mort[k])) return 'Tebus dulu properti yang digadai di set ini.';
+  if (l >= 5) return 'Sudah hotel, tingkat maksimal.';
+  if (l !== Math.min(...g.map((k) => s.lvl[k] as number))) return 'Bangun harus merata: petak lain di set ini perlu naik dulu.';
+  if ((s.cash[me] as number) < house) return `Uang kurang, butuh ${money(house)}.`;
+  if (l === 4 ? hotelCount(s) >= MAX_HOTELS : houseCount(s) >= MAX_HOUSES) return 'Stok rumah/hotel bank habis.';
+  if (!can) return 'Bisa dibangun saat giliranmu (lempar dadu atau selesai giliran).';
+  return `Siap dibangun: ${money(house)} per ${l === 4 ? 'hotel' : 'rumah'}.`;
+}
 
 // ---------- Kartu hak milik ----------
 function Deed({ t, s, names }: { t: number; s: MonoState; names: string[] }) {
@@ -304,7 +320,7 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
         <div className="mn-assets">{ownedBy(s, me).length === 0 && <p className="muted center">Belum punya properti.</p>}
           {ownedBy(s, me).map((t) => { const x = TILES[t] as Tile, g = x.group >= 0 ? (GROUPS[x.group] as (typeof GROUPS)[number]) : null, lv = s.lvl[t] as number;
             return <div key={t} className={`mn-as ${s.mort[t] ? 'mort' : ''}`}><span className="sw" style={{ background: g?.color ?? (x.kind === 'rail' ? '#455a64' : '#f08c00') }} />
-              <div className="nm">{x.name}<small>{s.mort[t] ? `Digadai (tebus ${money(unmortCost(t))})` : lv === 5 ? 'Hotel' : lv > 0 ? `${lv} rumah` : money(x.price)}</small></div>
+              <div className="nm">{x.name}<small>{s.mort[t] ? `Digadai (tebus ${money(unmortCost(t))})` : lv === 5 ? 'Hotel' : lv > 0 ? `${lv} rumah` : money(x.price)}</small>{!s.mort[t] && <small style={{ opacity: 1, color: canBuild(s, me, t) && can ? '#0b7a43' : '#9a4d00' }}>{buildHint(s, me, t, names, can)}</small>}</div>
               <div className="bt">
                 {g && <button disabled={!can || !canBuild(s, me, t)} onClick={() => send(mvBuild(t))} aria-label={`Bangun di ${x.name}`}><HouseArt size={14} />+</button>}
                 {g && <button disabled={!can || !canSell(s, me, t)} onClick={() => send(mvSell(t))} aria-label={`Jual bangunan ${x.name}`}><HouseArt size={14} />-</button>}
