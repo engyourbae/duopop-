@@ -131,7 +131,7 @@ export const CHALLENGES: Challenge[] = [
   { id: 'hotel', title: 'Hotel Bintang Lima', desc: 'Bangun 1 hotel.', target: 1, xp: 15, value: (s, p) => (s.stats[p] as Stats).hotels },
   { id: 'lelang', title: 'Pemenang Lelang', desc: 'Menangkan 1 lelang.', target: 1, xp: 10, value: (s, p) => (s.stats[p] as Stats).auctions },
   { id: 'dagang', title: 'Pedagang Ulung', desc: 'Sepakati 1 perdagangan.', target: 1, xp: 10, value: (s, p) => (s.stats[p] as Stats).trades },
-  { id: 'sultan', title: 'Sultan', desc: 'Punya kas Rp3.000jt.', target: 3000, xp: 15, value: (s, p) => (s.stats[p] as Stats).maxCash },
+  { id: 'sultan', title: 'Sultan', desc: 'Punya kas Rp3 M.', target: 3000, xp: 15, value: (s, p) => (s.stats[p] as Stats).maxCash },
   { id: 'lolos', title: 'Lolos Hukum', desc: 'Keluar penjara lewat dadu kembar.', target: 1, xp: 10, value: (s, p) => (s.stats[p] as Stats).escapes },
   { id: 'keliling', title: 'Keliling Nusantara', desc: 'Lewati MULAI 5 kali.', target: 5, xp: 10, value: (s, p) => (s.stats[p] as Stats).passGo },
 ];
