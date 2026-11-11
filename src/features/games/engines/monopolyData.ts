@@ -79,12 +79,19 @@ export const CHEST: Card[] = [
 
 export type ModeKey = 'klasik' | 'cepat' | 'sultan';
 export const MODES: Record<ModeKey, { label: string; cash: number; go: number; rounds: number; desc: string }> = {
-  klasik: { label: 'Klasik', cash: 1500, go: 200, rounds: 0, desc: 'Uang Rp1.500jt. Main sampai tinggal satu pemain.' },
-  cepat: { label: 'Kilat', cash: 1000, go: 200, rounds: 20, desc: 'Uang Rp1.000jt, 20 putaran. Kekayaan terbesar menang.' },
-  sultan: { label: 'Sultan', cash: 3000, go: 300, rounds: 40, desc: 'Uang Rp3.000jt, gaji Rp300jt, 40 putaran.' },
+  klasik: { label: 'Klasik', cash: 1500, go: 200, rounds: 0, desc: 'Uang Rp1,5 M. Main sampai tinggal satu pemain.' },
+  cepat: { label: 'Kilat', cash: 1000, go: 200, rounds: 20, desc: 'Uang Rp1 M, 20 putaran. Kekayaan terbesar menang.' },
+  sultan: { label: 'Sultan', cash: 3000, go: 300, rounds: 40, desc: 'Uang Rp3 M, gaji Rp300jt, 40 putaran.' },
 };
 export const JAIL_FEE = 50, JAIL_POS = 10, MAX_HOUSES = 32, MAX_HOTELS = 12;
 export const PCOL = ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414', '#9c36b5', '#12b5cb'];
 export const PAWNS = ['becak', 'pinisi', 'garuda', 'motor', 'kucing', 'tumpeng'] as const;
 export const PAWN_NAME: Record<string, string> = { becak: 'Becak', pinisi: 'Kapal Pinisi', garuda: 'Garuda', motor: 'Motor', kucing: 'Kucing', tumpeng: 'Tumpeng' };
-export const money = (n: number) => `Rp${n.toLocaleString('id-ID')}jt`;
+/** Satuan dasar = juta rupiah. 1.000 juta = 1 M (miliar), 1.000.000 juta = 1 T (triliun). */
+export const money = (n: number): string => {
+  const a = Math.abs(n), sign = n < 0 ? '-' : '';
+  const f = (v: number) => v.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+  if (a >= 1_000_000) return `${sign}Rp${f(a / 1_000_000)} T`;
+  if (a >= 1000) return `${sign}Rp${f(a / 1000)} M`;
+  return `${sign}Rp${f(a)}jt`;
+};
