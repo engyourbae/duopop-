@@ -24,6 +24,7 @@ import { isFirebaseConfigured } from '../../lib/firebase/config';
 import { useAuth } from '../auth/AuthContext';
 import { useMusic } from '../../hooks/useMusic';
 import { Emo } from '../../components/Emo';
+import { LocalReactDock } from '../chat/Fx';
 
 interface Cfg { count: number; secs: number; counts: number[]; secsOpts: number[] | null }
 export function defaultsFor(g: GameDef): Cfg {
@@ -185,6 +186,8 @@ export default function GamePage() {
         <Header title={game.title} back={() => { void ask({ title: 'Keluar dari permainan?', text: 'Kemajuan ronde ini tidak disimpan.', ok: 'Keluar', danger: true }).then((y) => { if (y) setPhase('setup'); }); }} />
         <RulesPeek rules={game.rules} defaultOpen={game.mechanic === 'connect4' || game.mechanic === 'rps'} />
         <M key={session.id} game={eg} players={names} seed={session.seed} count={quizLike && mode === 'level' ? 10 : cfg.count} secs={quizLike && mode === 'level' ? lvSecs : quizLike && mode === 'endless' ? 15 : cfg.secs || 20} onDone={finish} mode={quizLike ? mode : undefined} level={level} difficulty={quizLike && mode === 'santai' && game.mechanic === 'mcq' ? diff : undefined} />
+        <div style={{ height: 64 }} aria-hidden="true" />
+        <LocalReactDock />
       </div>
     );
   }
