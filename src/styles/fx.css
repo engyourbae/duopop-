@@ -2,11 +2,14 @@
 .fx-custom{display:block;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25));animation:fxWob .55s ease-in-out infinite alternate}
 @keyframes fxWob{from{transform:rotate(-7deg) scale(1)}to{transform:rotate(7deg) scale(1.08)}}
 .fx-btn .fx-custom{animation:none}
-.fx-dock{position:fixed;right:10px;bottom:calc(var(--nav-h) + 10px + env(safe-area-inset-bottom));display:flex;align-items:flex-end;gap:8px;z-index:40;pointer-events:none}
+.fx-dock{position:fixed;width:48px;height:48px;z-index:40;pointer-events:none}
+.fx-dock.def{right:10px;bottom:calc(var(--nav-h) + 10px + env(safe-area-inset-bottom))}
 .fx-dock>*{pointer-events:auto}
-.fx-tray{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px;max-width:min(300px,calc(100vw - 84px));background:var(--card);border:var(--bw) solid var(--edge);border-radius:16px;padding:4px;box-shadow:3px 3px 0 var(--shadow-c);animation:fxPop .18s ease-out}
+.fx-tray{position:absolute;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px;width:max-content;max-width:min(300px,calc(100vw - 84px));background:var(--card);border:var(--bw) solid var(--edge);border-radius:16px;padding:4px;box-shadow:3px 3px 0 var(--shadow-c);animation:fxPop .18s ease-out}
+.fx-tray.r{right:56px}.fx-tray.l{left:56px;justify-content:flex-start}.fx-tray.b{bottom:0}.fx-tray.t{top:0}
 @keyframes fxPop{from{opacity:0;transform:translateY(8px) scale(.9)}to{opacity:1;transform:none}}
 .fx-fab{width:48px;height:48px;border-radius:50%;border:var(--bw) solid var(--edge);background:var(--yellow);color:#17140e;font-size:1.5rem;display:grid;place-items:center;cursor:pointer;box-shadow:3px 3px 0 var(--shadow-c);flex:none}
+.fx-fab{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}.fx-fab.drag{cursor:grabbing;transform:scale(1.12)}
 .fx-fab:active{transform:translateY(2px);box-shadow:1px 1px 0 var(--shadow-c)}
 .fx-bubble .fx-custom{animation:fxWob .45s ease-in-out infinite alternate}
 @media (prefers-reduced-motion:reduce){.fx-custom,.fx-bubble .fx-custom,.fx-tray{animation:none}}
