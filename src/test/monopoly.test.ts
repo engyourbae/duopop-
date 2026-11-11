@@ -1,7 +1,7 @@
 import { monopoly, rollDice, rentFor, canBuild, canMortgage, decodeTrade, tradeMove, netWorth, challengeXp, modeSeed, MV, mvBuild, mvMort, mvUnmort, mvBid, type MonoState } from '../features/games/engines/monopoly';
 import { botMove } from '../features/games/engines/monopolyBot';
 import { replayTurns } from '../features/games/engines/types';
-import { TILES, GROUPS, CHANCE, CHEST, GROUP_TILES } from '../features/games/engines/monopolyData';
+import { TILES, GROUPS, CHANCE, CHEST, GROUP_TILES, money } from '../features/games/engines/monopolyData';
 import { GAMES, gameById, withVariant } from '../features/games/registry';
 import { roomCapacity, roomKind } from '../features/multiplayer/rounds';
 
@@ -126,5 +126,11 @@ describe('registrasi', () => {
     expect(g.minPlayers).toBe(1); expect(g.maxPlayers).toBe(6); expect(g.multiplayer).toBe(true); expect(g.offline).toBe(true);
     expect(roomKind(g)).toBe('turn'); expect(roomCapacity(g)).toBe(6);
     expect(withVariant(g, 'cepat').bank).toBe('cepat'); expect(withVariant(g, undefined).bank).toBe('klasik');
+  });
+});
+describe('format uang', () => {
+  it('juta, miliar, triliun', () => {
+    expect(money(60)).toBe('Rp60jt'); expect(money(1000)).toBe('Rp1 M'); expect(money(1500)).toBe('Rp1,5 M'); expect(money(3000)).toBe('Rp3 M');
+    expect(money(1050)).toBe('Rp1,05 M'); expect(money(2000000)).toBe('Rp2 T'); expect(money(-250)).toBe('-Rp250jt');
   });
 });
