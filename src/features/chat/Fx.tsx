@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import '../../styles/fx.css';
 import { Icon } from '../../components/Icon';
 import { Modal } from '../../components/ui';
@@ -94,21 +94,50 @@ export function useLocalFx(name = '') {
   return { events, fire };
 }
 
-/** Tombol reaksi mengambang untuk semua permainan offline: ketuk emoji lalu melayang. */
+const DOCK = 48, POS_KEY = 'duopop:fxdock';
+const clampPos = (x: number, y: number) => ({ x: Math.min(Math.max(6, x), Math.max(6, window.innerWidth - DOCK - 6)), y: Math.min(Math.max(70, y), Math.max(70, window.innerHeight - DOCK - 6)) });
+const loadPos = (): { x: number; y: number } | null => { try { const v = JSON.parse(localStorage.getItem(POS_KEY) ?? 'null') as { x: number; y: number } | null; return v && Number.isFinite(v.x) && Number.isFinite(v.y) ? clampPos(v.x, v.y) : null; } catch { return null; } };
+
+/** Tombol reaksi mengambang untuk semua permainan offline: ketuk emoji lalu melayang. Tombolnya bisa ditahan dan digeser ke mana saja. */
 export function LocalReactDock() {
   const { events, fire } = useLocalFx();
-  const [open, setOpen] = useState(false), [sheet, setSheet] = useState(false);
+  const [open, setOpen] = useState(false), [sheet, setSheet] = useState(false), [drag, setDrag] = useState(false);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(loadPos);
+  const st = useRef({ sx: 0, sy: 0, ox: 0, oy: 0, moved: false, id: -1 });
+  const dockRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onResize = () => setPos((p) => (p ? clampPos(p.x, p.y) : p));
+    window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const down = (e: RPointerEvent<HTMLButtonElement>) => {
+    const r = dockRef.current?.getBoundingClientRect(); if (!r) return;
+    st.current = { sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top, moved: false, id: e.pointerId };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* tidak didukung */ }
+  };
+  const move = (e: RPointerEvent<HTMLButtonElement>) => {
+    const s = st.current; if (s.id !== e.pointerId) return;
+    const dx = e.clientX - s.sx, dy = e.clientY - s.sy;
+    if (!s.moved && Math.hypot(dx, dy) < 8) return;
+    s.moved = true; setDrag(true); setPos(clampPos(s.ox + dx, s.oy + dy));
+  };
+  const up = (e: RPointerEvent<HTMLButtonElement>) => {
+    const s = st.current; if (s.id !== e.pointerId) return;
+    s.id = -1; setDrag(false);
+    if (s.moved) { setPos((p) => { if (p) { try { localStorage.setItem(POS_KEY, JSON.stringify(p)); } catch { /* penyimpanan penuh */ } } return p; }); }
+  };
+  const click = () => { if (st.current.moved) { st.current.moved = false; return; } setOpen((o) => !o); };
+  const right = !pos || pos.x > window.innerWidth / 2, bottom = !pos || pos.y > window.innerHeight / 2;
   return (
     <>
       <FxLayer events={events} />
-      <div className="fx-dock">
+      <div ref={dockRef} className={`fx-dock ${pos ? '' : 'def'}`} style={pos ? { left: pos.x, top: pos.y } : undefined}>
         {open && (
-          <div className="fx-tray" role="group" aria-label="Reaksi">
+          <div className={`fx-tray ${right ? 'r' : 'l'} ${bottom ? 'b' : 't'}`} role="group" aria-label="Reaksi">
             {EMOTES.slice(0, 6).map((em) => <button key={em} className="fx-btn" onClick={() => fire('react', em)} aria-label={`Reaksi ${em}`}><NativeEmoji t={em} /></button>)}
             {CUSTOM_REACTS.slice(0, 4).map((c) => <button key={c.id} className="fx-btn" onClick={() => fire('sticker', c.id)} aria-label={`Reaksi ${c.label}`}><CustomReact id={c.id} size={28} /></button>)}
             <button className="fx-btn" onClick={() => setSheet(true)} aria-label="Stiker"><Icon name="sparkle" size={20} /></button>
           </div>)}
-        <button className="fx-fab" onClick={() => setOpen(!open)} aria-label={open ? 'Tutup reaksi' : 'Reaksi'} aria-expanded={open}>{open ? <Icon name="x" size={20} /> : <NativeEmoji t="😄" />}</button>
+        <button className={`fx-fab ${drag ? 'drag' : ''}`} title="Tahan dan geser untuk memindahkan" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onClick={click} aria-label={open ? 'Tutup reaksi' : 'Reaksi'} aria-expanded={open}>{open ? <Icon name="x" size={20} /> : <NativeEmoji t="😄" />}</button>
       </div>
       <ReactSheet open={sheet} onClose={() => setSheet(false)} onFire={fire} />
     </>
