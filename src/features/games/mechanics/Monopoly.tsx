@@ -8,7 +8,7 @@ import {
   mvBid, mvBuild, mvMort, mvSell, mvUnmort, type MonoEv, type MonoState,
 } from '../engines/monopoly';
 import { botMove } from '../engines/monopolyBot';
-import { CHANCE, CHEST, GROUPS, GROUP_TILES, MAX_HOTELS, MAX_HOUSES, MODES, PAWNS, PAWN_NAME, PCOL, TILES, money, type Tile } from '../engines/monopolyData';
+import { CHANCE, CHEST, auctionCap, GROUPS, GROUP_TILES, MAX_HOTELS, MAX_HOUSES, MODES, PAWNS, PAWN_NAME, PCOL, TILES, money, type Tile } from '../engines/monopolyData';
 import { Banknote, DeckArt, DieFace, HotelArt, HouseArt, MonoIcon, PawnArt, TileIcon } from './MonoArt';
 import type { MechProps } from './types';
 
@@ -272,9 +272,9 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
       <div className="mn-row"><Button disabled={!afford} onClick={() => send(MV.BUY)}>Beli {money(tl.price)}</Button><Button variant="soft" onClick={() => send(MV.AUCTION)}>Lelang</Button></div>
       {!afford && <p className="muted center">Uangmu kurang. Gadai aset lewat tombol Aset, atau lelang.</p>}</div>;
   } else if (s.phase === 'auction' && s.auction) {
-    const a = s.auction, at = TILES[a.tile] as Tile;
-    panel = <div className="mn-act turn"><div className="mn-auc"><small>LELANG · {at.name} (harga {money(at.price)})</small><div className="bid">{money(a.bid)}</div><small>{a.top >= 0 ? `Tertinggi: ${nm(names, a.top)}` : 'Belum ada penawaran'}</small></div>
-      <div className="mn-row">{BID_STEPS.map((st, k) => <Button key={k} size="sm" disabled={myCash < a.bid + st} onClick={() => send(mvBid(k))}>+{st}</Button>)}<Button size="sm" variant="ghost" onClick={() => send(MV.PASS)}>Lewati</Button></div></div>;
+    const a = s.auction, at = TILES[a.tile] as Tile, cap = auctionCap(a.tile);
+    panel = <div className="mn-act turn"><div className="mn-auc"><small>LELANG · {at.name} (harga {money(at.price)})</small><div className="bid">{money(a.bid)}</div><small>{a.top >= 0 ? `Tertinggi: ${nm(names, a.top)}` : 'Belum ada penawaran'}</small><small>Batas maksimal {money(cap)} · menyentuh batas = langsung terjual</small></div>
+      <div className="mn-row">{BID_STEPS.map((st, k) => <Button key={k} size="sm" disabled={myCash < Math.min(a.bid + st, cap)} onClick={() => send(mvBid(k))}>+{Math.min(st, cap - a.bid)}</Button>)}<Button size="sm" variant="ghost" onClick={() => send(MV.PASS)}>Lewati</Button></div></div>;
   } else if (s.phase === 'debt' && s.debt) {
     const d = s.debt, enough = myCash >= d.amount;
     panel = <div className="mn-act turn"><h4>Kamu berutang {money(d.amount)}{d.to >= 0 ? ` ke ${nm(names, d.to)}` : d.to === -2 ? ' ke semua pemain' : ''}</h4>
