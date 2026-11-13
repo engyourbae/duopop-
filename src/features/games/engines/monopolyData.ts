@@ -84,6 +84,9 @@ export const MODES: Record<ModeKey, { label: string; cash: number; go: number; r
   sultan: { label: 'Sultan', cash: 3000, go: 300, rounds: 40, desc: 'Uang Rp3 M, gaji Rp300jt, 40 putaran.' },
 };
 export const JAIL_FEE = 50, JAIL_POS = 10, MAX_HOUSES = 32, MAX_HOTELS = 12;
+/** Batas lelang: harga petak + selisih ini (juta). Tawaran yang menyentuh batas langsung terjual ke penawar. */
+export const AUCTION_MARGIN = 500;
+export const auctionCap = (tile: number): number => (TILES[tile] as Tile).price + AUCTION_MARGIN;
 export const PCOL = ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414', '#9c36b5', '#12b5cb'];
 export const PAWNS = ['becak', 'pinisi', 'garuda', 'motor', 'kucing', 'tumpeng'] as const;
 export const PAWN_NAME: Record<string, string> = { becak: 'Becak', pinisi: 'Kapal Pinisi', garuda: 'Garuda', motor: 'Motor', kucing: 'Kucing', tumpeng: 'Tumpeng' };
