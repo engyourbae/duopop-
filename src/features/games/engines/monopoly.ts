@@ -1,6 +1,6 @@
 import { rng, seedFrom, shuffle } from '../../../utils/rng';
 import type { TurnEngine } from './types';
-import { CHANCE, CHEST, GROUPS, GROUP_TILES, JAIL_FEE, JAIL_POS, MAX_HOTELS, MAX_HOUSES, MODES, RAILS, TAX_AMT, TILES, UTILS, isOwnable, type Card, type ModeKey } from './monopolyData';
+import { CHANCE, CHEST, auctionCap, GROUPS, GROUP_TILES, JAIL_FEE, JAIL_POS, MAX_HOTELS, MAX_HOUSES, MODES, RAILS, TAX_AMT, TILES, UTILS, isOwnable, type Card, type ModeKey } from './monopolyData';
 
 export type Phase = 'roll' | 'buy' | 'auction' | 'debt' | 'end' | 'trade';
 export interface Auction { tile: number; bid: number; top: number; turn: number; passed: boolean[] }
@@ -231,15 +231,17 @@ function finishByWorth(s: MonoState) {
 function startAuction(s: MonoState, tile: number) {
   const passed = s.out.slice(); s.auction = { tile, bid: 0, top: -1, turn: s.cur, passed }; s.phase = 'auction'; ev(s, { t: 'auction', tile });
 }
+function finishAuction(s: MonoState) {
+  const a = s.auction as Auction;
+  if (a.top >= 0) {
+    s.cash[a.top] = (s.cash[a.top] as number) - a.bid; s.owner[a.tile] = a.top; (s.stats[a.top] as Stats).auctions++; (s.stats[a.top] as Stats).bought++;
+    ev(s, { t: 'cash', who: a.top, amt: -a.bid }); ev(s, { t: 'sold', who: a.top, tile: a.tile, price: a.bid });
+  } else ev(s, { t: 'unsold', tile: a.tile });
+  s.auction = null; afterLand(s);
+}
 function advanceAuction(s: MonoState) {
   const a = s.auction as Auction, act = s.out.map((_, i) => i).filter((i) => !a.passed[i]);
-  const finish = () => {
-    if (a.top >= 0) {
-      s.cash[a.top] = (s.cash[a.top] as number) - a.bid; s.owner[a.tile] = a.top; (s.stats[a.top] as Stats).auctions++; (s.stats[a.top] as Stats).bought++;
-      ev(s, { t: 'cash', who: a.top, amt: -a.bid }); ev(s, { t: 'sold', who: a.top, tile: a.tile, price: a.bid });
-    } else ev(s, { t: 'unsold', tile: a.tile });
-    s.auction = null; afterLand(s);
-  };
+  const finish = () => finishAuction(s);
   if (act.length === 0 || (a.top >= 0 && act.length === 1 && act[0] === a.top)) { finish(); return; }
   for (let k = 1; k <= s.n; k++) { const i = (a.turn + k) % s.n; if (!a.passed[i] && i !== a.top) { a.turn = i; return; } }
   finish();
@@ -260,8 +262,11 @@ function handle(s: MonoState, m: number): boolean {
     const a = s.auction as Auction, who = a.turn;
     if (m === MV.PASS) { a.passed[who] = true; advanceAuction(s); return true; }
     if (m >= 500 && m < 500 + BID_STEPS.length) {
-      const nb = a.bid + (BID_STEPS[m - 500] as number); if ((s.cash[who] as number) < nb) return false;
-      a.bid = nb; a.top = who; ev(s, { t: 'bid', who, amt: nb }); advanceAuction(s); return true;
+      const cap = auctionCap(a.tile), nb = Math.min(a.bid + (BID_STEPS[m - 500] as number), cap);
+      if (nb <= a.bid || (s.cash[who] as number) < nb) return false;
+      a.bid = nb; a.top = who; ev(s, { t: 'bid', who, amt: nb });
+      if (nb >= cap) finishAuction(s); else advanceAuction(s);
+      return true;
     }
     return false;
   }
