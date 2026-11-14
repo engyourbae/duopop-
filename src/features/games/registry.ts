@@ -78,7 +78,8 @@ export const GAMES: GameDef[] = [
     tagline: 'Geser keranjang, tangkap bintang, hindari bom.', rules: ['Geser jari kiri-kanan untuk menggerakkan keranjang.', 'Bintang +1, bom mengurangi nyawa.', 'Kamu punya 3 nyawa.'] }),
 
   g({ id: 'uno', title: 'UNO', group: 'kartu', mechanic: 'uno', icon: 'dice', color: '#e03131', minPlayers: 2, maxPlayers: 4,
-    tagline: 'Habiskan kartumu duluan! Warna atau angka harus cocok.', rules: ['Tiap pemain mendapat 7 kartu.', 'Mainkan kartu yang warna atau angkanya sama dengan kartu teratas.', 'Lewati, Balik, +2, dan Liar mengubah permainan.', 'Tidak ada kartu cocok? Ambil satu kartu. Yang pertama menghabiskan kartu menang.'] }),
+    tagline: 'Habiskan kartumu duluan! Warna atau angka harus cocok.', rules: ['Tiap pemain mendapat 7 kartu.', 'Mainkan kartu yang warna atau angkanya sama dengan kartu teratas.', 'Lewati, Balik, +2, dan Liar mengubah permainan.', 'Tidak ada kartu cocok? Ambil satu kartu. Yang pertama menghabiskan kartu menang.'],
+    variants: [{ id: 'classic', label: 'UNO Klasik', bank: 'classic' }, { id: 'nomercy', label: 'UNO No Mercy (brutal)', bank: 'nomercy' }, { id: 'flip', label: 'UNO Flip (dua sisi)', bank: 'flip' }, { id: 'custom', label: 'UNO Custom (atur aturan)', bank: 'custom-s' }] }),
   g({ id: 'gaple', title: 'Gaple', group: 'kartu', mechanic: 'gaple', icon: 'puzzle', color: '#1c7ed6', minPlayers: 2, maxPlayers: 4,
     tagline: 'Domino khas Indonesia: sambung angka di kedua ujung.', rules: ['28 kartu domino, 7 untuk tiap pemain.', 'Pemegang balak tertinggi jalan lebih dulu.', 'Pasang kartu yang angkanya cocok dengan ujung kiri atau kanan.', 'Tidak punya kartu cocok? Lewati. Habis duluan atau titik paling sedikit saat buntu menang.'] }),
   g({ id: 'ulartangga', title: 'Ular Tangga', group: 'kartu', mechanic: 'ladder', icon: 'chain', color: '#2f9e44', minPlayers: 2, maxPlayers: 4,
@@ -104,7 +105,7 @@ export const gameById = (id: string) => GAMES.find((x) => x.id === id);
 export const GROUP_LABEL = { pasangan: 'Pasangan', pengetahuan: 'Pengetahuan', grup: 'Grup & Pesta', arkade: 'Arkade & Aksi', kartu: 'Kartu & Papan' } as const;
 /** Menerapkan varian (bank/kategori) ke salinan definisi game. */
 export function withVariant(g: GameDef, variantId?: string | null): GameDef {
-  const v = g.variants?.find((x) => x.id === variantId) ?? g.variants?.[0];
-  return v ? { ...g, bank: v.bank ?? (v.categories ? undefined : g.bank), categories: v.categories, title: g.title } : g;
+  const v = g.variants?.find((x) => x.id === variantId) ?? g.variants?.find((x) => !!variantId && variantId.startsWith(`${x.id}-`)) ?? g.variants?.[0];
+  return v ? { ...g, bank: variantId && variantId.startsWith(`${v.id}-`) ? variantId : v.bank ?? (v.categories ? undefined : g.bank), categories: v.categories, title: g.title } : g;
 }
 export const isRoomGame = (g: GameDef) => !!g.multiplayer;
