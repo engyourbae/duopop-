@@ -318,3 +318,10 @@ textarea.input{padding:12px 14px;min-height:90px}
 .dk .ucard .uoval.wild,.ucard.dk .uoval.wild{background:conic-gradient(#e0408f 0 25%,#0fa8a8 0 50%,#f08c00 0 75%,#7048e8 0)}
 .ttable.dkside{background:radial-gradient(circle at 50% 45%,#3a2a6b,#150d33)}
 @keyframes uflip{0%{transform:perspective(500px) rotateY(0) scale(.7);opacity:.2}50%{transform:perspective(500px) rotateY(180deg) scale(1.2)}100%{transform:perspective(500px) rotateY(360deg);opacity:1}}
+
+/* ===== UNO: kartu tak bisa dimainkan digelapkan, yang bisa dimainkan lebih terang; meja diturunkan agar jumlah kartu lawan tidak tertimpa ===== */
+.ucard.dim{opacity:1;filter:brightness(.45) saturate(.6)}
+.uhand .ucard.ok{filter:brightness(1.12) saturate(1.15);box-shadow:3px 3px 0 var(--shadow-c),0 0 0 3px rgba(255,255,255,.55),0 0 14px 3px rgba(255,235,120,.6)}
+.ttable{row-gap:10px}
+.seat{position:relative;z-index:2}
+.ttable .tcenter,.ttable.noside .tcenter{padding-top:22px}
