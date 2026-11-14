@@ -255,6 +255,12 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
   }, [s.moves, busy, tumble, autoplay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const me = viewer, tile = s.pos[actor] as number, tl = TILES[tile] as Tile, myCash = s.cash[me] as number;
+  // Uang kurang untuk membeli petak kosong → otomatis dilelang (seperti bot), setelah jeda singkat supaya pemain sempat membaca.
+  useEffect(() => {
+    if (!can || s.phase !== 'buy' || myCash >= tl.price) return;
+    const t = setTimeout(() => mv.current(MV.AUCTION), 1300);
+    return () => clearTimeout(t);
+  }, [s.moves, can, s.phase]); // eslint-disable-line react-hooks/exhaustive-deps
   const send = (m: number) => { if (can) mv.current(m); };
   const okMove = (m: number) => monopoly.apply(s, m) !== null;
   const lim = MODES[s.mode].rounds, cur = actor;
@@ -275,7 +281,7 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
     const afford = myCash >= tl.price;
     panel = <div className="mn-act turn"><h4>Beli {tl.name}?</h4><Deed t={tile} s={s} names={names} />
       <div className="mn-row"><Button disabled={!afford} onClick={() => send(MV.BUY)}>Beli {money(tl.price)}</Button><Button variant="soft" onClick={() => send(MV.AUCTION)}>Lelang</Button></div>
-      {!afford && <p className="muted center">Uangmu kurang. Gadai aset lewat tombol Aset, atau lelang.</p>}</div>;
+      {!afford && <p className="muted center">Uangmu kurang, petak ini otomatis dilelang…</p>}</div>;
   } else if (s.phase === 'auction' && s.auction) {
     const a = s.auction, at = TILES[a.tile] as Tile;
     panel = <div className="mn-act turn"><div className="mn-auc"><small>LELANG · {at.name} (harga {money(at.price)})</small><div className="bid">{money(a.bid)}</div><small>{a.top >= 0 ? `Tertinggi: ${nm(names, a.top)}` : 'Belum ada penawaran'}</small></div>
