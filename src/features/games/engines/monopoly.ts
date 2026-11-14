@@ -62,9 +62,10 @@ export function decodeTrade(m: number): { to: number; give: number; get: number;
 }
 
 export const modeSeed = (g: { mechanic: string; bank?: string }, seed: string) => (g.mechanic === 'monopoly' ? `${seed}~${g.bank ?? 'klasik'}` : seed);
-const parseSeed = (raw: string): { seed: string; mode: ModeKey } => {
-  const i = raw.lastIndexOf('~'), m = i >= 0 ? raw.slice(i + 1) : '';
-  return { seed: i >= 0 ? raw.slice(0, i) : raw, mode: (m in MODES ? m : 'klasik') as ModeKey };
+/** Seed ruang: "<seed>~<mode>" atau "<seed>~<mode>@<uang awal dalam juta>" (uang awal bebas dari mode). */
+const parseSeed = (raw: string): { seed: string; mode: ModeKey; cash?: number } => {
+  const i = raw.lastIndexOf('~'), m = i >= 0 ? raw.slice(i + 1) : '', [mk = '', c = ''] = m.split('@'), cash = Number(c);
+  return { seed: i >= 0 ? raw.slice(0, i) : raw, mode: (mk in MODES ? mk : 'klasik') as ModeKey, cash: c !== '' && Number.isFinite(cash) && cash >= 100 && cash <= 20000 ? Math.round(cash) : undefined };
 };
 export const rollDice = (seed: string, moves: number): [number, number] => {
   const r = rng(seedFrom(`mono:${seed}:${moves}`));
@@ -359,13 +360,13 @@ function handle(s: MonoState, m: number): boolean {
 
 export const monopoly: TurnEngine<MonoState> = {
   init(n, raw) {
-    const { seed, mode } = parseSeed(raw), cfg = MODES[mode]; applyBoard(mode);
+    const { seed, mode, cash: custom } = parseSeed(raw), cfg = MODES[mode], c0 = custom ?? cfg.cash; applyBoard(mode);
     const r = rng(seedFrom(`monodeck:${seed}`)), ids = Array.from({ length: 16 }, (_, i) => i);
     return {
-      n, seed, mode, cash: Array(n).fill(cfg.cash), pos: Array(n).fill(0), jail: Array(n).fill(0), free: Array(n).fill(0), out: Array(n).fill(false),
+      n, seed, mode, cash: Array(n).fill(c0), pos: Array(n).fill(0), jail: Array(n).fill(0), free: Array(n).fill(0), out: Array(n).fill(false),
       owner: Array(40).fill(-1), lvl: Array(40).fill(0), mort: Array(40).fill(false), cur: 0, phase: 'roll', dbl: 0, again: false, round: 1, moves: 0, resume: 0, mul: 1,
       dice: [1, 1], chance: shuffle(ids, r), chest: shuffle(ids, r), ci: 0, ki: 0, auction: null, trade: null, debt: null, tradedTurn: false,
-      win: -1, ev: [], log: [], stats: Array.from({ length: n }, () => emptyStats(cfg.cash)), mk: -1, mkLeft: 0, pot: 0,
+      win: -1, ev: [], log: [], stats: Array.from({ length: n }, () => emptyStats(c0)), mk: -1, mkLeft: 0, pot: 0,
     };
   },
   actor: (s) => (s.phase === 'auction' && s.auction ? s.auction.turn : s.phase === 'trade' && s.trade ? s.trade.to : s.cur),
