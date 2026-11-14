@@ -37,6 +37,11 @@ export const sfx = {
   right: (d = 0) => { tone(660, 0.12, d); tone(880, 0.18, d + 0.1); },
   wrong: (d = 0) => { tone(220, 0.25, d); },
   tick: () => tone(520, 0.05),
+  /** Efek kartu UNO. */
+  skip: () => { tone(300, 0.08); tone(300, 0.08, 0.1); tone(200, 0.18, 0.2, 0.16, 'square'); },
+  reverse: () => { tone(500, 0.09); tone(700, 0.09, 0.09); tone(500, 0.09, 0.18); tone(350, 0.14, 0.27); },
+  draw: () => { tone(260, 0.1, 0, 0.16, 'sawtooth'); tone(330, 0.1, 0.1, 0.16, 'sawtooth'); tone(220, 0.2, 0.2, 0.16, 'sawtooth'); },
+  uno: () => { tone(880, 0.1); tone(1100, 0.1, 0.1); tone(1320, 0.1, 0.2); tone(1760, 0.28, 0.3); },
   win: () => { tone(523, 0.15); tone(659, 0.15, 0.15); tone(784, 0.3, 0.3); },
   /** Ketukan detik jam untuk timer. urgent = true pada 5 detik terakhir (lebih tinggi & keras). */
   clock: (urgent = false) => { if (CLOCK_TICK) clock(urgent); },
