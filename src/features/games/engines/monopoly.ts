@@ -1,6 +1,6 @@
 import { rng, seedFrom, shuffle } from '../../../utils/rng';
 import type { TurnEngine } from './types';
-import { CHANCE, CHEST, auctionCap, GROUPS, GROUP_TILES, JAIL_FEE, JAIL_POS, MAX_HOTELS, MAX_HOUSES, MODES, RAILS, TAX_AMT, TILES, UTILS, isOwnable, type Card, type ModeKey } from './monopolyData';
+import { CHANCE, CHEST, GROUPS, GROUP_TILES, JAIL_FEE, JAIL_POS, MAX_HOTELS, MAX_HOUSES, MODES, RAILS, MARKET, applyBoard, marketPct, TAX_AMT, TILES, UTILS, isOwnable, type Card, type ModeKey } from './monopolyData';
 
 export type Phase = 'roll' | 'buy' | 'auction' | 'debt' | 'end' | 'trade';
 export interface Auction { tile: number; bid: number; top: number; turn: number; passed: boolean[] }
@@ -27,6 +27,8 @@ export type MonoEv =
   | { t: 'trade'; from: number; to: number; ok: boolean; offer: boolean }
   | { t: 'bankrupt'; who: number; to: number }
   | { t: 'end'; who: number; byLimit: boolean }
+  | { t: 'market'; id: number; start: boolean }
+  | { t: 'pot'; who: number; amt: number }
   | { t: 'win'; who: number };
 
 export interface MonoState {
@@ -38,6 +40,8 @@ export interface MonoState {
   chance: number[]; chest: number[]; ci: number; ki: number;
   auction: Auction | null; trade: Trade | null; debt: Debt | null; tradedTurn: boolean;
   win: number; ev: MonoEv[]; log: MonoEv[]; stats: Stats[];
+  /** Mode Bursa: event pasar aktif (-1 = tidak ada), sisa putarannya, dan jackpot Parkir Bebas. */
+  mk: number; mkLeft: number; pot: number;
 }
 
 export const MV = { ROLL: 1, BUY: 2, AUCTION: 3, END: 4, PAY_JAIL: 5, USE_FREE: 6, BANKRUPT: 7, ACCEPT: 8, REJECT: 9, PASS: 10, SETTLE: 11, FINISH: 12 } as const;
@@ -79,13 +83,17 @@ export const unmortCost = (t: number) => Math.ceil(((TILES[t] as { price: number
 export const netWorth = (s: MonoState, p: number) => s.cash[p] as number + ownedBy(s, p).reduce((a, t) => {
   const tl = TILES[t]!; return a + (s.mort[t] ? tl.price / 2 : tl.price + (tl.group >= 0 ? (s.lvl[t] as number) * (GROUPS[tl.group] as { house: number }).house : 0));
 }, 0);
-export function rentFor(s: MonoState, t: number, diceSum: number, mul = 1): number {
+function rentBase(s: MonoState, t: number, diceSum: number, mul = 1): number {
   const tl = TILES[t] as (typeof TILES)[number], o = s.owner[t] as number;
   if (o < 0 || s.mort[t]) return 0;
   if (tl.kind === 'prop') { const l = s.lvl[t] as number; return (tl.rent[l] as number) * (l === 0 && fullSet(s, o, tl.group) ? 2 : 1); }
   if (tl.kind === 'rail') { const c = RAILS.filter((r) => s.owner[r] === o).length; return 25 * 2 ** (c - 1) * (mul === 2 ? 2 : 1); }
   const c = UTILS.filter((u) => s.owner[u] === o).length;
   return diceSum * (mul === 10 || c >= 2 ? 10 : 4);
+}
+export function rentFor(s: MonoState, t: number, diceSum: number, mul = 1): number {
+  const r = rentBase(s, t, diceSum, mul), mk = s.mk ?? -1;
+  return mk >= 0 && r > 0 ? Math.round((r * marketPct(mk, TILES[t] as (typeof TILES)[number])) / 100) : r;
 }
 export function canBuild(s: MonoState, p: number, t: number): boolean {
   const tl = TILES[t]!; if (tl.kind !== 'prop' || s.owner[t] !== p || !fullSet(s, p, tl.group)) return false;
@@ -158,6 +166,7 @@ function pay(s: MonoState, p: number, amt: number, to: number, per = 0): boolean
 function settleNow(s: MonoState, p: number, amt: number, to: number, per: number) {
   s.cash[p] = (s.cash[p] as number) - amt; ev(s, { t: 'cash', who: p, amt: -amt });
   if (to >= 0) { s.cash[to] = (s.cash[to] as number) + amt; ev(s, { t: 'cash', who: to, amt }); }
+  else if (to === -1 && MODES[s.mode].pot) s.pot = (s.pot ?? 0) + amt; // pajak & denda masuk jackpot Parkir Bebas
   else if (to === -2) for (const o of alive(s)) if (o !== p) { s.cash[o] = (s.cash[o] as number) + per; ev(s, { t: 'cash', who: o, amt: per }); }
 }
 function jailIt(s: MonoState, p: number) {
@@ -176,6 +185,7 @@ function land(s: MonoState, p: number) {
     case 'gojail': jailIt(s, p); s.phase = 'end'; return;
     case 'tax': { const a = TAX_AMT[t] as number; ev(s, { t: 'tax', who: p, amt: a, tile: t }); if (pay(s, p, a, -1)) afterLand(s); return; }
     case 'chance': case 'chest': drawCard(s, p, tl.kind); return;
+    case 'park': if (MODES[s.mode].pot && s.pot > 0) { const a = s.pot; s.pot = 0; gain(s, p, a); ev(s, { t: 'pot', who: p, amt: a }); } afterLand(s); return;
     case 'prop': case 'rail': case 'util': {
       const o = s.owner[t] as number;
       if (o < 0) { s.phase = 'buy'; return; }
@@ -216,10 +226,16 @@ function rollMove(s: MonoState, p: number, steps: number) {
   const from = s.pos[p] as number, to = (from + steps) % 40;
   moveTo(s, p, to, 'step', from + steps >= 40);
 }
+/** Mode Bursa: tiap 3 putaran muncul event pasar baru yang berlaku 2 putaran. Acak, tapi tetap sama untuk semua pemain (dari seed). */
+function marketTick(s: MonoState) {
+  if (!MODES[s.mode].market) return;
+  if (s.mkLeft > 0) { s.mkLeft--; if (s.mkLeft === 0) { ev(s, { t: 'market', id: s.mk, start: false }); s.mk = -1; } }
+  if (s.round % 3 === 0 && s.mk < 0) { const id = Math.floor(rng(seedFrom(`mk:${s.seed}:${s.round}`))() * MARKET.length); s.mk = id; s.mkLeft = 2; ev(s, { t: 'market', id, start: true }); }
+}
 function nextTurn(s: MonoState, byLimit = false) {
   const prev = s.cur; ev(s, { t: 'end', who: prev, byLimit });
   const nx = nextAlive(s, prev);
-  if (nx <= prev) s.round++;
+  if (nx <= prev) { s.round++; marketTick(s); }
   s.cur = nx; s.dbl = 0; s.again = false; s.tradedTurn = false; s.phase = 'roll'; s.mul = 1;
   const lim = MODES[s.mode].rounds;
   if (lim > 0 && s.round > lim) finishByWorth(s);
@@ -231,17 +247,15 @@ function finishByWorth(s: MonoState) {
 function startAuction(s: MonoState, tile: number) {
   const passed = s.out.slice(); s.auction = { tile, bid: 0, top: -1, turn: s.cur, passed }; s.phase = 'auction'; ev(s, { t: 'auction', tile });
 }
-function finishAuction(s: MonoState) {
-  const a = s.auction as Auction;
-  if (a.top >= 0) {
-    s.cash[a.top] = (s.cash[a.top] as number) - a.bid; s.owner[a.tile] = a.top; (s.stats[a.top] as Stats).auctions++; (s.stats[a.top] as Stats).bought++;
-    ev(s, { t: 'cash', who: a.top, amt: -a.bid }); ev(s, { t: 'sold', who: a.top, tile: a.tile, price: a.bid });
-  } else ev(s, { t: 'unsold', tile: a.tile });
-  s.auction = null; afterLand(s);
-}
 function advanceAuction(s: MonoState) {
   const a = s.auction as Auction, act = s.out.map((_, i) => i).filter((i) => !a.passed[i]);
-  const finish = () => finishAuction(s);
+  const finish = () => {
+    if (a.top >= 0) {
+      s.cash[a.top] = (s.cash[a.top] as number) - a.bid; s.owner[a.tile] = a.top; (s.stats[a.top] as Stats).auctions++; (s.stats[a.top] as Stats).bought++;
+      ev(s, { t: 'cash', who: a.top, amt: -a.bid }); ev(s, { t: 'sold', who: a.top, tile: a.tile, price: a.bid });
+    } else ev(s, { t: 'unsold', tile: a.tile });
+    s.auction = null; afterLand(s);
+  };
   if (act.length === 0 || (a.top >= 0 && act.length === 1 && act[0] === a.top)) { finish(); return; }
   for (let k = 1; k <= s.n; k++) { const i = (a.turn + k) % s.n; if (!a.passed[i] && i !== a.top) { a.turn = i; return; } }
   finish();
@@ -262,11 +276,8 @@ function handle(s: MonoState, m: number): boolean {
     const a = s.auction as Auction, who = a.turn;
     if (m === MV.PASS) { a.passed[who] = true; advanceAuction(s); return true; }
     if (m >= 500 && m < 500 + BID_STEPS.length) {
-      const cap = auctionCap(a.tile), nb = Math.min(a.bid + (BID_STEPS[m - 500] as number), cap);
-      if (nb <= a.bid || (s.cash[who] as number) < nb) return false;
-      a.bid = nb; a.top = who; ev(s, { t: 'bid', who, amt: nb });
-      if (nb >= cap) finishAuction(s); else advanceAuction(s);
-      return true;
+      const nb = a.bid + (BID_STEPS[m - 500] as number); if ((s.cash[who] as number) < nb) return false;
+      a.bid = nb; a.top = who; ev(s, { t: 'bid', who, amt: nb }); advanceAuction(s); return true;
     }
     return false;
   }
@@ -348,12 +359,13 @@ function handle(s: MonoState, m: number): boolean {
 
 export const monopoly: TurnEngine<MonoState> = {
   init(n, raw) {
-    const { seed, mode } = parseSeed(raw), cfg = MODES[mode], r = rng(seedFrom(`monodeck:${seed}`)), ids = Array.from({ length: 16 }, (_, i) => i);
+    const { seed, mode } = parseSeed(raw), cfg = MODES[mode]; applyBoard(mode);
+    const r = rng(seedFrom(`monodeck:${seed}`)), ids = Array.from({ length: 16 }, (_, i) => i);
     return {
       n, seed, mode, cash: Array(n).fill(cfg.cash), pos: Array(n).fill(0), jail: Array(n).fill(0), free: Array(n).fill(0), out: Array(n).fill(false),
       owner: Array(40).fill(-1), lvl: Array(40).fill(0), mort: Array(40).fill(false), cur: 0, phase: 'roll', dbl: 0, again: false, round: 1, moves: 0, resume: 0, mul: 1,
       dice: [1, 1], chance: shuffle(ids, r), chest: shuffle(ids, r), ci: 0, ki: 0, auction: null, trade: null, debt: null, tradedTurn: false,
-      win: -1, ev: [], log: [], stats: Array.from({ length: n }, () => emptyStats(cfg.cash)),
+      win: -1, ev: [], log: [], stats: Array.from({ length: n }, () => emptyStats(cfg.cash)), mk: -1, mkLeft: 0, pot: 0,
     };
   },
   actor: (s) => (s.phase === 'auction' && s.auction ? s.auction.turn : s.phase === 'trade' && s.trade ? s.trade.to : s.cur),
