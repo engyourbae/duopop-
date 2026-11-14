@@ -5,6 +5,7 @@ import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
 import { GAMES, withVariant } from '../games/registry';
 import { defaultsFor } from '../games/GamePage';
+import { UnoRules, isUnoCustom } from '../games/mechanics/UnoRules';
 import { DIFF_LABEL, poolStats } from '../games/engine';
 import type { Difficulty } from '../../types';
 import { useProgress } from '../progression/store';
@@ -86,10 +87,10 @@ function LobbyInner() {
     const ok = d.counts.filter((c) => c <= avail && c < 999);
     setCount(ok.length ? Math.max(...ok) : Math.max(1, avail));
   }, [avail]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { const dd = game ? defaultsFor(game) : null; if (dd) { setCount(dd.count); setSecs(dd.secs || 20); } if (!game?.variants?.some((v) => v.id === variant)) setVariant(game?.variants?.[0]?.id ?? ''); setDiff('semua'); }, [gid]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const dd = game ? defaultsFor(game) : null; if (dd) { setCount(dd.count); setSecs(dd.secs || 20); } if (!game?.variants?.some((v) => v.id === variant || variant.startsWith(`${v.id}-`))) setVariant(game?.variants?.[0]?.id ?? ''); setDiff('semua'); }, [gid]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const f = () => setSearching(true); window.addEventListener('duopop:search-again', f); return () => window.removeEventListener('duopop:search-again', f); }, []);
   if (!me || !game || !d) return null;
-  const pickVariant = (id: string) => { setVariant(id); setDiff('semua'); };
+  const pickVariant = (id: string) => { setVariant(id === 'custom' ? 'custom-s' : id); setDiff('semua'); };
   const vLabel = (v: { id: string; label: string }) => { const s = statsAll?.[v.id]; return s ? `${v.label} · ${s.unlimited ? 'tanpa batas' : `maks ${s.total} soal`}` : v.label; };
   const fit = Number.isFinite(avail) ? d.counts.filter((c) => c <= avail || c >= 999) : d.counts;
   const shownCounts = fit.length ? fit : [Math.max(1, avail)];
@@ -112,7 +113,8 @@ function LobbyInner() {
     <div className="page"><Header title="Main Online" back={() => nav(-1)} />
       {!online && <div className="expl bad">Kamu sedang offline. Main online membutuhkan koneksi real-time.</div>}
       <Select label="Pilih game" value={gid} onChange={setGid} options={GAMES.map((g) => ({ value: g.id, label: g.title }))} />
-      {game.variants && game.variants.length > 1 && <Select label="Topik / varian" value={variant} onChange={pickVariant} options={game.variants.map((v) => ({ value: v.id, label: vLabel(v) }))} />}
+      {game.variants && game.variants.length > 1 && <Select label="Topik / varian" value={isUnoCustom(variant) ? 'custom' : variant} onChange={pickVariant} options={game.variants.map((v) => ({ value: v.id, label: vLabel(v) }))} />}
+      {game.id === 'uno' && isUnoCustom(variant) && <UnoRules value={variant} onChange={setVariant} />}
       {d.counts.length > 1 && <div className="row wrap"><span className="small">{game.mechanic === 'memorymatch' ? 'Pasangan:' : 'Ronde/soal:'}</span>{shownCounts.map((c) => <button key={c} className={`chip ${count === c ? 'on' : ''}`} onClick={() => setCount(c)}>{c >= 999 ? '∞ Tanpa batas' : c}</button>)}</div>}
       {useDiff && st && <div className="row wrap gap"><span className="small">Kesulitan:</span>{(['semua', 'mudah', 'sedang', 'sulit'] as const).map((k) => { const n = k === 'semua' ? st.total : st[k]; return <button key={k} className={`chip ${diff === k ? 'on' : ''}`} disabled={n === 0} onClick={() => setDiff(k)}>{k === 'semua' ? 'Semua' : DIFF_LABEL[k]} ({n})</button>; })}</div>}
       {st && <p className="small muted">{st.unlimited ? 'Soal pada topik ini dibuat otomatis, jadi tanpa batas.' : `Tersedia ${st.total} soal di topik ini (Mudah ${st.mudah} · Sedang ${st.sedang} · Sulit ${st.sulit}). Maksimal ${avail} soal per ronde${diff !== 'semua' && useDiff ? ` untuk tingkat ${DIFF_LABEL[diff]}` : ''}.`}</p>}
