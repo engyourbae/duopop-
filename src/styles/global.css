@@ -176,20 +176,20 @@ textarea.input{padding:12px 14px;min-height:90px}
 .ltok{position:absolute;inset:0;display:flex;gap:1px;flex-wrap:wrap;align-items:center;justify-content:center}.ltok i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--edge)}
 
 /* ===== Meja UNO & Gaple ===== */
-.ucard{position:relative;display:block;padding:0;width:62px;height:92px;border-radius:12px;border:3px solid #17140e;overflow:hidden;flex:none;cursor:pointer;box-shadow:3px 3px 0 var(--shadow-c);font-family:var(--font-head);font-weight:800;color:#fff;transition:transform .15s,opacity .15s}
+.ucard{position:relative;display:block;padding:0;width:84px;height:124px;border-radius:14px;border:3px solid #17140e;overflow:hidden;flex:none;cursor:pointer;box-shadow:3px 3px 0 var(--shadow-c);font-family:var(--font-head);font-weight:800;color:#fff;transition:transform .15s,opacity .15s}
 .ucard::before{content:"";position:absolute;inset:3px;border:2px solid rgba(255,255,255,.8);border-radius:8px;pointer-events:none}
 .ucard .uoval{position:absolute;left:50%;top:50%;width:80%;height:60%;transform:translate(-50%,-50%) rotate(-24deg);border-radius:50%;background:#fffaf0;display:grid;place-items:center;box-shadow:inset 0 0 0 2px rgba(0,0,0,.18)}
-.ucard .uoval b{transform:rotate(24deg);font-size:1.6rem;line-height:1;color:var(--cc,#17140e)}
+.ucard .uoval b{transform:rotate(24deg);font-size:2.4rem;line-height:1;color:var(--cc,#17140e)}
 .ucard .uoval b.u{text-decoration:underline}
-.ucard .uc{position:absolute;font-style:normal;font-size:.72rem;line-height:1;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.ucard .uc{position:absolute;font-style:normal;font-weight:900;font-size:1rem;line-height:1;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.35)}
 .ucard .uc.tl{top:6px;left:7px}.ucard .uc.br{bottom:6px;right:7px;transform:rotate(180deg)}
 .ucard.c0{background:#e0401f;--cc:#d12f10}.ucard.c1{background:#ffc414;--cc:#a87400}.ucard.c1 .uc{color:#17140e;text-shadow:none}.ucard.c2{background:#0f8f5f;--cc:#0a7a4f}.ucard.c3{background:#2a4bff;--cc:#1f3ad6}.ucard.c4{background:#17140e}
 .ucard .uoval.wild{background:conic-gradient(#e0401f 0 25%,#ffc414 0 50%,#0f8f5f 0 75%,#2a4bff 0)}.ucard .uoval.wild b{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8)}
-.ucard.back{background:#17140e;cursor:default}.ucard.back .uoval{background:#e0401f}.ucard.back .uoval b{color:#ffc414;font-size:.95rem;letter-spacing:.06em;text-shadow:1px 1px 0 #17140e}
+.ucard.back{background:#17140e;cursor:default}.ucard.back .uoval{background:#e0401f}.ucard.back .uoval b{color:#ffc414;font-size:1.25rem;letter-spacing:.06em;text-shadow:1px 1px 0 #17140e}
 .ucard.dim,.dbtn.dim{opacity:.5;cursor:not-allowed;filter:saturate(.6)}
 .ucard-ring{border-radius:14px;display:inline-block}
-.uhand{display:flex;overflow-x:auto;padding:24px 14px 14px;margin-top:4px;-webkit-overflow-scrolling:touch}
-.uhand .ucard{margin-left:-20px}.uhand .ucard:first-child{margin-left:0}.uhand .ucard.ok{transform:translateY(-14px)}.uhand .ucard.ok:active{transform:translateY(-22px)}
+.uhand{display:flex;overflow-x:auto;padding:30px 14px 16px;margin-top:4px;-webkit-overflow-scrolling:touch}
+.uhand .ucard{margin-left:-26px}.uhand .ucard:first-child{margin-left:0}.uhand .ucard.ok{transform:translateY(-16px)}.uhand .ucard.ok:active{transform:translateY(-22px)}
 .uhand.dh{gap:6px}.dbtn{background:none;border:0;padding:2px;cursor:pointer;flex:none}.dbtn.ok{transform:translateY(-8px)}
 .ttable{display:grid;grid-template-columns:58px 1fr 58px;grid-template-areas:"top top top" "left center right";gap:8px;background:radial-gradient(circle at 50% 45%,#1a9468,#0b5b3e);border:3px solid var(--edge);border-radius:24px;padding:10px;box-shadow:4px 4px 0 var(--shadow-c);min-height:230px}
 .ttable.noside{grid-template-columns:0 1fr 0;gap:0}.ttable.noside .tcenter{padding:4px 0}
@@ -290,3 +290,31 @@ textarea.input{padding:12px 14px;min-height:90px}
 .emo{display:inline-block;vertical-align:-.16em;flex:none}
 .item-actions{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}
 @media (max-width:480px){.item-actions{display:grid;grid-template-columns:1fr 1fr;width:100%;margin-left:0}.item-actions .btn{width:100%}}
+
+/* ===== UNO: kartu besar, animasi, tombol UNO ===== */
+.ucard .ucl{position:absolute;left:50%;bottom:5px;transform:translateX(-50%);font-style:normal;font-size:.62rem;font-weight:900;color:#fff;background:rgba(0,0,0,.35);border-radius:6px;padding:0 5px;line-height:1.3}
+.ucard.c1 .ucl{color:#17140e;background:rgba(255,255,255,.55)}
+.pile .ucard{width:104px;height:152px}.pile .ucard .uoval b{font-size:3rem}.pile .ucard .uc{font-size:1.2rem}.pile .ucard.back .uoval b{font-size:1.5rem}
+.ucard.deal{animation:udeal .35s ease-out both}
+@keyframes udeal{from{opacity:0;transform:translateY(40px) scale(.7) rotate(-8deg)}to{opacity:1}}
+.uhand .ucard.deal.ok{animation-name:udealok}
+@keyframes udealok{from{opacity:0;transform:translateY(40px) scale(.7) rotate(-8deg)}to{opacity:1;transform:translateY(-16px)}}
+.ucard-ring.pop{animation:upop .45s cubic-bezier(.2,1.4,.4,1)}
+@keyframes upop{0%{transform:translateY(-70px) scale(.6) rotate(-14deg);opacity:0}100%{transform:none;opacity:1}}
+.ucard-ring.v23{animation-name:uflip}.ucard-ring.v10,.ucard-ring.v16{animation-name:uskip}.ucard-ring.v11,.ucard-ring.v21{animation-name:urev}.ucard-ring.v12,.ucard-ring.v14,.ucard-ring.v15,.ucard-ring.v18,.ucard-ring.v19{animation-name:udraw}
+@keyframes uskip{0%{transform:scale(.6);opacity:0}40%{transform:scale(1.15)}55%,75%{transform:translateX(-6px)}65%,85%{transform:translateX(6px)}100%{transform:none;opacity:1}}
+@keyframes urev{0%{transform:rotate(-360deg) scale(.5);opacity:0}100%{transform:none;opacity:1}}
+@keyframes udraw{0%{transform:scale(.5);opacity:0}30%{transform:scale(1.25)}45%,65%{transform:rotate(-6deg)}55%,75%{transform:rotate(6deg)}100%{transform:none;opacity:1}}
+.uno-btn{margin:4px auto 0;width:max-content;font-family:var(--font-head);font-weight:900;font-size:1.6rem;letter-spacing:.08em;color:#fff;background:#e0401f;border:4px solid #17140e;border-radius:16px;padding:6px 28px;box-shadow:4px 4px 0 var(--shadow-c);animation:unobtn .8s ease-in-out infinite}
+@keyframes unobtn{50%{transform:scale(1.12) rotate(-3deg);box-shadow:0 0 0 6px rgba(255,196,20,.6),4px 4px 0 var(--shadow-c)}}
+@media (max-width:380px){.ucard{width:74px;height:110px}.ucard .uoval b{font-size:2.1rem}.pile .ucard{width:92px;height:136px}}
+@media (prefers-reduced-motion:reduce){.ucard.deal,.ucard-ring.pop,.uno-btn{animation:none}}
+
+.ucard .uoval b.sm{font-size:1.55rem}.pile .ucard .uoval b.sm{font-size:2rem}
+
+/* ===== UNO Flip: sisi gelap ===== */
+.ucard.dk.c0{background:#e0408f;--cc:#b82a72}.ucard.dk.c1{background:#0fa8a8;--cc:#0a7f7f}.ucard.dk.c1 .uc{color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.35)}.ucard.dk.c1 .ucl{color:#fff;background:rgba(0,0,0,.35)}
+.ucard.dk.c2{background:#f08c00;--cc:#b86a00}.ucard.dk.c3{background:#7048e8;--cc:#5430c0}.ucard.dk.c4{background:#0d0a1f}
+.dk .ucard .uoval.wild,.ucard.dk .uoval.wild{background:conic-gradient(#e0408f 0 25%,#0fa8a8 0 50%,#f08c00 0 75%,#7048e8 0)}
+.ttable.dkside{background:radial-gradient(circle at 50% 45%,#3a2a6b,#150d33)}
+@keyframes uflip{0%{transform:perspective(500px) rotateY(0) scale(.7);opacity:.2}50%{transform:perspective(500px) rotateY(180deg) scale(1.2)}100%{transform:perspective(500px) rotateY(360deg);opacity:1}}
