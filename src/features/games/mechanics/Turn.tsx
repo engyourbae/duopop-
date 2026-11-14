@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal } from '../../../components/ui';
 import { sfx } from '../../../utils/sound';
-import { uno, unoSeed, drawAmt, MERCY_LIMIT, cardColor, cardVal, playable, playMove as unoPlay, MOVE_DRAW, MOVE_PASS as UNO_PASS, rulesText, COLORS, COLORS_DARK, face, type UnoState } from '../engines/uno';
+import { getProgress } from '../../progression/store';
+import { uno, unoSeed, MERCY_LIMIT, cardColor, cardVal, playable, playMove as unoPlay, MOVE_DRAW, MOVE_PASS as UNO_PASS, rulesText, COLORS, COLORS_DARK, face, type UnoState } from '../engines/uno';
 import { gaple, canPlay, hasMove, pips, startTile, playMove as gaplePlay, MOVE_PASS as GAPLE_PASS, type GapleState } from '../engines/gaple';
 import { monopoly } from '../engines/monopoly';
 import { MonopolyView } from './Monopoly';
@@ -10,6 +11,15 @@ import type { TurnEngine } from '../engines/types';
 import type { MechProps } from './types';
 import { Emo } from '../../../components/Emo';
 
+/** Satu-satunya suara UNO: file mp3 kartu milikmu di public/sounds/card.mp3 (mengikuti pengaturan suara aplikasi). */
+let cardAudio: HTMLAudioElement | null = null;
+export function cardSound() {
+  try {
+    if (!getProgress().settings.sound || typeof Audio === 'undefined') return;
+    cardAudio = cardAudio ?? new Audio(`${import.meta.env.BASE_URL}sounds/card.mp3`);
+    void (cardAudio.cloneNode() as HTMLAudioElement).play().catch(() => undefined);
+  } catch { /* audio tidak tersedia */ }
+}
 export const TURN_ENGINES: Record<string, TurnEngine<never>> = { uno: uno as TurnEngine<never>, gaple: gaple as TurnEngine<never>, ladder: ladder as TurnEngine<never>, monopoly: monopoly as TurnEngine<never> };
 const PCOL = ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414'];
 const SYM: Record<number, string> = { 10: '⊘', 11: '⇄', 12: '+2', 13: '★', 14: '+4', 15: '+4', 16: '⊘⊘', 17: '✕', 18: '+6', 19: '+10', 20: '◎', 21: '⇄+4', 22: '+5', 23: '⇋', 24: '+1', 25: '+2', 26: '+◎' };
@@ -60,17 +70,12 @@ function UnoView({ s, viewer, names, onMove, active }: { s: UnoState; viewer: nu
   const [wild, setWild] = useState<number | null>(null);
   const [seven, setSeven] = useState<number | null>(null);
   const [anim, setAnim] = useState(0);
-  const prev = useRef(s.last), prevOne = useRef(s.hands.some((h) => h.length === 1));
-  useEffect(() => {
-    const l = s.last, one = s.hands.some((h) => h.length === 1);
-    if (l && l !== prev.current) {
-      setAnim((a) => a + 1);
-      const v = l.card >= 0 ? cardVal(l.card) : -1;
-      if (v === 10 || v === 16) sfx.skip(); else if (v === 11 || v === 21 || v === 23) sfx.reverse(); else if ((l.card >= 0 && drawAmt(l.card) > 0) || v === 26 || l.draw > 0) sfx.draw();
-    }
-    if (one && !prevOne.current) setTimeout(() => sfx.uno(), 350);
-    prev.current = l; prevOne.current = one;
-  }, [s.last, s.hands]);
+  const prev = useRef(s.last);
+  useEffect(() => { // langkah pemain lain: animasi + suara kartu (langkahmu sendiri dibunyikan saat langkah diterima)
+    const l = s.last;
+    if (l && l !== prev.current) { setAnim((a) => a + 1); if (l.who !== viewer) cardSound(); }
+    prev.current = l;
+  }, [s.last]); // eslint-disable-line react-hooks/exhaustive-deps
   const top = s.discard[s.discard.length - 1] as number, hand = s.hands[viewer] as number[];
   const nm = s.mode === 'nomercy', myTurn = active && s.win < 0 && !s.out[viewer], stack = s.pend > 0;
   const dk = s.side === 1, f = (c: number) => face(s, c), pal = dk ? COLORS_DARK : COLORS, ucol = dk ? UCOL_D : UCOL;
@@ -258,11 +263,12 @@ export function TurnMech({ game, players, seed, onDone }: MechProps) {
   const [covered, setCovered] = useState(hidden);
   const done = useRef(false);
   const cur = eng.actor(s), w = eng.winner(s);
-  useEffect(() => { if (w >= 0 && !done.current) { done.current = true; sfx.win(); setTimeout(() => onDone({ scores: players.map((_, i) => (i === w ? 1 : 0)), correct: 1, total: 1, headline: `${players[w]} menang!`, xp: 60 }), 1400); } }, [w]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (w >= 0 && !done.current) { done.current = true; if (game.mechanic !== 'uno') sfx.win(); setTimeout(() => onDone({ scores: players.map((_, i) => (i === w ? 1 : 0)), correct: 1, total: 1, headline: `${players[w]} menang!`, xp: 60 }), 1400); } }, [w]); // eslint-disable-line react-hooks/exhaustive-deps
   const move = (m: number) => {
     const n = eng.apply(s, m);
-    if (!n) { sfx.wrong(); return; }
-    sfx.tick(); setS(n);
+    if (!n) { if (game.mechanic !== 'uno') sfx.wrong(); return; }
+    if (game.mechanic === 'uno') cardSound(); else sfx.tick();
+    setS(n);
     if (hidden && eng.winner(n) < 0 && eng.actor(n) !== cur) setCovered(true);
   };
   if (covered && w < 0) return (
