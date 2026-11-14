@@ -11,14 +11,16 @@ import type { TurnEngine } from '../engines/types';
 import type { MechProps } from './types';
 import { Emo } from '../../../components/Emo';
 
-/** Satu-satunya suara UNO: file mp3 kartu milikmu di public/sounds/card.mp3 (mengikuti pengaturan suara aplikasi). */
-let cardAudio: HTMLAudioElement | null = null;
+/** Satu-satunya suara UNO: file mp3 kartu milikmu di public/audio/music/card.mp3 (mengikuti pengaturan suara aplikasi). */
+const CARD_URL = `${import.meta.env.BASE_URL}audio/music/card.mp3`;
 export function cardSound() {
   try {
     if (!getProgress().settings.sound || typeof Audio === 'undefined') return;
-    cardAudio = cardAudio ?? new Audio(`${import.meta.env.BASE_URL}sounds/card.mp3`);
-    void (cardAudio.cloneNode() as HTMLAudioElement).play().catch(() => undefined);
-  } catch { /* audio tidak tersedia */ }
+    const a = new Audio(CARD_URL);
+    a.volume = 1;
+    a.addEventListener('error', () => console.warn(`[UNO] suara kartu gagal dimuat: ${CARD_URL}`), { once: true });
+    a.play().catch((e: unknown) => console.warn('[UNO] suara kartu gagal diputar', e));
+  } catch (e) { console.warn('[UNO] audio tidak tersedia', e); }
 }
 export const TURN_ENGINES: Record<string, TurnEngine<never>> = { uno: uno as TurnEngine<never>, gaple: gaple as TurnEngine<never>, ladder: ladder as TurnEngine<never>, monopoly: monopoly as TurnEngine<never> };
 const PCOL = ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414'];
