@@ -82,6 +82,7 @@ export default function GamePage() {
   const { me } = useAuth();
   const [phase, setPhase] = useState<'setup' | 'play' | 'result'>('setup');
   const [names, setNames] = useState<string[]>([]);
+  const [bot, setBot] = useState<'' | 'santai' | 'serius' | 'campur'>('');
   const [cfg, setCfg] = useState<{ count: number; secs: number } | null>(null);
   const [session, setSession] = useState({ id: '', seed: '' });
   const [out, setOut] = useState<Outcome | null>(null);
@@ -109,10 +110,13 @@ export default function GamePage() {
     if (!game) return;
     const base = game.id === 'tim' ? ['Tim A', 'Tim B'] : Array.from({ length: Math.max(game.minPlayers, game.id === 'duel' || game.maxPlayers === 1 ? 1 : game.minPlayers) }, (_, i) => (i === 0 && (me?.handle ? me.displayName : prog.name) ? (me?.handle ? me.displayName : prog.name) : `Pemain ${i + 1}`));
     setNames(base); if (d) setCfg({ count: d.count, secs: d.secs });
-    setPhase('setup'); setOut(null); recorded.current = false; setVariant(game.variants?.[0]?.id ?? ''); setDiff('semua');
+    setBot(''); setPhase('setup'); setOut(null); recorded.current = false; setVariant(game.variants?.[0]?.id ?? ''); setDiff('semua');
   }, [game?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!game || !d || !cfg) return <EmptyState icon="search" title="Game tidak ditemukan" action={<Link to="/game"><Button>Lihat semua game</Button></Link>} />;
   const eg = withVariant(game, variant);
+  // UNO solo: pemain 1 manusia, sisanya bot (santai / serius / campur)
+  const botSpec: (string | null)[] = names.map((_, i) => (game.mechanic === 'uno' && bot && i > 0 ? (bot === 'campur' ? (i % 2 === 1 ? 'santai' : 'serius') : bot) : null));
+  const playNames = names.map((n, i) => (botSpec[i] ? `Bot ${i} (${botSpec[i]})` : n));
   const daily = game.id === 'harian';
   const quizLike = ['mcq', 'tf', 'era', 'flag'].includes(game.mechanic) && !daily;
   const lvKey = `${game.id}:${variant}`;
@@ -135,7 +139,7 @@ export default function GamePage() {
         setLevelMsg(ok ? `Level ${level} lulus! Level ${Math.min(10, level + 1)} terbuka.` : `Level ${level} belum lulus (butuh minimal 70% benar). Coba lagi!`);
       } else setLevelMsg(quizLike && mode === 'endless' ? `Kamu bertahan sampai ${o.correct} jawaban benar sebelum nyawa habis.` : '');
       if (daily) { if (practice || !claimDaily()) xp = 0; else xp += 30; }
-      const res: GameResult = { sessionId: session.id, gameId: game.id, at: Date.now(), players: names.map((n, i) => ({ name: n, score: o.scores[i] ?? 0 })), correct: o.correct, total: o.total, xp };
+      const res: GameResult = { sessionId: session.id, gameId: game.id, at: Date.now(), players: playNames.map((n, i) => ({ name: n, score: o.scores[i] ?? 0 })), correct: o.correct, total: o.total, xp };
       const r = recordResult(res);
       setXpGot(r.xp); setNewBadges(r.newBadges);
       if (r.newBadges.length) toast('Pencapaian baru terbuka!', 'ok');
@@ -163,7 +167,12 @@ export default function GamePage() {
               {Array.from({ length: game.maxPlayers - game.minPlayers + 1 }, (_, k) => game.minPlayers + k).map((n) => (
                 <button key={n} className={`chip ${names.length === n ? 'on' : ''}`} onClick={() => setNames(Array.from({ length: n }, (_, i) => names[i] ?? `Pemain ${i + 1}`))}>{n}</button>))}
             </div>)}
-          {names.map((n, i) => <label key={i} className="field gap"><span>{game.id === 'tim' ? `Nama tim ${i + 1}` : `Nama pemain ${i + 1}`}</span><input value={n} maxLength={20} onChange={(e) => setN(i, e.target.value)} /></label>)}
+          {game.mechanic === 'uno' && (
+            <div className="gap">
+              <div className="row wrap gap"><span className="small">Lawan bot:</span>{([['', 'Tanpa bot'], ['santai', 'Bot santai'], ['serius', 'Bot serius'], ['campur', 'Campur']] as const).map(([k, t]) => <button key={k} className={`chip ${bot === k ? 'on' : ''}`} onClick={() => setBot(k)}>{t}</button>)}</div>
+              {bot && <p className="small muted">Kamu pemain 1, pemain lain dimainkan bot. Santai: main acak dan kadang lalai. Serius: menghitung tiap langkah, tapi tetap bisa kamu kalahkan.</p>}
+            </div>)}
+          {names.map((n, i) => botSpec[i] ? <p key={i} className="small muted">Pemain {i + 1}: Bot {botSpec[i]}</p> : <label key={i} className="field gap"><span>{game.id === 'tim' ? `Nama tim ${i + 1}` : `Nama pemain ${i + 1}`}</span><input value={n} maxLength={20} onChange={(e) => setN(i, e.target.value)} /></label>)}
           {game.variants && game.variants.length > 1 && (game.variants.length > 6 ? <div className="gap"><Select label="Topik / varian" value={variant} onChange={pickVariant} options={game.variants.map((v) => ({ value: v.id, label: vLabel(v) }))} /></div> : <div className="row wrap gap"><span className="small">Varian:</span>{game.variants.map((v) => <button key={v.id} className={`chip ${variant === v.id || variant.startsWith(`${v.id}-`) ? 'on' : ''}`} onClick={() => pickVariant(v.id)}>{vLabel(v)}</button>)}</div>)}
           {game.id === 'uno' && isUnoCustom(variant) && <UnoRules value={variant} onChange={setVariant} />}
           {quizLike && <div className="row wrap gap"><span className="small">Mode:</span>{([['santai', 'Santai'], ['level', 'Level'], ['endless', 'Tanpa batas']] as const).map(([m, t]) => <button key={m} className={`chip ${mode === m ? 'on' : ''}`} onClick={() => setMode(m)}>{t}</button>)}</div>}
@@ -187,13 +196,13 @@ export default function GamePage() {
       <div className="page">
         <Header title={game.title} back={() => { void ask({ title: 'Keluar dari permainan?', text: 'Kemajuan ronde ini tidak disimpan.', ok: 'Keluar', danger: true }).then((y) => { if (y) setPhase('setup'); }); }} />
         <RulesPeek rules={game.rules} defaultOpen={game.mechanic === 'connect4' || game.mechanic === 'rps'} />
-        <M key={session.id} game={eg} players={names} seed={session.seed} count={quizLike && mode === 'level' ? 10 : cfg.count} secs={quizLike && mode === 'level' ? lvSecs : quizLike && mode === 'endless' ? 15 : cfg.secs || 20} onDone={finish} mode={quizLike ? mode : undefined} level={level} difficulty={quizLike && mode === 'santai' && game.mechanic === 'mcq' ? diff : undefined} />
+        <M key={session.id} game={eg} players={playNames} bots={botSpec} seed={session.seed} count={quizLike && mode === 'level' ? 10 : cfg.count} secs={quizLike && mode === 'level' ? lvSecs : quizLike && mode === 'endless' ? 15 : cfg.secs || 20} onDone={finish} mode={quizLike ? mode : undefined} level={level} difficulty={quizLike && mode === 'santai' && game.mechanic === 'mcq' ? diff : undefined} />
         <div style={{ height: 64 }} aria-hidden="true" />
         <LocalReactDock />
       </div>
     );
   }
-  const ranked = rankPlayers(names.map((n, i) => ({ name: n, score: out?.scores[i] ?? 0 })));
+  const ranked = rankPlayers(playNames.map((n, i) => ({ name: n, score: out?.scores[i] ?? 0 })));
   const tie = ranked.length > 1 && ranked[0]?.score === ranked[1]?.score;
   return (
     <div className="page">
