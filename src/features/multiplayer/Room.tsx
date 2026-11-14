@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { gameById, withVariant } from '../games/registry';
 import { TurnBoard, TURN_ENGINES } from '../games/mechanics/Turn';
 import { replayTurns } from '../games/engines/types';
+import { unoSeed } from '../games/engines/uno';
 import { modeSeed, type MonoState } from '../games/engines/monopoly';
 import { monoScores } from '../games/mechanics/Monopoly';
 import { DIFF_COLOR, DIFF_LABEL } from '../games/engine';
@@ -80,7 +81,7 @@ function RoomInner() {
 
   // ---- skor per jenis ----
   const board = useMemo(() => (game && kind === 'board' ? replayBoard(game.mechanic as 'tictactoe' | 'connect4', [...lite].sort((a, b) => a.round - b.round)) : null), [lite, game, kind]);
-  const turn = useMemo(() => (game && kind === 'turn' && room ? replayTurns(TURN_ENGINES[game.mechanic] as never, uids, modeSeed(game, room.seed), [...lite].sort((a, b) => a.round - b.round || (a.atMs ?? 0) - (b.atMs ?? 0))) : null), [lite, game, kind, room?.seed, uids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const turn = useMemo(() => (game && kind === 'turn' && room ? replayTurns(TURN_ENGINES[game.mechanic] as never, uids, (game.mechanic === 'uno' ? unoSeed(game.bank, room.seed) : modeSeed(game, room.seed)), [...lite].sort((a, b) => a.round - b.round || (a.atMs ?? 0) - (b.atMs ?? 0))) : null), [lite, game, kind, room?.seed, uids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
   const turnWin = turn && game ? (TURN_ENGINES[game.mechanic] as unknown as { winner: (s: unknown) => number }).winner(turn.s) : -1;
   const scores: Record<string, number> = useMemo(() => {
     if (!room) return {};
@@ -192,9 +193,9 @@ function RoomInner() {
         {isHost && <Button className="gap" variant="soft" onClick={() => void act(async () => (await svc()).finishRoom(code))}>Akhiri sekarang</Button>}</div>);
   }
   if (kind === 'turn' && turn) {
-    const eng = TURN_ENGINES[game.mechanic] as unknown as { actor: (s: unknown) => number; apply: (s: unknown, m: number) => unknown };
+    const eng = TURN_ENGINES[game.mechanic] as unknown as { actor: (s: unknown) => number; apply: (s: unknown, m: number) => unknown; jump?: (s: unknown, p: number, m: number) => unknown };
     const active = eng.actor(turn.s) === myIdx && turnWin < 0;
-    const onMove = (m: number) => { if (!eng.apply(turn.s, m)) { sfx.wrong(); return; } void act(async () => (await svc()).submitAnswer(code, me.uid, turn.count, m)); };
+    const onMove = (m: number) => { if (!(active ? eng.apply(turn.s, m) : eng.jump?.(turn.s, myIdx, m))) { sfx.wrong(); return; } void act(async () => (await svc()).submitAnswer(code, me.uid, turn.count, m)); };
     return <div className="page"><Header title={game.title} /><TurnBoard kind={game.mechanic} state={turn.s} viewer={myIdx} names={names} onMove={onMove} active={active} /></div>;
   }
   if (kind === 'board' && board) {
