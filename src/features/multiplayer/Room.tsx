@@ -5,7 +5,7 @@ import { ShareSheet } from '../../components/Share';
 import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
 import { gameById, withVariant } from '../games/registry';
-import { TurnBoard, TURN_ENGINES } from '../games/mechanics/Turn';
+import { TurnBoard, TURN_ENGINES, cardSound } from '../games/mechanics/Turn';
 import { replayTurns } from '../games/engines/types';
 import { unoSeed } from '../games/engines/uno';
 import { modeSeed, type MonoState } from '../games/engines/monopoly';
@@ -195,7 +195,7 @@ function RoomInner() {
   if (kind === 'turn' && turn) {
     const eng = TURN_ENGINES[game.mechanic] as unknown as { actor: (s: unknown) => number; apply: (s: unknown, m: number) => unknown; jump?: (s: unknown, p: number, m: number) => unknown };
     const active = eng.actor(turn.s) === myIdx && turnWin < 0;
-    const onMove = (m: number) => { if (!(active ? eng.apply(turn.s, m) : eng.jump?.(turn.s, myIdx, m))) { sfx.wrong(); return; } void act(async () => (await svc()).submitAnswer(code, me.uid, turn.count, m)); };
+    const onMove = (m: number) => { if (!(active ? eng.apply(turn.s, m) : eng.jump?.(turn.s, myIdx, m))) { if (game.mechanic !== 'uno') sfx.wrong(); return; } if (game.mechanic === 'uno') cardSound(); void act(async () => (await svc()).submitAnswer(code, me.uid, turn.count, m)); };
     return <div className="page"><Header title={game.title} /><TurnBoard kind={game.mechanic} state={turn.s} viewer={myIdx} names={names} onMove={onMove} active={active} /></div>;
   }
   if (kind === 'board' && board) {
