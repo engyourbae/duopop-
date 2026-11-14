@@ -42,12 +42,12 @@ export type CardFx =
 export interface Card { text: string; fx: CardFx }
 export const CHANCE: Card[] = [
   { text: 'Maju ke MULAI dan terima gaji.', fx: { t: 'move', to: 0 } },
-  { text: 'Maju ke Jl. Kuningan. Lewat MULAI, ambil gaji.', fx: { t: 'move', to: 24 } },
-  { text: 'Maju ke Braga. Lewat MULAI, ambil gaji.', fx: { t: 'move', to: 11 } },
-  { text: 'Maju ke Istana Nusantara.', fx: { t: 'move', to: 39 } },
-  { text: 'Naik kereta ke Stasiun Tugu. Lewat MULAI, ambil gaji.', fx: { t: 'move', to: 15 } },
-  { text: 'Maju ke stasiun terdekat. Bayar sewa dua kali lipat bila ada pemiliknya.', fx: { t: 'rail' } },
-  { text: 'Maju ke stasiun terdekat. Bayar sewa dua kali lipat bila ada pemiliknya.', fx: { t: 'rail' } },
+  { text: 'Maju ke {24}. Lewat MULAI, ambil gaji.', fx: { t: 'move', to: 24 } },
+  { text: 'Maju ke {11}. Lewat MULAI, ambil gaji.', fx: { t: 'move', to: 11 } },
+  { text: 'Maju ke {39}.', fx: { t: 'move', to: 39 } },
+  { text: 'Berangkat ke {15}. Lewat MULAI, ambil gaji.', fx: { t: 'move', to: 15 } },
+  { text: 'Maju ke {rail} terdekat. Bayar sewa dua kali lipat bila ada pemiliknya.', fx: { t: 'rail' } },
+  { text: 'Maju ke {rail} terdekat. Bayar sewa dua kali lipat bila ada pemiliknya.', fx: { t: 'rail' } },
   { text: 'Maju ke utilitas terdekat. Bayar 10 kali lemparan dadu bila ada pemiliknya.', fx: { t: 'util' } },
   { text: 'Dividen saham BUMN cair. Terima Rp50jt.', fx: { t: 'cash', n: 50 } },
   { text: 'Arisan RT kamu cair. Terima Rp150jt.', fx: { t: 'cash', n: 150 } },
@@ -77,16 +77,18 @@ export const CHEST: Card[] = [
   { text: 'Warisan keluarga. Terima Rp100jt.', fx: { t: 'cash', n: 100 } },
 ];
 
-export type ModeKey = 'klasik' | 'cepat' | 'sultan';
-export const MODES: Record<ModeKey, { label: string; cash: number; go: number; rounds: number; desc: string }> = {
+export type ModeKey = 'klasik' | 'cepat' | 'sultan' | 'bursa' | 'borneo' | 'sumatra';
+export type BoardKey = 'nusantara' | 'borneo' | 'sumatra';
+export interface ModeCfg { label: string; cash: number; go: number; rounds: number; desc: string; market?: boolean; pot?: boolean; board?: BoardKey }
+export const MODES: Record<ModeKey, ModeCfg> = {
   klasik: { label: 'Klasik', cash: 1500, go: 200, rounds: 0, desc: 'Uang Rp1,5 M. Main sampai tinggal satu pemain.' },
   cepat: { label: 'Kilat', cash: 1000, go: 200, rounds: 20, desc: 'Uang Rp1 M, 20 putaran. Kekayaan terbesar menang.' },
   sultan: { label: 'Sultan', cash: 3000, go: 300, rounds: 40, desc: 'Uang Rp3 M, gaji Rp300jt, 40 putaran.' },
+  bursa: { label: 'Bursa', cash: 1500, go: 200, rounds: 30, market: true, pot: true, desc: 'Event pasar mengubah sewa tiap beberapa putaran, dan semua pajak/denda masuk jackpot Parkir Bebas. 30 putaran, kekayaan terbesar menang.' },
+  borneo: { label: 'Papan Borneo', cash: 1500, go: 200, rounds: 30, market: true, pot: true, board: 'borneo', desc: 'Keliling Kalimantan: wisata Kabupaten Landak (Rombo Dait, Riam Bedawan, Bukit Samabue, dan lainnya) sampai Kuala Behe sebagai petak termahal. Event pasar dan jackpot Parkir Bebas aktif. 30 putaran.' },
+  sumatra: { label: 'Papan Sumatra', cash: 1500, go: 200, rounds: 30, market: true, pot: true, board: 'sumatra', desc: 'Keliling Sumatra dari Sabang sampai Danau Toba. Event pasar dan jackpot Parkir Bebas aktif. 30 putaran.' },
 };
 export const JAIL_FEE = 50, JAIL_POS = 10, MAX_HOUSES = 32, MAX_HOTELS = 12;
-/** Batas lelang: harga petak + selisih ini (juta). Tawaran yang menyentuh batas langsung terjual ke penawar. */
-export const AUCTION_MARGIN = 500;
-export const auctionCap = (tile: number): number => (TILES[tile] as Tile).price + AUCTION_MARGIN;
 export const PCOL = ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414', '#9c36b5', '#12b5cb'];
 export const PAWNS = ['becak', 'pinisi', 'garuda', 'motor', 'kucing', 'tumpeng'] as const;
 export const PAWN_NAME: Record<string, string> = { becak: 'Becak', pinisi: 'Kapal Pinisi', garuda: 'Garuda', motor: 'Motor', kucing: 'Kucing', tumpeng: 'Tumpeng' };
@@ -98,3 +100,46 @@ export const money = (n: number): string => {
   if (a >= 1000) return `${sign}Rp${f(a / 1000)} M`;
   return `${sign}Rp${f(a)}jt`;
 };
+
+// ---------- Papan tema & event pasar ----------
+export const BOARDS: Record<BoardKey, { title: string; rail: string; names: Record<number, string> }> = {
+  nusantara: { title: 'Nusantara', rail: 'stasiun', names: {} },
+  borneo: { title: 'Borneo', rail: 'pelabuhan atau bandara', names: {
+    1: 'Pasar Ngabang', 3: 'Pasar Terapung', 5: 'Pelabuhan Dwikora', 6: 'Tugu Khatulistiwa', 8: 'Pantai Pasir Panjang', 9: 'Makam Juang Mandor',
+    11: "Rombo Panga'a", 13: 'Riam Jejak Buru', 14: 'Sungai Mahakam', 15: 'Pelabuhan Trisakti', 16: 'Pasar Klandasan', 18: 'Riam Solakng', 19: 'Riam Terinting',
+    21: 'Bukit Samabue', 23: 'Riam Bedawan', 24: 'Jl. Antasari', 25: 'Bandara Sepinggan', 26: 'Pulau Derawan', 27: 'Pulau Maratua', 29: 'Pulau Kakaban',
+    31: 'Tanjung Puting', 32: 'Betung Kerihun', 34: 'Rombo Dait', 35: 'Bandara Supadio', 37: 'IKN Nusantara', 39: 'Kuala Behe (Merbe)' } },
+  sumatra: { title: 'Sumatra', rail: 'pelabuhan atau bandara', names: {
+    1: 'Pasar Atas', 3: 'Pasar 16 Ilir', 5: 'Pelabuhan Belawan', 6: 'Jam Gadang', 8: 'Ngarai Sianok', 9: 'Kota Padang',
+    11: 'Pantai Air Manis', 13: 'Danau Maninjau', 14: 'Lembah Harau', 15: 'Bandara Kualanamu', 16: 'Jembatan Ampera', 18: 'Pulau Kemaro', 19: 'Benteng Kuto Besak',
+    21: 'Jl. Imam Bonjol', 23: 'Jl. Sudirman', 24: 'Jl. Gatot Subroto', 25: 'Pelabuhan Bakauheni', 26: 'Pulau Weh', 27: 'Pantai Sabang', 29: 'Pulau Banyak',
+    31: 'Danau Toba', 32: 'Pulau Samosir', 34: 'Kepulauan Mentawai', 35: 'Bandara Minangkabau', 37: 'Candi Muaro Jambi', 39: 'Masjid Baiturrahman' } },
+};
+const BASE_NAMES = TILES.map((t) => t.name);
+let activeBoard: BoardKey = 'nusantara';
+/** Ganti nama petak sesuai papan mode (struktur, harga, dan sewa tetap sama sehingga mesin & bot tidak berubah). */
+export function applyBoard(mode: ModeKey): void {
+  const b = MODES[mode].board ?? 'nusantara';
+  if (b === activeBoard) return;
+  activeBoard = b;
+  TILES.forEach((t, i) => { t.name = BOARDS[b].names[i] ?? (BASE_NAMES[i] as string); });
+}
+export const boardTitle = (mode: ModeKey) => BOARDS[MODES[mode].board ?? 'nusantara'].title;
+/** Teks kartu dengan nama petak/jenis angkutan sesuai papan aktif. */
+export const cardText = (c: Card) => c.text.replace(/\{(\d+)\}/g, (_, n: string) => TILES[Number(n)]?.name ?? '').replace('{rail}', BOARDS[activeBoard].rail);
+
+export interface MarketEv { title: string; desc: string; pct: (t: Tile) => number }
+const inGroups = (t: Tile, g: number[], p: number) => (t.kind === 'prop' && g.includes(t.group) ? p : 100);
+/** Event pasar (mode Bursa): mengubah persentase sewa selama 2 putaran. */
+export const MARKET: MarketEv[] = [
+  { title: 'Musim Liburan', desc: 'Sewa petak wisata (Kuning, Hijau, Biru Tua) naik 50%.', pct: (t) => inGroups(t, [5, 6, 7], 150) },
+  { title: 'Wisata Sepi', desc: 'Sewa petak wisata (Kuning, Hijau, Biru Tua) turun 40%.', pct: (t) => inGroups(t, [5, 6, 7], 60) },
+  { title: 'Banjir Besar', desc: 'Sewa kawasan murah (Cokelat, Biru Muda) turun 40%.', pct: (t) => inGroups(t, [0, 1], 60) },
+  { title: 'Festival Kota', desc: 'Sewa kawasan Merah Muda dan Jingga naik 50%.', pct: (t) => inGroups(t, [2, 3], 150) },
+  { title: 'Pembangunan CBD', desc: 'Sewa kawasan Merah naik 60%.', pct: (t) => inGroups(t, [4], 160) },
+  { title: 'Proyek Tol Baru', desc: 'Sewa stasiun/pelabuhan/bandara dua kali lipat.', pct: (t) => (t.kind === 'rail' ? 200 : 100) },
+  { title: 'Tarif Listrik & Air Naik', desc: 'Sewa listrik dan air dua kali lipat.', pct: (t) => (t.kind === 'util' ? 200 : 100) },
+  { title: 'Resesi', desc: 'Semua sewa turun 25%.', pct: () => 75 },
+  { title: 'Ledakan Properti', desc: 'Semua sewa naik 25%.', pct: () => 125 },
+];
+export const marketPct = (id: number, t: Tile) => MARKET[id]?.pct(t) ?? 100;
