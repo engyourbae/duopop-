@@ -8,7 +8,7 @@ import {
   mvBid, mvBuild, mvMort, mvSell, mvUnmort, type MonoEv, type MonoState,
 } from '../engines/monopoly';
 import { botMove } from '../engines/monopolyBot';
-import { CHANCE, CHEST, auctionCap, GROUPS, GROUP_TILES, MAX_HOTELS, MAX_HOUSES, MODES, PAWNS, PAWN_NAME, PCOL, TILES, money, type Tile } from '../engines/monopolyData';
+import { CHANCE, CHEST, GROUPS, GROUP_TILES, MARKET, MAX_HOTELS, MAX_HOUSES, MODES, PAWNS, PAWN_NAME, PCOL, TILES, applyBoard, boardTitle, cardText, money, type ModeKey, type Tile } from '../engines/monopolyData';
 import { Banknote, DeckArt, DieFace, HotelArt, HouseArt, MonoIcon, PawnArt, TileIcon } from './MonoArt';
 import type { MechProps } from './types';
 
@@ -73,6 +73,8 @@ function describe(e: MonoEv, n: string[]): string {
     case 'trade': return e.offer ? `${nm(n, e.from)} mengajukan dagang ke ${nm(n, e.to)}` : e.ok ? `${nm(n, e.from)} dan ${nm(n, e.to)} sepakat dagang` : `${nm(n, e.to)} menolak tawaran dagang`;
     case 'bankrupt': return `${nm(n, e.who)} bangkrut!`;
     case 'end': return e.byLimit ? 'Batas putaran tercapai' : '';
+    case 'market': return e.start ? `Event pasar: ${MARKET[e.id]?.title}. ${MARKET[e.id]?.desc}` : `Event pasar selesai: ${MARKET[e.id]?.title}`;
+    case 'pot': return `${nm(n, e.who)} mengambil jackpot Parkir Bebas ${money(e.amt)}!`;
     case 'win': return `${nm(n, e.who)} menang!`;
   }
 }
@@ -187,6 +189,7 @@ interface ViewProps { s: MonoState; viewer: number; names: string[]; onMove: (m:
 type Sheet = null | 'aset' | 'dagang' | 'tantangan' | 'catatan';
 
 export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay }: ViewProps) {
+  applyBoard(s.mode); // nama petak sesuai papan mode ini
   const [disp, setDisp] = useState<number[]>(() => s.pos.slice());
   const [busy, setBusy] = useState(false), [tumble, setTumble] = useState(false), [warp, setWarp] = useState(false), [hop, setHop] = useState(0);
   const [dice, setDice] = useState<[number, number]>(s.dice), [msg, setMsg] = useState('');
@@ -227,6 +230,8 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
           case 'bid': mono.bid(); await sleep(250); break;
           case 'jail': await sleep(250); break;
           case 'bankrupt': mono.bankrupt(); await sleep(900); break;
+          case 'market': await sleep(1100); break;
+          case 'pot': mono.buy(); await sleep(700); break;
           case 'win': sfx.win(); break;
           default: await sleep(150);
         }
@@ -272,9 +277,9 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
       <div className="mn-row"><Button disabled={!afford} onClick={() => send(MV.BUY)}>Beli {money(tl.price)}</Button><Button variant="soft" onClick={() => send(MV.AUCTION)}>Lelang</Button></div>
       {!afford && <p className="muted center">Uangmu kurang. Gadai aset lewat tombol Aset, atau lelang.</p>}</div>;
   } else if (s.phase === 'auction' && s.auction) {
-    const a = s.auction, at = TILES[a.tile] as Tile, cap = auctionCap(a.tile);
-    panel = <div className="mn-act turn"><div className="mn-auc"><small>LELANG · {at.name} (harga {money(at.price)})</small><div className="bid">{money(a.bid)}</div><small>{a.top >= 0 ? `Tertinggi: ${nm(names, a.top)}` : 'Belum ada penawaran'}</small><small>Batas maksimal {money(cap)} · menyentuh batas = langsung terjual</small></div>
-      <div className="mn-row">{BID_STEPS.map((st, k) => <Button key={k} size="sm" disabled={myCash < Math.min(a.bid + st, cap)} onClick={() => send(mvBid(k))}>+{Math.min(st, cap - a.bid)}</Button>)}<Button size="sm" variant="ghost" onClick={() => send(MV.PASS)}>Lewati</Button></div></div>;
+    const a = s.auction, at = TILES[a.tile] as Tile;
+    panel = <div className="mn-act turn"><div className="mn-auc"><small>LELANG · {at.name} (harga {money(at.price)})</small><div className="bid">{money(a.bid)}</div><small>{a.top >= 0 ? `Tertinggi: ${nm(names, a.top)}` : 'Belum ada penawaran'}</small></div>
+      <div className="mn-row">{BID_STEPS.map((st, k) => <Button key={k} size="sm" disabled={myCash < a.bid + st} onClick={() => send(mvBid(k))}>+{st}</Button>)}<Button size="sm" variant="ghost" onClick={() => send(MV.PASS)}>Lewati</Button></div></div>;
   } else if (s.phase === 'debt' && s.debt) {
     const d = s.debt, enough = myCash >= d.amount;
     panel = <div className="mn-act turn"><h4>Kamu berutang {money(d.amount)}{d.to >= 0 ? ` ke ${nm(names, d.to)}` : d.to === -2 ? ' ke semua pemain' : ''}</h4>
@@ -292,7 +297,7 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
       {s.mode === 'klasik' && s.round >= FINISH_ROUND && <Button size="sm" variant="ghost" onClick={() => send(MV.FINISH)}>Akhiri game & hitung kekayaan</Button>}</div>;
   }
   const manage = can && ['roll', 'end', 'buy', 'debt'].includes(s.phase), tradeOk = can && (s.phase === 'roll' || s.phase === 'end') && alive(s).length > 1;
-  const tileHint = (t: number): string => { const k = (TILES[t] as Tile).kind; return k === 'go' ? 'Lewati MULAI untuk menerima gaji.' : k === 'jail' ? 'Sekadar lewat bila tidak sedang ditahan.' : k === 'park' ? 'Istirahat. Tidak terjadi apa-apa.' : k === 'gojail' ? 'Mendarat di sini = langsung masuk penjara.' : k === 'tax' ? `Bayar ${money(t === 4 ? 200 : 100)} ke bank.` : k === 'chance' ? 'Ambil satu kartu Kejutan.' : 'Ambil satu kartu Kas Warga.'; };
+  const tileHint = (t: number): string => { const k = (TILES[t] as Tile).kind; return k === 'go' ? 'Lewati MULAI untuk menerima gaji.' : k === 'jail' ? 'Sekadar lewat bila tidak sedang ditahan.' : k === 'park' ? (MODES[s.mode].pot ? `Ambil jackpot Parkir Bebas (sekarang ${money(s.pot)}). Pajak dan denda masuk ke sini.` : 'Istirahat. Tidak terjadi apa-apa.') : k === 'gojail' ? 'Mendarat di sini = langsung masuk penjara.' : k === 'tax' ? `Bayar ${money(t === 4 ? 200 : 100)} ke bank.` : k === 'chance' ? 'Ambil satu kartu Kejutan.' : 'Ambil satu kartu Kas Warga.'; };
 
   return (
     <div className="mn">
@@ -304,6 +309,8 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
         </div>))}</div>
       <div className="mn-info"><span>Putaran {Math.min(s.round, lim || s.round)}{lim ? ` / ${lim}` : ''} · {MODES[s.mode].label}</span>
         <button className="chip" onClick={() => setZoom(zoom === 1 ? 1.9 : 1)} aria-label="Perbesar papan"><MonoIcon name="zoom" size={14} /> {zoom === 1 ? 'Zoom' : 'Normal'}</button></div>
+      {MODES[s.mode].market && s.mk >= 0 && <div className="expl" style={{ marginTop: 6, textAlign: 'center' }}><b>{MARKET[s.mk]?.title}</b> · {MARKET[s.mk]?.desc} <small>(sisa {s.mkLeft} putaran)</small></div>}
+      {MODES[s.mode].pot && <p className="small muted" style={{ textAlign: 'center', margin: '4px 0' }}>Jackpot Parkir Bebas: <b>{money(s.pot)}</b></p>}
       <Board s={s} disp={disp} now={disp[cur] as number} warp={warp} hop={hop} tumble={tumble} dice={dice} zoom={zoom} msg={msg} onTile={setDeed} />
       {toastCh && <div className="expl" style={{ marginTop: 8, textAlign: 'center' }}><b>Tantangan selesai: {toastCh}</b></div>}
       {panel}
@@ -340,7 +347,7 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
         <div className="mn-flip"><div className="mn-face front" style={{ borderColor: '#17140e' }}>
           <div className="hd" style={{ background: card.deck === 'chance' ? '#f28c28' : '#2a9d8f' }}><h3>{card.deck === 'chance' ? 'KEJUTAN' : 'KAS WARGA'}</h3></div>
           <MonoIcon name={card.deck} size={54} color={card.deck === 'chance' ? '#d9480f' : '#0b7285'} />
-          <p>{(card.deck === 'chance' ? CHANCE : CHEST)[card.idx]?.text}</p><small className="muted">{nm(names, card.who)} · ketuk untuk lanjut</small></div></div></div>}
+          <p>{cardText((card.deck === 'chance' ? CHANCE : CHEST)[card.idx] as (typeof CHANCE)[number])}</p><small className="muted">{nm(names, card.who)} · ketuk untuk lanjut</small></div></div></div>}
     </div>
   );
 }
@@ -398,7 +405,7 @@ export function MonopolyMech({ game, players, seed, onDone }: MechProps) {
   }, [s?.win]); // eslint-disable-line react-hooks/exhaustive-deps
   if (bots === null || !s) return (
     <div className="card mn-setup">
-      <h3>Siapkan Monopoli Nusantara</h3>
+      <h3>Siapkan Monopoli {boardTitle((mode in MODES ? mode : 'klasik') as ModeKey)}</h3>
       <p className="small muted">{MODES[mode as keyof typeof MODES]?.desc}</p>
       <p className="small"><b>{humans === 1 ? 'Solo' : humans === 2 ? 'Duo' : 'Squad'}</b>: {humans} pemain manusia{humans > 1 ? ' main bergiliran di satu ponsel' : ''}. Tambah lawan AI bila mau (maksimal total 6 pemain).</p>
       <div className="mn-pick gap"><span className="small">Lawan AI:</span>{Array.from({ length: maxBots + 1 }, (_, k) => k).filter((k) => humans + k >= 2).map((k) => <button key={k} className={`chip ${pick === k ? 'on' : ''}`} onClick={() => setPick(k)}>{k}</button>)}</div>
