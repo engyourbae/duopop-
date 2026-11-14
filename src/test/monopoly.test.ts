@@ -172,3 +172,13 @@ describe('bot Monopoli yang ditingkatkan', () => {
     }
   });
 });
+
+describe('uang awal terpisah dari varian', () => {
+  it('"~mode@juta" mengganti uang awal; nilai tidak valid diabaikan; varian tetap dikenali', () => {
+    expect(monopoly.init(2, 'x~bursa@2000').cash[0]).toBe(2000); expect(monopoly.init(2, 'x~cepat@500').cash[1]).toBe(500);
+    expect(monopoly.init(2, 'x~bursa').cash[0]).toBe(1500); expect(monopoly.init(2, 'x~klasik@abc').cash[0]).toBe(1500); expect(monopoly.init(2, 'x~klasik@5').cash[0]).toBe(1500);
+    expect(monopoly.init(2, 'x~bursa@2000').mode).toBe('bursa'); expect(monopoly.init(2, 'x~sultan').cash[0]).toBe(3000);
+    expect(modeSeed({ mechanic: 'monopoly', bank: 'bursa@3000' }, 'x')).toBe('x~bursa@3000');
+    const g = gameById('monopoli')!; expect(withVariant(g, 'bursa@2000').bank).toBe('bursa@2000'); expect(withVariant(g, 'cepat').bank).toBe('cepat');
+  });
+});
