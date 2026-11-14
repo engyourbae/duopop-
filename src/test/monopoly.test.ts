@@ -1,7 +1,7 @@
 import { monopoly, rollDice, rentFor, canBuild, canMortgage, decodeTrade, tradeMove, netWorth, challengeXp, modeSeed, MV, mvBuild, mvMort, mvUnmort, mvBid, type MonoState } from '../features/games/engines/monopoly';
 import { botMove } from '../features/games/engines/monopolyBot';
 import { replayTurns } from '../features/games/engines/types';
-import { TILES, GROUPS, CHANCE, CHEST, GROUP_TILES, money } from '../features/games/engines/monopolyData';
+import { TILES, GROUPS, CHANCE, CHEST, GROUP_TILES, MODES, MARKET, cardText, money } from '../features/games/engines/monopolyData';
 import { GAMES, gameById, withVariant } from '../features/games/registry';
 import { roomCapacity, roomKind } from '../features/multiplayer/rounds';
 
@@ -132,5 +132,43 @@ describe('format uang', () => {
   it('juta, miliar, triliun', () => {
     expect(money(60)).toBe('Rp60jt'); expect(money(1000)).toBe('Rp1 M'); expect(money(1500)).toBe('Rp1,5 M'); expect(money(3000)).toBe('Rp3 M');
     expect(money(1050)).toBe('Rp1,05 M'); expect(money(2000000)).toBe('Rp2 T'); expect(money(-250)).toBe('-Rp250jt');
+  });
+});
+
+describe('upgrade: Bursa, papan tema, event pasar, jackpot', () => {
+  it('mode baru dan papan Borneo/Sumatra mengganti nama petak, struktur tetap, klasik mengembalikan', () => {
+    const b = fresh(2, 'bursa'); expect(b.cash[0]).toBe(1500); expect(b.mk).toBe(-1); expect(b.pot).toBe(0); expect(MODES.bursa.rounds).toBe(30);
+    fresh(2, 'borneo'); expect(TILES[39]!.name).toBe('Kuala Behe (Merbe)'); expect(TILES[39]!.price).toBe(400); expect(TILES.length).toBe(40);
+    expect(TILES[34]!.name).toBe('Rombo Dait'); expect(TILES[23]!.name).toBe('Riam Bedawan'); expect(cardText(CHANCE[3]!)).toBe('Maju ke Kuala Behe (Merbe).'); fresh(2, 'sumatra'); expect(TILES[31]!.name).toBe('Danau Toba');
+    fresh(2, 'klasik'); expect(TILES[39]!.name).toBe('Istana Nusantara'); expect(cardText(CHANCE[3]!)).toBe('Maju ke Istana Nusantara.');
+    expect(cardText(CHANCE[5]!)).toBe('Maju ke stasiun terdekat. Bayar sewa dua kali lipat bila ada pemiliknya.');
+  });
+  it('event pasar mengubah sewa; tanpa event sewa normal', () => {
+    const s = fresh(2, 'bursa'); s.owner[37] = 0; expect(rentFor(s, 37, 7)).toBe(35);
+    s.mk = 0; expect(rentFor(s, 37, 7)).toBe(Math.round(35 * 1.5)); s.mk = 8; expect(rentFor(s, 37, 7)).toBe(44); s.mk = 7; expect(rentFor(s, 37, 7)).toBe(26);
+    s.mk = 2; s.owner[1] = 0; expect(rentFor(s, 1, 7)).toBe(1); s.mk = 0; expect(rentFor(s, 1, 7)).toBe(2); expect(MARKET.length).toBe(9);
+  });
+  it('pajak masuk jackpot dan mendarat di Parkir Bebas mengambilnya (hanya mode berjackpot)', () => {
+    const tax = monopoly.apply(monopoly.init(2, `${seedFor(4)}~bursa`), MV.ROLL)!; expect(tax.pos[0]).toBe(4); expect(tax.pot).toBe(200); expect(tax.cash[0]).toBe(1300);
+    const kl = monopoly.apply(monopoly.init(2, `${seedFor(4)}~klasik`), MV.ROLL)!; expect(kl.pot).toBe(0); expect(kl.cash[0]).toBe(1300);
+    const s = monopoly.init(2, `${seedFor(6)}~bursa`); s.pot = 300; s.pos[0] = 14;
+    const r = monopoly.apply(s, MV.ROLL)!; expect(r.pos[0]).toBe(20); expect(r.cash[0]).toBe(1800); expect(r.pot).toBe(0); expect(r.phase).toBe('end');
+    const k = monopoly.init(2, `${seedFor(6)}~klasik`); k.pos[0] = 14; expect(monopoly.apply(k, MV.ROLL)!.cash[0]).toBe(1500);
+  });
+  it('permainan bot di mode Bursa/Borneo/Sumatra selesai, event pasar muncul, tanpa langkah ilegal', () => {
+    for (const mode of ['bursa', 'borneo', 'sumatra']) {
+      let s = monopoly.init(3, `sim1~${mode}`), steps = 0, market = false, pot = false;
+      while (s.win < 0 && steps < 4000) { const n = monopoly.apply(s, botMove(s, 1)); expect(n).not.toBeNull(); s = n!; steps++; if (s.mk >= 0) market = true; if (s.pot > 0) pot = true; }
+      expect(s.win).toBeGreaterThanOrEqual(0); expect(market).toBeTruthy(); expect(pot).toBeTruthy();
+    }
+  });
+});
+
+describe('bot Monopoli yang ditingkatkan', () => {
+  it('selalu memberi langkah sah di semua mode untuk kedua level', () => {
+    for (const mode of ['klasik', 'cepat', 'sultan', 'bursa', 'borneo', 'sumatra']) for (const lv of [0, 1] as const) {
+      let s = monopoly.init(3, `bt~${mode}`), steps = 0;
+      while (s.win < 0 && steps < 1500) { const n = monopoly.apply(s, botMove(s, lv)); expect(n).not.toBeNull(); s = n!; steps++; }
+    }
   });
 });
