@@ -8,6 +8,7 @@ import { DIFF_LABEL, poolStats, rankPlayers, xpForResult } from './engine';
 import { gameById, GROUP_LABEL, withVariant } from './registry';
 import { TurnMech } from './mechanics/Turn';
 import { UnoRules, isUnoCustom } from './mechanics/UnoRules';
+import { MonoCash, cashOf, withCash } from './mechanics/MonoCash';
 import { MonopolyMech } from './mechanics/Monopoly';
 import { AnagramMech, BuzzerMech, TapMech, TypingMech, WordleMech } from './mechanics/Skill';
 import { QuizMech, OrderMech, EstimateMech, CluesMech } from './mechanics/Quiz';
@@ -149,7 +150,7 @@ export default function GamePage() {
   if (phase === 'setup') {
     const setN = (i: number, v: string) => setNames(names.map((n, k) => (k === i ? v : n)));
     const canMulti = game.maxPlayers > 1 && !daily && game.id !== 'tim';
-    const pickVariant = (id: string) => { setVariant(id === 'custom' ? 'custom-s' : id); setDiff('semua'); };
+    const pickVariant = (id: string) => { setVariant(id === 'custom' ? 'custom-s' : game.mechanic === 'monopoly' ? withCash(id, cashOf(variant)) : id); setDiff('semua'); };
     const vLabel = (v: { id: string; label: string }) => { const s = statsAll?.[v.id]; return s ? `${v.label} · ${s.unlimited ? 'tanpa batas' : `maks ${s.total} soal`}` : v.label; };
     const fit = Number.isFinite(avail) ? d.counts.filter((c) => c <= avail || c >= 999) : d.counts;
     const shownCounts = fit.length ? fit : [Math.max(1, avail)];
@@ -173,8 +174,9 @@ export default function GamePage() {
               {bot && <p className="small muted">Kamu pemain 1, pemain lain dimainkan bot. Santai: main acak dan kadang lalai. Serius: menghitung tiap langkah, tapi tetap bisa kamu kalahkan.</p>}
             </div>)}
           {names.map((n, i) => botSpec[i] ? <p key={i} className="small muted">Pemain {i + 1}: Bot {botSpec[i]}</p> : <label key={i} className="field gap"><span>{game.id === 'tim' ? `Nama tim ${i + 1}` : `Nama pemain ${i + 1}`}</span><input value={n} maxLength={20} onChange={(e) => setN(i, e.target.value)} /></label>)}
-          {game.variants && game.variants.length > 1 && (game.variants.length > 6 ? <div className="gap"><Select label="Topik / varian" value={variant} onChange={pickVariant} options={game.variants.map((v) => ({ value: v.id, label: vLabel(v) }))} /></div> : <div className="row wrap gap"><span className="small">Varian:</span>{game.variants.map((v) => <button key={v.id} className={`chip ${variant === v.id || variant.startsWith(`${v.id}-`) ? 'on' : ''}`} onClick={() => pickVariant(v.id)}>{vLabel(v)}</button>)}</div>)}
+          {game.variants && game.variants.length > 1 && (game.variants.length > 6 ? <div className="gap"><Select label="Topik / varian" value={variant} onChange={pickVariant} options={game.variants.map((v) => ({ value: v.id, label: vLabel(v) }))} /></div> : <div className="row wrap gap"><span className="small">Varian:</span>{game.variants.map((v) => <button key={v.id} className={`chip ${variant === v.id || variant.startsWith(`${v.id}-`) || variant.startsWith(`${v.id}@`) ? 'on' : ''}`} onClick={() => pickVariant(v.id)}>{vLabel(v)}</button>)}</div>)}
           {game.id === 'uno' && isUnoCustom(variant) && <UnoRules value={variant} onChange={setVariant} />}
+          {game.mechanic === 'monopoly' && <MonoCash value={variant} onChange={setVariant} />}
           {quizLike && <div className="row wrap gap"><span className="small">Mode:</span>{([['santai', 'Santai'], ['level', 'Level'], ['endless', 'Tanpa batas']] as const).map(([m, t]) => <button key={m} className={`chip ${mode === m ? 'on' : ''}`} onClick={() => setMode(m)}>{t}</button>)}</div>}
           {quizLike && mode === 'level' && <div className="row wrap gap"><span className="small">Level:</span>{Array.from({ length: 10 }, (_, k) => k + 1).map((l) => <button key={l} className={`chip ${level === l ? 'on' : ''}`} disabled={l > passedLv + 1} onClick={() => setLevel(l)}>{l > passedLv + 1 ? <><Emo t="🔒" />{l}</> : l}</button>)}</div>}
           {quizLike && mode === 'level' && <p className="small muted">Level {level}: 10 soal, waktu {lvSecs} detik. Lulus bila benar ≥ 70%. Makin tinggi, makin sulit.</p>}
