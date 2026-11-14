@@ -8,6 +8,7 @@ import { monopoly } from '../engines/monopoly';
 import { MonopolyView } from './Monopoly';
 import { ladder, JUMPS, MOVE_ROLL, type LadderState } from '../engines/ladder';
 import type { TurnEngine } from '../engines/types';
+import { unoBot, type BotLevel } from '../engines/unoBot';
 import type { MechProps } from './types';
 import { Emo } from '../../../components/Emo';
 
@@ -258,23 +259,34 @@ export function TurnBoard({ kind, state, viewer, names, onMove, active }: { kind
 }
 
 /** Permainan giliran satu perangkat: oper ponsel; kartu pemain lain tertutup lewat layar serah. */
-export function TurnMech({ game, players, seed, onDone }: MechProps) {
+export function TurnMech({ game, players, seed, onDone, bots }: MechProps) {
   const eng = TURN_ENGINES[game.mechanic] as TurnEngine<unknown>;
   const [s, setS] = useState(() => eng.init(players.length, game.mechanic === 'uno' ? unoSeed(game.bank, seed) : seed));
-  const hidden = game.mechanic !== 'ladder' && players.length > 1;
+  const isBot = (i: number) => !!bots?.[i];
+  const humans = players.map((_, i) => i).filter((i) => !isBot(i));
+  const hidden = game.mechanic !== 'ladder' && humans.length > 1; // beberapa manusia berbagi satu ponsel → layar serah-terima
   const [covered, setCovered] = useState(hidden);
+  const [viewer, setViewer] = useState(humans[0] ?? 0);
   const done = useRef(false);
   const cur = eng.actor(s), w = eng.winner(s);
-  useEffect(() => { if (w >= 0 && !done.current) { done.current = true; if (game.mechanic !== 'uno') sfx.win(); setTimeout(() => onDone({ scores: players.map((_, i) => (i === w ? 1 : 0)), correct: 1, total: 1, headline: `${players[w]} menang!`, xp: 60 }), 1400); } }, [w]); // eslint-disable-line react-hooks/exhaustive-deps
+  const view = hidden || humans.length === 1 ? viewer : cur;
+  useEffect(() => { if (w >= 0 && !done.current) { done.current = true; if (game.mechanic !== 'uno') sfx.win(); setTimeout(() => onDone({ scores: players.map((_, i) => (i === w ? 1 : 0)), correct: 1, total: 1, headline: `${players[w]} menang!`, xp: 60 }), 1400); } }); // eslint-disable-line react-hooks/exhaustive-deps
+  const after = (n: unknown) => { const a = eng.actor(n); if (hidden && eng.winner(n) < 0 && !isBot(a) && a !== viewer) setCovered(true); };
+  // Giliran bot: berpikir sebentar lalu bermain.
+  useEffect(() => {
+    if (covered || w >= 0 || !isBot(cur) || game.mechanic !== 'uno') return;
+    const lvl = (bots?.[cur] === 'serius' ? 'serius' : 'santai') as BotLevel;
+    const tm = setTimeout(() => { const n = eng.apply(s, unoBot(s as UnoState, lvl)); if (n) { setS(n); after(n); } }, 700 + Math.random() * 700);
+    return () => clearTimeout(tm);
+  }, [s, covered]); // eslint-disable-line react-hooks/exhaustive-deps
   const move = (m: number) => {
-    const n = eng.apply(s, m);
+    const n = view === cur ? eng.apply(s, m) : eng.jump?.(s, view, m) ?? null;
     if (!n) { if (game.mechanic !== 'uno') sfx.wrong(); return; }
     if (game.mechanic === 'uno') cardSound(); else sfx.tick();
-    setS(n);
-    if (hidden && eng.winner(n) < 0 && eng.actor(n) !== cur) setCovered(true);
+    setS(n); after(n);
   };
   if (covered && w < 0) return (
     <div className="card center gap"><div className="avatar" style={{ margin: '0 auto 8px' }}>{(players[cur] ?? '?').slice(0, 1).toUpperCase()}</div>
-      <h2>Serahkan ponsel ke {players[cur]}</h2><p className="muted">Pastikan pemain lain tidak melihat kartumu.</p><Button size="lg" onClick={() => setCovered(false)}>Aku {players[cur]}, lihat kartuku</Button></div>);
-  return <TurnBoard kind={game.mechanic} state={s} viewer={cur} names={players} onMove={move} active={w < 0} />;
+      <h2>Serahkan ponsel ke {players[cur]}</h2><p className="muted">Pastikan pemain lain tidak melihat kartumu.</p><Button size="lg" onClick={() => { setViewer(cur); setCovered(false); }}>Aku {players[cur]}, lihat kartuku</Button></div>);
+  return <TurnBoard kind={game.mechanic} state={s} viewer={view} names={players} onMove={move} active={w < 0 && cur === view} />;
 }
