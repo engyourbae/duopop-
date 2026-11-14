@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal } from '../../../components/ui';
 import { sfx } from '../../../utils/sound';
-import { uno, unoSeed, drawAmt, MERCY_LIMIT, cardColor, cardVal, playable, playMove as unoPlay, MOVE_DRAW, MOVE_PASS as UNO_PASS, COLORS, COLORS_DARK, face, type UnoState } from '../engines/uno';
+import { uno, unoSeed, drawAmt, MERCY_LIMIT, cardColor, cardVal, playable, playMove as unoPlay, MOVE_DRAW, MOVE_PASS as UNO_PASS, rulesText, COLORS, COLORS_DARK, face, type UnoState } from '../engines/uno';
 import { gaple, canPlay, hasMove, pips, startTile, playMove as gaplePlay, MOVE_PASS as GAPLE_PASS, type GapleState } from '../engines/gaple';
 import { monopoly } from '../engines/monopoly';
 import { MonopolyView } from './Monopoly';
@@ -74,6 +74,8 @@ function UnoView({ s, viewer, names, onMove, active }: { s: UnoState; viewer: nu
   const top = s.discard[s.discard.length - 1] as number, hand = s.hands[viewer] as number[];
   const nm = s.mode === 'nomercy', myTurn = active && s.win < 0 && !s.out[viewer], stack = s.pend > 0;
   const dk = s.side === 1, f = (c: number) => face(s, c), pal = dk ? COLORS_DARK : COLORS, ucol = dk ? UCOL_D : UCOL;
+  const jumpOk = s.rules.jump && s.win < 0 && viewer !== s.cur && !s.out[viewer] && s.pend === 0;
+  const same = (c: number) => jumpOk && cardColor(f(top)) !== 4 && f(c) === f(top);
   const tn = names.map((n, i) => (s.out[i] ? `${n} ✕` : n));
   const noPlay = myTurn && !stack && !s.drew && !hand.some((c) => playable(s, c));
   return (
@@ -84,13 +86,15 @@ function UnoView({ s, viewer, names, onMove, active }: { s: UnoState; viewer: nu
           <div className="pile"><div key={anim} className={`ucard-ring pop v${cardVal(f(top))}`} style={{ boxShadow: `0 0 0 5px ${ucol[s.color]}, 0 0 16px 4px ${ucol[s.color]}88` }}><div className={`ucard ${dk ? 'dk' : ''} c${cardColor(f(top))}`}><UFace c={f(top)} dark={dk} /></div></div><small><b style={{ color: '#fff' }}>{pal[s.color]}</b></small></div>
         </div>
         <div className="dirs">{s.dir === 1 ? '↻ searah jarum jam' : '↺ berlawanan arah'}{stack ? ` · Hukuman +${s.pend}` : ''}{nm ? ' · NO MERCY' : ''}{s.mode === 'flip' ? (dk ? ' · SISI GELAP' : ' · SISI TERANG') : ''}</div>
+        {s.mode === 'custom' && <div className="dirs">Aturan: {rulesText(s.rules)}</div>}
         <div className="tlog">{unoLine(s, names)}</div>
       </Table>
-      <div className={`me-bar ${myTurn ? 'turn' : ''}`}>{s.win >= 0 ? `${names[s.win]} menang!` : s.out[viewer] ? `Kamu tersingkir (${MERCY_LIMIT}+ kartu)` : myTurn ? (stack ? `Giliranmu — tumpuk +${s.pt}${nm ? ' atau lebih' : ''} atau ambil ${s.pend} kartu` : 'Giliranmu') : `Giliran ${names[s.cur]}`}{nm && s.win < 0 && !s.out[viewer] ? ` · ${hand.length}/${MERCY_LIMIT} kartu` : ''}</div>
+      <div className={`me-bar ${myTurn ? 'turn' : ''}`}>{s.win >= 0 ? `${names[s.win]} menang!` : s.out[viewer] ? `Kamu tersingkir (${MERCY_LIMIT}+ kartu)` : myTurn ? (stack ? (s.rules.stack ? `Giliranmu — tumpuk +${s.pt}${nm ? ' atau lebih' : ''} atau ambil ${s.pend} kartu` : `Giliranmu — ambil ${s.pend} kartu`) : 'Giliranmu') : `Giliran ${names[s.cur]}`}{nm && s.win < 0 && !s.out[viewer] ? ` · ${hand.length}/${MERCY_LIMIT} kartu` : ''}</div>
       {hand.length === 1 && s.win < 0 && <div className="uno-btn" role="status">UNO!</div>}
-      {myTurn && <div className="row" style={{ justifyContent: 'center' }}><Button size="sm" variant="soft" disabled={!stack && s.drew} onClick={() => onMove(MOVE_DRAW)}>{stack ? `Ambil ${s.pend} kartu` : nm ? 'Ambil sampai cocok' : 'Ambil kartu'}</Button><Button size="sm" variant="ghost" disabled={!s.drew || stack} onClick={() => onMove(UNO_PASS)}>Lewati</Button></div>}
+      {myTurn && <div className="row" style={{ justifyContent: 'center' }}><Button size="sm" variant="soft" disabled={!stack && s.drew} onClick={() => onMove(MOVE_DRAW)}>{stack ? `Ambil ${s.pend} kartu` : s.rules.until ? 'Ambil sampai cocok' : 'Ambil kartu'}</Button><Button size="sm" variant="ghost" disabled={!s.drew || stack} onClick={() => onMove(UNO_PASS)}>Lewati</Button></div>}
       {noPlay && <p className="center small muted">Tidak ada kartu cocok — ambil kartu.</p>}
-      <div key={`h${s.side}`} className="uhand">{hand.map((c, i) => { const ok = myTurn && playable(s, c); return <button key={`${i}-${c}`} className={`ucard deal ${dk ? 'dk' : ''} c${cardColor(f(c))} ${ok ? 'ok' : 'dim'}`} style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }} disabled={!ok} onClick={() => { if (cardColor(f(c)) === 4) setWild(i); else if (nm && cardVal(f(c)) === 7) setSeven(i); else onMove(unoPlay(i)); }} aria-label={`Kartu ${cardName(f(c), dk)}`}><UFace c={f(c)} dark={dk} /></button>; })}</div>
+      {jumpOk && hand.some(same) && <p className="center small muted">Jump-in: tap kartu yang persis sama dengan kartu teratas.</p>}
+      <div key={`h${s.side}`} className="uhand">{hand.map((c, i) => { const ok = (myTurn && playable(s, c)) || same(c); return <button key={`${i}-${c}`} className={`ucard deal ${dk ? 'dk' : ''} c${cardColor(f(c))} ${ok ? 'ok' : 'dim'}`} style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }} disabled={!ok} onClick={() => { if (cardColor(f(c)) === 4) setWild(i); else if (s.rules.seven && cardVal(f(c)) === 7) setSeven(i); else onMove(unoPlay(i)); }} aria-label={`Kartu ${cardName(f(c), dk)}`}><UFace c={f(c)} dark={dk} /></button>; })}</div>
       <Modal open={seven !== null} title="Tukar kartu dengan siapa?" onClose={() => setSeven(null)}>
         <div className="grid">{names.map((n, k) => (k === viewer || s.out[k] ? null : <button key={k} className="opt" onClick={() => { onMove(unoPlay(seven as number, k)); setSeven(null); }}>{n} ({s.hands[k]?.length ?? 0} kartu)</button>))}</div>
       </Modal>
