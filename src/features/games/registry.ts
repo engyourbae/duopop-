@@ -105,7 +105,7 @@ export const gameById = (id: string) => GAMES.find((x) => x.id === id);
 export const GROUP_LABEL = { pasangan: 'Pasangan', pengetahuan: 'Pengetahuan', grup: 'Grup & Pesta', arkade: 'Arkade & Aksi', kartu: 'Kartu & Papan' } as const;
 /** Menerapkan varian (bank/kategori) ke salinan definisi game. */
 export function withVariant(g: GameDef, variantId?: string | null): GameDef {
-  const v = g.variants?.find((x) => x.id === variantId) ?? g.variants?.find((x) => !!variantId && variantId.startsWith(`${x.id}-`)) ?? g.variants?.[0];
-  return v ? { ...g, bank: variantId && variantId.startsWith(`${v.id}-`) ? variantId : v.bank ?? (v.categories ? undefined : g.bank), categories: v.categories, title: g.title } : g;
+  const v = g.variants?.find((x) => x.id === variantId) ?? g.variants?.find((x) => !!variantId && (variantId.startsWith(`${x.id}-`) || variantId.startsWith(`${x.id}@`))) ?? g.variants?.[0];
+  return v ? { ...g, bank: variantId && (variantId.startsWith(`${v.id}-`) || variantId.startsWith(`${v.id}@`)) ? variantId : v.bank ?? (v.categories ? undefined : g.bank), categories: v.categories, title: g.title } : g;
 }
 export const isRoomGame = (g: GameDef) => !!g.multiplayer;
