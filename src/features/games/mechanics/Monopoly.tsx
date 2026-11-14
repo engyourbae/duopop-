@@ -11,6 +11,7 @@ import { botMove } from '../engines/monopolyBot';
 import { CHANCE, CHEST, GROUPS, GROUP_TILES, MARKET, MAX_HOTELS, MAX_HOUSES, MODES, PAWNS, PAWN_NAME, PCOL, TILES, applyBoard, boardTitle, cardText, money, type ModeKey, type Tile } from '../engines/monopolyData';
 import { Banknote, DeckArt, DieFace, HotelArt, HouseArt, MonoIcon, PawnArt, TileIcon } from './MonoArt';
 import type { MechProps } from './types';
+import { cashOf } from './MonoCash';
 
 // ---------- Geometri papan (viewBox 1100) ----------
 const VB = 1100, CORNER = 118, SIDE = 96, BAND = 26;
@@ -198,6 +199,8 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
   const [deed, setDeed] = useState<number | null>(null), [sheet, setSheet] = useState<Sheet>(null), [zoom, setZoom] = useState(1), [confirmBk, setConfirmBk] = useState(false);
   const doneRef = useRef<string[]>(CHALLENGES.filter((c) => c.value(s, viewer) >= c.target).map((c) => c.id));
   const [toastCh, setToastCh] = useState('');
+  const [potShow, setPotShow] = useState(s.pot ?? 0); // jackpot yang ditampilkan mengikuti animasi, bukan langsung status terbaru
+  useEffect(() => { if (!busy) setPotShow(s.pot ?? 0); }, [busy, s.pot]);
   const seen = useRef(s.moves), alive_ = useRef(true), fid = useRef(0), cardRes = useRef<(() => void) | null>(null), mv = useRef(onMove);
   useEffect(() => { mv.current = onMove; });
   useEffect(() => { alive_.current = true; return () => { alive_.current = false; }; }, []);
@@ -231,7 +234,7 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
           case 'jail': await sleep(250); break;
           case 'bankrupt': mono.bankrupt(); await sleep(900); break;
           case 'market': await sleep(1100); break;
-          case 'pot': mono.buy(); await sleep(700); break;
+          case 'pot': setPotShow(0); mono.buy(); await sleep(700); break;
           case 'win': sfx.win(); break;
           default: await sleep(150);
         }
@@ -307,7 +310,7 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
 
   return (
     <div className="mn">
-      <div className="mn-top">{names.map((n, i) => (
+      <div className="mn-top" style={{ paddingTop: 14 }}>{names.map((n, i) => (
         <div key={i} className={`mn-pl ${s.cur === i && s.win < 0 ? 'turn' : ''} ${s.out[i] ? 'out' : ''}`}>
           <PawnArt kind={PAWNS[i % 6] as string} color={PCOL[i % 6] as string} size={30} /><b>{n}</b><span className="cash">{money(s.cash[i] as number)}</span>
           {botTag(i) && <span className="tag">AI</span>}{(s.jail[i] as number) > 0 && <span className="tag" style={{ background: '#f08c00', left: -4, right: 'auto' }}>Penjara</span>}
@@ -316,7 +319,7 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
       <div className="mn-info"><span>Putaran {Math.min(s.round, lim || s.round)}{lim ? ` / ${lim}` : ''} · {MODES[s.mode].label}</span>
         <button className="chip" onClick={() => setZoom(zoom === 1 ? 1.9 : 1)} aria-label="Perbesar papan"><MonoIcon name="zoom" size={14} /> {zoom === 1 ? 'Zoom' : 'Normal'}</button></div>
       {MODES[s.mode].market && s.mk >= 0 && <div className="expl" style={{ marginTop: 6, textAlign: 'center' }}><b>{MARKET[s.mk]?.title}</b> · {MARKET[s.mk]?.desc} <small>(sisa {s.mkLeft} putaran)</small></div>}
-      {MODES[s.mode].pot && <p className="small muted" style={{ textAlign: 'center', margin: '4px 0' }}>Jackpot Parkir Bebas: <b>{money(s.pot)}</b></p>}
+      {MODES[s.mode].pot && <p className="small muted" style={{ textAlign: 'center', margin: '4px 0' }}>Jackpot Parkir Bebas: <b>{money(potShow)}</b></p>}
       <Board s={s} disp={disp} now={disp[cur] as number} warp={warp} hop={hop} tumble={tumble} dice={dice} zoom={zoom} msg={msg} onTile={setDeed} />
       {toastCh && <div className="expl" style={{ marginTop: 8, textAlign: 'center' }}><b>Tantangan selesai: {toastCh}</b></div>}
       {panel}
@@ -396,7 +399,7 @@ export function MonopolyMech({ game, players, seed, onDone }: MechProps) {
   const [pick, setPick] = useState(humans === 1 ? Math.min(2, maxBots) : 0);
   const names = useMemo(() => [...players, ...BOT_NAMES.slice(0, bots ?? 0)], [players, bots]);
   const isBot = useMemo(() => names.map((_, i) => i >= humans), [names, humans]);
-  const mode = game.bank ?? 'klasik';
+  const mode = game.bank ?? 'klasik', baseMode = (mode.split('@')[0] ?? 'klasik') as ModeKey, startCash = cashOf(mode) || (MODES[baseMode]?.cash ?? 1500);
   const engSeed = `${seed}~${mode}`;
   const [s, setS] = useState<MonoState | null>(null);
   const finished = useRef(false);
@@ -411,8 +414,9 @@ export function MonopolyMech({ game, players, seed, onDone }: MechProps) {
   }, [s?.win]); // eslint-disable-line react-hooks/exhaustive-deps
   if (bots === null || !s) return (
     <div className="card mn-setup">
-      <h3>Siapkan Monopoli {boardTitle((mode in MODES ? mode : 'klasik') as ModeKey)}</h3>
-      <p className="small muted">{MODES[mode as keyof typeof MODES]?.desc}</p>
+      <h3>Siapkan Monopoli {boardTitle((baseMode in MODES ? baseMode : 'klasik') as ModeKey)}</h3>
+      <p className="small muted">{MODES[baseMode]?.desc}</p>
+      <p className="small">Uang awal tiap pemain: <b>{money(startCash)}</b></p>
       <p className="small"><b>{humans === 1 ? 'Solo' : humans === 2 ? 'Duo' : 'Squad'}</b>: {humans} pemain manusia{humans > 1 ? ' main bergiliran di satu ponsel' : ''}. Tambah lawan AI bila mau (maksimal total 6 pemain).</p>
       <div className="mn-pick gap"><span className="small">Lawan AI:</span>{Array.from({ length: maxBots + 1 }, (_, k) => k).filter((k) => humans + k >= 2).map((k) => <button key={k} className={`chip ${pick === k ? 'on' : ''}`} onClick={() => setPick(k)}>{k}</button>)}</div>
       <div className="mn-pick gap"><span className="small">Tingkat AI:</span><button className={`chip ${lvl === 0 ? 'on' : ''}`} onClick={() => setLvl(0)}>Santai</button><button className={`chip ${lvl === 1 ? 'on' : ''}`} onClick={() => setLvl(1)}>Cerdas</button></div>
