@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal } from '../../../components/ui';
 import { sfx } from '../../../utils/sound';
-import { uno, cardColor, cardVal, playable, playMove as unoPlay, MOVE_DRAW, MOVE_PASS as UNO_PASS, COLORS, type UnoState } from '../engines/uno';
+import { uno, unoSeed, drawAmt, MERCY_LIMIT, cardColor, cardVal, playable, playMove as unoPlay, MOVE_DRAW, MOVE_PASS as UNO_PASS, COLORS, COLORS_DARK, face, type UnoState } from '../engines/uno';
 import { gaple, canPlay, hasMove, pips, startTile, playMove as gaplePlay, MOVE_PASS as GAPLE_PASS, type GapleState } from '../engines/gaple';
 import { monopoly } from '../engines/monopoly';
 import { MonopolyView } from './Monopoly';
@@ -12,11 +12,12 @@ import { Emo } from '../../../components/Emo';
 
 export const TURN_ENGINES: Record<string, TurnEngine<never>> = { uno: uno as TurnEngine<never>, gaple: gaple as TurnEngine<never>, ladder: ladder as TurnEngine<never>, monopoly: monopoly as TurnEngine<never> };
 const PCOL = ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414'];
-const SYM: Record<number, string> = { 10: '⊘', 11: '⇄', 12: '+2', 13: '★', 14: '+4' };
+const SYM: Record<number, string> = { 10: '⊘', 11: '⇄', 12: '+2', 13: '★', 14: '+4', 15: '+4', 16: '⊘⊘', 17: '✕', 18: '+6', 19: '+10', 20: '◎', 21: '⇄+4', 22: '+5', 23: '⇋', 24: '+1', 25: '+2', 26: '+◎' };
+const NM_NAME: Record<number, string> = { 16: 'Lewati Semua', 17: 'Buang Semua', 20: 'Roulette', 23: 'Flip', 26: 'Tarik Warna' };
 const cardLabel = (c: number) => SYM[cardVal(c)] ?? String(cardVal(c));
 
-const UCOL = ['#e0401f', '#ffc414', '#0f8f5f', '#2a4bff'];
-const cardName = (c: number) => (cardColor(c) === 4 ? (cardVal(c) === 14 ? 'Liar +4' : 'Liar') : `${COLORS[cardColor(c)]} ${cardLabel(c)}`);
+const UCOL = ['#e0401f', '#ffc414', '#0f8f5f', '#2a4bff'], UCOL_D = ['#e0408f', '#0fa8a8', '#f08c00', '#7048e8'];
+const cardName = (c: number, dark = false) => { const base = NM_NAME[cardVal(c)] ?? cardLabel(c); return cardColor(c) === 4 ? (cardVal(c) === 13 ? 'Liar' : `Liar ${base}`) : `${(dark ? COLORS_DARK : COLORS)[cardColor(c)]} ${base}`; };
 
 /** Posisi kursi lawan relatif terhadap pemegang layar: searah jarum jam dari bawah (kiri → atas → kanan). */
 function seatsFor(n: number, viewer: number): { i: number; pos: 'top' | 'left' | 'right' }[] {
@@ -32,49 +33,69 @@ function Seat({ name, count, turn, pos, tile = false }: { name: string; count: n
     </div>
   );
 }
-function Table({ n, viewer, names, counts, cur, tile, children }: { n: number; viewer: number; names: string[]; counts: number[]; cur: number; tile?: boolean; children: React.ReactNode }) {
+function Table({ n, viewer, names, counts, cur, tile, dark, children }: { n: number; viewer: number; names: string[]; counts: number[]; cur: number; tile?: boolean; dark?: boolean; children: React.ReactNode }) {
   const seats = seatsFor(n, viewer), side = seats.some((x) => x.pos !== 'top');
   return (
-    <div className={`ttable ${side ? '' : 'noside'}`}>
+    <div className={`ttable ${side ? '' : 'noside'} ${dark ? 'dkside' : ''}`}>
       {seats.map(({ i, pos }) => <Seat key={i} name={names[i] ?? `P${i + 1}`} count={counts[i] ?? 0} turn={cur === i} pos={pos} tile={tile} />)}
       <div className="tcenter">{children}</div>
     </div>
   );
 }
 
-function UFace({ c, back = false }: { c: number; back?: boolean }) {
+function UFace({ c, back = false, dark = false }: { c: number; back?: boolean; dark?: boolean }) {
   if (back) return <span className="uoval"><b>UNO</b></span>;
   const l = cardLabel(c), v = cardVal(c);
-  return (<><i className="uc tl">{l}</i><span className={`uoval ${cardColor(c) === 4 ? 'wild' : ''}`}><b className={v === 6 || v === 9 ? 'u' : ''}>{l}</b></span><i className="uc br">{l}</i></>);
+  const col = cardColor(c);
+  return (<><i className="uc tl">{l}</i><span className={`uoval ${col === 4 ? 'wild' : ''}`}><b className={`${v === 6 || v === 9 ? 'u' : ''} ${l.length > 2 ? 'sm' : ''}`}>{l}</b></span>{col < 4 && <em className="ucl">{((dark ? COLORS_DARK : COLORS)[col] ?? '').slice(0, 1)}</em>}<i className="uc br">{l}</i></>);
 }
 const unoLine = (s: UnoState, names: string[]) => {
   const l = s.last; if (!l) return 'Permainan dimulai';
   const n = names[l.who] ?? '?';
-  if (l.card >= 0) return `${n} memainkan ${cardName(l.card)}`;
+  if (l.card >= 0) return `${n} memainkan ${cardName(l.card, cardVal(l.card) === 23 ? s.side === 0 : s.side === 1)}`;
   return l.draw > 0 ? `${n} mengambil ${l.draw} kartu` : `${n} melewati giliran`;
 };
 
 function UnoView({ s, viewer, names, onMove, active }: { s: UnoState; viewer: number; names: string[]; onMove: (m: number) => void; active: boolean }) {
   const [wild, setWild] = useState<number | null>(null);
+  const [seven, setSeven] = useState<number | null>(null);
+  const [anim, setAnim] = useState(0);
+  const prev = useRef(s.last), prevOne = useRef(s.hands.some((h) => h.length === 1));
+  useEffect(() => {
+    const l = s.last, one = s.hands.some((h) => h.length === 1);
+    if (l && l !== prev.current) {
+      setAnim((a) => a + 1);
+      const v = l.card >= 0 ? cardVal(l.card) : -1;
+      if (v === 10 || v === 16) sfx.skip(); else if (v === 11 || v === 21 || v === 23) sfx.reverse(); else if ((l.card >= 0 && drawAmt(l.card) > 0) || v === 26 || l.draw > 0) sfx.draw();
+    }
+    if (one && !prevOne.current) setTimeout(() => sfx.uno(), 350);
+    prev.current = l; prevOne.current = one;
+  }, [s.last, s.hands]);
   const top = s.discard[s.discard.length - 1] as number, hand = s.hands[viewer] as number[];
-  const myTurn = active && s.win < 0, stack = s.pend > 0;
+  const nm = s.mode === 'nomercy', myTurn = active && s.win < 0 && !s.out[viewer], stack = s.pend > 0;
+  const dk = s.side === 1, f = (c: number) => face(s, c), pal = dk ? COLORS_DARK : COLORS, ucol = dk ? UCOL_D : UCOL;
+  const tn = names.map((n, i) => (s.out[i] ? `${n} ✕` : n));
   const noPlay = myTurn && !stack && !s.drew && !hand.some((c) => playable(s, c));
   return (
     <div>
-      <Table n={s.n} viewer={viewer} names={names} counts={s.hands.map((h) => h.length)} cur={s.cur}>
+      <Table n={s.n} viewer={viewer} names={tn} counts={s.hands.map((h) => h.length)} cur={s.cur} dark={dk}>
         <div className="pile-row">
           <div className="pile"><div className="ucard back"><UFace c={0} back /></div><small>Tumpukan {s.draw.length}</small></div>
-          <div className="pile"><div className="ucard-ring" style={{ boxShadow: `0 0 0 5px ${UCOL[s.color]}, 0 0 16px 4px ${UCOL[s.color]}88` }}><div className={`ucard c${cardColor(top)}`}><UFace c={top} /></div></div><small><b style={{ color: '#fff' }}>{COLORS[s.color]}</b></small></div>
+          <div className="pile"><div key={anim} className={`ucard-ring pop v${cardVal(f(top))}`} style={{ boxShadow: `0 0 0 5px ${ucol[s.color]}, 0 0 16px 4px ${ucol[s.color]}88` }}><div className={`ucard ${dk ? 'dk' : ''} c${cardColor(f(top))}`}><UFace c={f(top)} dark={dk} /></div></div><small><b style={{ color: '#fff' }}>{pal[s.color]}</b></small></div>
         </div>
-        <div className="dirs">{s.dir === 1 ? '↻ searah jarum jam' : '↺ berlawanan arah'}{stack ? ` · Hukuman +${s.pend}` : ''}</div>
+        <div className="dirs">{s.dir === 1 ? '↻ searah jarum jam' : '↺ berlawanan arah'}{stack ? ` · Hukuman +${s.pend}` : ''}{nm ? ' · NO MERCY' : ''}{s.mode === 'flip' ? (dk ? ' · SISI GELAP' : ' · SISI TERANG') : ''}</div>
         <div className="tlog">{unoLine(s, names)}</div>
       </Table>
-      <div className={`me-bar ${myTurn ? 'turn' : ''}`}>{s.win >= 0 ? `${names[s.win]} menang!` : myTurn ? (stack ? `Giliranmu — tumpuk +${s.pend === 2 ? '2' : '4'} atau ambil ${s.pend} kartu` : 'Giliranmu') : `Giliran ${names[s.cur]}`}{hand.length === 1 && s.win < 0 ? ' · UNO!' : ''}</div>
-      {myTurn && <div className="row" style={{ justifyContent: 'center' }}><Button size="sm" variant="soft" disabled={!stack && s.drew} onClick={() => onMove(MOVE_DRAW)}>{stack ? `Ambil ${s.pend} kartu` : 'Ambil kartu'}</Button><Button size="sm" variant="ghost" disabled={!s.drew || stack} onClick={() => onMove(UNO_PASS)}>Lewati</Button></div>}
+      <div className={`me-bar ${myTurn ? 'turn' : ''}`}>{s.win >= 0 ? `${names[s.win]} menang!` : s.out[viewer] ? `Kamu tersingkir (${MERCY_LIMIT}+ kartu)` : myTurn ? (stack ? `Giliranmu — tumpuk +${s.pt}${nm ? ' atau lebih' : ''} atau ambil ${s.pend} kartu` : 'Giliranmu') : `Giliran ${names[s.cur]}`}{nm && s.win < 0 && !s.out[viewer] ? ` · ${hand.length}/${MERCY_LIMIT} kartu` : ''}</div>
+      {hand.length === 1 && s.win < 0 && <div className="uno-btn" role="status">UNO!</div>}
+      {myTurn && <div className="row" style={{ justifyContent: 'center' }}><Button size="sm" variant="soft" disabled={!stack && s.drew} onClick={() => onMove(MOVE_DRAW)}>{stack ? `Ambil ${s.pend} kartu` : nm ? 'Ambil sampai cocok' : 'Ambil kartu'}</Button><Button size="sm" variant="ghost" disabled={!s.drew || stack} onClick={() => onMove(UNO_PASS)}>Lewati</Button></div>}
       {noPlay && <p className="center small muted">Tidak ada kartu cocok — ambil kartu.</p>}
-      <div className="uhand">{hand.map((c, i) => { const ok = myTurn && playable(s, c); return <button key={i} className={`ucard c${cardColor(c)} ${ok ? 'ok' : 'dim'}`} disabled={!ok} onClick={() => { if (cardColor(c) === 4) setWild(i); else onMove(unoPlay(i)); }} aria-label={`Kartu ${cardName(c)}`}><UFace c={c} /></button>; })}</div>
+      <div key={`h${s.side}`} className="uhand">{hand.map((c, i) => { const ok = myTurn && playable(s, c); return <button key={`${i}-${c}`} className={`ucard deal ${dk ? 'dk' : ''} c${cardColor(f(c))} ${ok ? 'ok' : 'dim'}`} style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }} disabled={!ok} onClick={() => { if (cardColor(f(c)) === 4) setWild(i); else if (nm && cardVal(f(c)) === 7) setSeven(i); else onMove(unoPlay(i)); }} aria-label={`Kartu ${cardName(f(c), dk)}`}><UFace c={f(c)} dark={dk} /></button>; })}</div>
+      <Modal open={seven !== null} title="Tukar kartu dengan siapa?" onClose={() => setSeven(null)}>
+        <div className="grid">{names.map((n, k) => (k === viewer || s.out[k] ? null : <button key={k} className="opt" onClick={() => { onMove(unoPlay(seven as number, k)); setSeven(null); }}>{n} ({s.hands[k]?.length ?? 0} kartu)</button>))}</div>
+      </Modal>
       <Modal open={wild !== null} title="Pilih warna" onClose={() => setWild(null)}>
-        <div className="grid">{COLORS.map((c, k) => <button key={c} className="opt" style={{ background: UCOL[k], color: k === 1 ? '#17140e' : '#fff' }} onClick={() => { onMove(unoPlay(wild as number, k)); setWild(null); }}>{c}</button>)}</div>
+        <div className="grid">{pal.map((c, k) => <button key={c} className="opt" style={{ background: ucol[k], color: !dk && k === 1 ? '#17140e' : '#fff' }} onClick={() => { onMove(unoPlay(wild as number, k)); setWild(null); }}>{c}</button>)}</div>
       </Modal>
     </div>
   );
@@ -228,7 +249,7 @@ export function TurnBoard({ kind, state, viewer, names, onMove, active }: { kind
 /** Permainan giliran satu perangkat: oper ponsel; kartu pemain lain tertutup lewat layar serah. */
 export function TurnMech({ game, players, seed, onDone }: MechProps) {
   const eng = TURN_ENGINES[game.mechanic] as TurnEngine<unknown>;
-  const [s, setS] = useState(() => eng.init(players.length, seed));
+  const [s, setS] = useState(() => eng.init(players.length, game.mechanic === 'uno' ? unoSeed(game.bank, seed) : seed));
   const hidden = game.mechanic !== 'ladder' && players.length > 1;
   const [covered, setCovered] = useState(hidden);
   const done = useRef(false);
