@@ -9,12 +9,16 @@ import type { TurnEngine } from './types';
  */
 export const COLORS = ['Merah', 'Kuning', 'Hijau', 'Biru'];
 export const COLORS_DARK = ['Pink', 'Tosca', 'Oranye', 'Ungu'];
-export type UnoMode = 'classic' | 'nomercy' | 'flip';
+export type UnoMode = 'classic' | 'nomercy' | 'flip' | 'custom';
+/** Aturan aktif. Custom: huruf s=tumpuk, 7=tukar tangan, 0=putar tangan, j=jump-in, d=ambil sampai cocok, b=mulai 10 kartu. */
+export interface UnoRules { stack: boolean; seven: boolean; zero: boolean; jump: boolean; until: boolean; big: boolean }
+export const parseRules = (flags: string): UnoRules => ({ stack: flags.includes('s'), seven: flags.includes('7'), zero: flags.includes('0'), jump: flags.includes('j'), until: flags.includes('d'), big: flags.includes('b') });
+export const rulesText = (r: UnoRules) => [r.stack && 'Tumpuk', r.seven && '7 tukar', r.zero && '0 putar', r.jump && 'Jump-in', r.until && 'Ambil sampai cocok', r.big && 'Mulai 10 kartu'].filter(Boolean).join(' · ') || 'Aturan dasar';
 export const MERCY_LIMIT = 25;
 export const cardColor = (c: number) => Math.floor(c / 32);
 export const cardVal = (c: number) => c % 32;
 /** Mode dibawa lewat seed agar sinkron online (replay) tanpa mengubah antarmuka mesin. */
-export const unoSeed = (bank: string | undefined, seed: string) => (bank === 'nomercy' ? `nm~${seed}` : bank === 'flip' ? `fl~${seed}` : seed);
+export const unoSeed = (bank: string | undefined, seed: string) => (bank === 'nomercy' ? `nm~${seed}` : bank === 'flip' ? `fl~${seed}` : bank?.startsWith('custom') ? `cu~${bank.slice(7)}~${seed}` : seed);
 /** Wajah kartu yang sedang terlihat (kode warna*32+nilai) pada sisi tertentu. Untuk mode non-Flip selalu kartu itu sendiri. */
 export const face = (s: { side: 0 | 1 }, c: number) => (s.side === 1 ? Math.floor(c / 256) : c % 256);
 export function makeDeck(mode: UnoMode = 'classic', r: () => number = Math.random): number[] {
@@ -48,11 +52,11 @@ export function makeDeck(mode: UnoMode = 'classic', r: () => number = Math.rando
 }
 /** Jumlah kartu hukuman yang dibawa sebuah kartu (0 = bukan kartu hukuman). */
 export const drawAmt = (c: number) => { const v = cardVal(c); return v === 24 ? 1 : v === 22 ? 5 : v === 25 ? 2 : v === 12 ? 2 : v === 14 || v === 15 || v === 21 ? 4 : v === 18 ? 6 : v === 19 ? 10 : 0; };
-export interface UnoState { n: number; hands: number[][]; draw: number[]; discard: number[]; cur: number; dir: 1 | -1; color: number; drew: boolean; win: number; seed: string; moves: number; pend: number; last: { who: number; card: number; draw: number } | null; mode: UnoMode; out: boolean[]; pt: number; side: 0 | 1 }
+export interface UnoState { n: number; hands: number[][]; draw: number[]; discard: number[]; cur: number; dir: 1 | -1; color: number; drew: boolean; win: number; seed: string; moves: number; pend: number; last: { who: number; card: number; draw: number } | null; mode: UnoMode; out: boolean[]; pt: number; side: 0 | 1; rules: UnoRules }
 /** Classic: saat ada hukuman menunggu, hanya kartu sejenis yang boleh ditumpuk. No Mercy: boleh menumpuk hukuman yang sama atau lebih besar. */
 export const playable = (s: UnoState, c: number) => {
   const f = face(s, c), topV = cardVal(face(s, s.discard[s.discard.length - 1] as number));
-  if (s.pend > 0) return s.mode === 'nomercy' ? drawAmt(f) >= Math.max(2, s.pt) : s.mode === 'flip' ? drawAmt(f) > 0 && cardVal(f) === topV : (cardVal(f) === 12 || cardVal(f) === 14) && cardVal(f) === topV;
+  if (s.pend > 0) return s.mode === 'nomercy' ? drawAmt(f) >= Math.max(2, s.pt) : !s.rules.stack ? false : s.mode === 'flip' ? drawAmt(f) > 0 && cardVal(f) === topV : (cardVal(f) === 12 || cardVal(f) === 14) && cardVal(f) === topV;
   return cardColor(f) === 4 || cardColor(f) === s.color || cardVal(f) === topV;
 };
 const alive = (s: UnoState) => s.out.filter((x) => !x).length;
@@ -79,13 +83,14 @@ function mercy(s: UnoState, p: number): boolean {
 export const MOVE_DRAW = 1, MOVE_PASS = 2, playMove = (idx: number, color = 0) => 100 + idx * 5 + color;
 export const uno: TurnEngine<UnoState> = {
   init(n, seed) {
-    const mode: UnoMode = seed.startsWith('nm~') ? 'nomercy' : seed.startsWith('fl~') ? 'flip' : 'classic';
+    const mode: UnoMode = seed.startsWith('nm~') ? 'nomercy' : seed.startsWith('fl~') ? 'flip' : seed.startsWith('cu~') ? 'custom' : 'classic';
+    const rules: UnoRules = mode === 'nomercy' ? { stack: true, seven: true, zero: true, jump: false, until: true, big: false } : mode === 'custom' ? parseRules(seed.slice(3, Math.max(3, seed.indexOf('~', 3)))) : { stack: true, seven: false, zero: false, jump: false, until: false, big: false };
     const deck = shuffle(makeDeck(mode, rng(seedFrom(`uno:${seed}:pair`))), rng(seedFrom(`uno:${seed}`)));
-    const hands = Array.from({ length: n }, () => deck.splice(0, 7));
+    const hands = Array.from({ length: n }, () => deck.splice(0, rules.big ? 10 : 7));
     let first = deck.findIndex((c) => cardColor(c % 256) !== 4 && cardVal(c % 256) < 10);
     if (first < 0) first = 0;
     const top = deck.splice(first, 1)[0] as number;
-    return { n, hands, draw: deck, discard: [top], cur: 0, dir: 1, color: cardColor(top % 256), drew: false, win: -1, seed, moves: 0, pend: 0, last: null, mode, out: Array(n).fill(false), pt: 0, side: 0 };
+    return { n, hands, draw: deck, discard: [top], cur: 0, dir: 1, color: cardColor(top % 256), drew: false, win: -1, seed, moves: 0, pend: 0, last: null, mode, out: Array(n).fill(false), pt: 0, side: 0, rules };
   },
   actor: (s) => s.cur,
   winner: (s) => s.win,
@@ -101,7 +106,7 @@ export const uno: TurnEngine<UnoState> = {
       }
       if (s.drew) return null;
       let k = 1;
-      if (nm) k = drawUntil(s, who, (c) => playable(s, c)); else drawCards(s, who, 1);
+      if (s.rules.until) k = drawUntil(s, who, (c) => playable(s, c)); else drawCards(s, who, 1);
       s.drew = true; s.last = { who, card: -1, draw: k };
       if (mercy(s, who)) { if (s.win >= 0) return s; s.cur = next(s, who); s.drew = false; }
       return s;
@@ -112,7 +117,7 @@ export const uno: TurnEngine<UnoState> = {
     if (card === undefined || !playable(s, card)) return null;
     const f = face(s, card), v = cardVal(f), isWild = cardColor(f) === 4;
     if (isWild && chosen > 3) return null;
-    if (nm && v === 7 && !isWild && (chosen >= s.n || chosen === who || s.out[chosen])) return null;
+    if (s.rules.seven && v === 7 && !isWild && (chosen >= s.n || chosen === who || s.out[chosen])) return null;
     hand.splice(idx, 1); s.discard.push(card); s.last = { who, card: f, draw: 0 };
     s.color = isWild ? chosen : cardColor(f);
     if (nm && v === 17) { // buang semua kartu berwarna sama
@@ -126,20 +131,27 @@ export const uno: TurnEngine<UnoState> = {
     if (v === 10) steps = 2;
     else if (v === 11 || (nm && v === 21)) { s.dir = (s.dir === 1 ? -1 : 1); if (alive(s) === 2) steps = 2; }
     if (drawAmt(f) > 0) { s.pend += drawAmt(f); s.pt = drawAmt(f); }
-    if (nm || fl) {
-      if (v === 16) steps = 0; // lewati semua → main lagi
-      else if (nm && v === 7 && !isWild) { const t = s.hands[chosen] as number[]; s.hands[chosen] = hand.slice(); s.hands[who] = t; }
-      else if (nm && v === 0 && !isWild) {
-        const order: number[] = []; let p = who; do { order.push(p); p = next(s, p); } while (p !== who);
-        const old = order.map((i) => s.hands[i] as number[]);
-        order.forEach((_, k) => { s.hands[order[(k + 1) % order.length] as number] = old[k] as number[]; });
-      } else if ((nm && v === 20) || (fl && v === 26)) { // roulette / tarik warna: pemain berikutnya menarik sampai dapat warna pilihan, lalu dilewati
-        const victim = next(s, who); drawUntil(s, victim, (c) => cardColor(face(s, c)) === chosen);
-        mercy(s, victim); if (s.win >= 0) return s;
-        s.cur = next(s, victim); s.drew = false; return s;
-      }
+    if (v === 16 && (nm || fl)) steps = 0; // lewati semua → main lagi
+    else if (s.rules.seven && v === 7 && !isWild) { const t = s.hands[chosen] as number[]; s.hands[chosen] = hand.slice(); s.hands[who] = t; }
+    else if (s.rules.zero && v === 0 && !isWild) {
+      const order: number[] = []; let p = who; do { order.push(p); p = next(s, p); } while (p !== who);
+      const old = order.map((i) => s.hands[i] as number[]);
+      order.forEach((_, k) => { s.hands[order[(k + 1) % order.length] as number] = old[k] as number[]; });
+    } else if ((nm && v === 20) || (fl && v === 26)) { // roulette / tarik warna: pemain berikutnya menarik sampai dapat warna pilihan, lalu dilewati
+      const victim = next(s, who); drawUntil(s, victim, (c) => cardColor(face(s, c)) === chosen);
+      mercy(s, victim); if (s.win >= 0) return s;
+      s.cur = next(s, victim); s.drew = false; return s;
     }
     s.cur = next(s, s.cur, steps); s.drew = false;
     return s;
+  },
+  /** Jump-in (aturan Custom): pemain di luar giliran memainkan kartu yang persis sama (warna & nilai) dengan kartu teratas. */
+  jump(s, p, move) {
+    if (!s.rules.jump || s.win >= 0 || p < 0 || p >= s.n || p === s.cur || s.out[p] || s.pend > 0 || move < 100) return null;
+    const card = (s.hands[p] as number[])[Math.floor((move - 100) / 5)];
+    if (card === undefined) return null;
+    const top = face(s, s.discard[s.discard.length - 1] as number), f = face(s, card);
+    if (cardColor(top) === 4 || f !== top) return null;
+    return uno.apply({ ...s, cur: p, drew: false }, move);
   },
 };
