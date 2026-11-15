@@ -1,6 +1,6 @@
 import { rng, seedFrom } from '../../../utils/rng';
 import { GROUPS, GROUP_TILES, MODES, RAILS, TILES, UTILS, marketPct } from './monopolyData';
-import { BID_STEPS, MV, alive, canBuild, canSell, canUnmortgage, fullSet, monopoly, mvBid, mvBuild, mvMort, mvSell, mvUnmort, ownedBy, rentFor, tradeMove, unmortCost, validTrade, type MonoState } from './monopoly';
+import { BID_STEPS, MV, alive, canBuild, canSell, canUnmortgage, fullSet, monopoly, mvBid, mvBuild, mvForce, mvMort, mvSell, mvUnmort, ownedBy, rentFor, tradeMove, unmortCost, validTrade, type MonoState } from './monopoly';
 /** Nilai sebuah petak bagi pemain p: harga + bonus bila membantu melengkapi set warna. */
 function worth(s: MonoState, p: number, t: number): number {
   const tl = TILES[t]!;
@@ -9,6 +9,14 @@ function worth(s: MonoState, p: number, t: number): number {
   if (tl.kind !== 'prop') return 0;
   const g = GROUP_TILES[tl.group] as number[], mine = g.filter((x) => s.owner[x] === p).length;
   return tl.price * (mine === g.length - 1 ? 2.2 : mine > 0 ? 1.25 : 1);
+}
+/** Uang kurang untuk membeli: jual bangunan / gadai petak lepas (bukan set lengkap, bukan petak incaran) dulu, baru lelang. */
+function raiseCash(s: MonoState, a: number, need: number, keep: number): number {
+  const mine = ownedBy(s, a), loose = mine.filter((t) => t !== keep && !(TILES[t]!.kind === 'prop' && fullSet(s, a, TILES[t]!.group)) && monopoly.apply(s, mvMort(t)) !== null);
+  const pool = loose.reduce((x, t) => x + TILES[t]!.price / 2, 0);
+  if ((s.cash[a] as number) + pool < need) return -1;
+  loose.sort((x, y) => TILES[y]!.price - TILES[x]!.price);
+  return loose.length ? mvMort(loose[0] as number) : -1;
 }
 const round25 = (n: number) => Math.max(25, Math.round(n / 25) * 25);
 
@@ -48,6 +56,7 @@ export function basicMove(s: MonoState, level: 0 | 1 = 1): number {
   if (s.phase === 'buy') {
     const t = s.pos[a] as number, tl = TILES[t]!, key = tl.kind === 'rail' || worth(s, a, t) > tl.price * 1.5;
     if (cash >= tl.price && (cash - tl.price >= reserve || (key && cash - tl.price >= 20))) return MV.BUY;
+    if (key && cash < tl.price + 20) { const m = raiseCash(s, a, tl.price + 20, t); if (m >= 0) return m; }
     return MV.AUCTION;
   }
   // fase roll / end: kelola aset dulu
@@ -140,7 +149,9 @@ export function smartMove(s: MonoState): number {
   }
   if (s.phase === 'buy') {
     const t = s.pos[a] as number, tl = TILES[t] as (typeof TILES)[number], must = worth2(s, a, t) >= tl.price * 1.7;
-    return cash >= tl.price && cash - tl.price >= (must ? 20 : reserveFor(s, a)) ? MV.BUY : MV.AUCTION;
+    if (cash >= tl.price && cash - tl.price >= (must ? 20 : reserveFor(s, a))) return MV.BUY;
+    if (must && cash < tl.price + 20) { const m = raiseCash(s, a, tl.price + 20, t); if (m >= 0) return m; }
+    return MV.AUCTION;
   }
   if (s.phase === 'roll' && (s.jail[a] as number) > 0) {
     const heavy = oppBuildings(s, a) >= 6; // papan berbahaya: lebih aman tetap di penjara
@@ -166,6 +177,16 @@ export function smartMove(s: MonoState): number {
     const full = (t: number) => Number(TILES[t]!.kind === 'prop' && fullSet(s, a, TILES[t]!.group));
     const un = mine.filter((t) => canUnmortgage(s, a, t) && cash - unmortCost(t) >= 300).sort((x, y) => full(y) - full(x));
     if (un.length) return mvUnmort(un[0] as number);
+  }
+  if (!s.tradedTurn && cash > 300 && s.round >= 2 && r() < 0.35) { // beli paksa petak penentu set (pemilik bot lebih murah)
+    for (let g = 0; g < GROUPS.length; g++) {
+      const ts = GROUP_TILES[g] as number[], miss = ts.filter((t) => s.owner[t] !== a);
+      if (ts.filter((t) => s.owner[t] === a).length !== ts.length - 1 || miss.length !== 1) continue;
+      const t = miss[0] as number, q = s.owner[t] as number;
+      if (q < 0 || !alive(s).includes(q) || fullSet(s, q, g)) continue;
+      const k = s.bot?.[q] ? 20 : 28, amt = TILES[t]!.price + k * 25;
+      if (cash - amt >= 120 && ok(mvForce(t, k))) return mvForce(t, k);
+    }
   }
   if (!s.tradedTurn && cash > 200 && r() < 0.4) { // berdagang: tukar atau beli satu petak penentu set
     for (let g = 0; g < GROUPS.length; g++) {
