@@ -120,7 +120,15 @@ service cloud.firestore {
         && request.resource.data.players.keys().hasOnly([request.auth.uid]);
       allow update: if signedIn() && (
         // host mengatur status/ronde
-        (request.auth.uid == resource.data.hostUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'round', 'starts']))
+        (request.auth.uid == resource.data.hostUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'round', 'starts', 'quit']))
+        // pemain menyerah di tengah permainan: hanya menandai dirinya sendiri di 'quit'
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quit'])
+            && resource.data.status == 'playing'
+            && request.auth.uid in resource.data.players.keys()
+            && request.resource.data.quit[request.auth.uid] == true
+            && ('quit' in resource.data
+                ? request.resource.data.quit.diff(resource.data.quit).affectedKeys().hasOnly([request.auth.uid])
+                : request.resource.data.quit.keys().hasOnly([request.auth.uid])))
         // pemain bergabung / keluar: hanya mengubah entri dirinya sendiri
         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players'])
             && request.resource.data.players.diff(resource.data.players).affectedKeys().hasOnly([request.auth.uid])
