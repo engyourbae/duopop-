@@ -7,8 +7,9 @@ import { Scoreboard } from './Quiz';
 import { C4Board } from './C4Board';
 import { c4Winner, dropC4, emptyC4, memoryDeck, tttWinner, type Cell } from '../logic';
 import type { MechProps } from './types';
+import { c4Bot, memoryPick, reflexMs, tttBot, type BotLevel } from '../versusBots';
 
-export function MemoryMech({ players, seed, count, onDone }: MechProps) {
+export function MemoryMech({ players, seed, count, onDone, bots }: MechProps) {
   const deck = useMemo(() => memoryDeck(count, (a) => shuffle(a, rng(seedFrom(seed)))), [count, seed]);
   const [open, setOpen] = useState<number[]>([]);
   const [done, setDone] = useState<Set<number>>(new Set());
@@ -16,8 +17,10 @@ export function MemoryMech({ players, seed, count, onDone }: MechProps) {
   const [scores, setScores] = useState<number[]>(() => players.map(() => 0));
   const [moves, setMoves] = useState(0);
   const lock = useRef(false);
+  const seen = useRef(new Map<number, string>()); // kartu yang pernah terbuka (diingat bot)
   const flip = (i: number) => {
     if (lock.current || open.includes(i) || done.has(i)) return;
+    seen.current.set(i, deck[i] as string);
     const o = [...open, i];
     setOpen(o);
     if (o.length < 2) return;
@@ -37,6 +40,12 @@ export function MemoryMech({ players, seed, count, onDone }: MechProps) {
       setTimeout(() => { setOpen([]); setTurn((t) => (t + 1) % players.length); lock.current = false; }, 900);
     }
   };
+  useEffect(() => { // giliran bot: buka kartu dengan ingatan terbatas
+    if (!bots?.[turn] || lock.current || done.size >= deck.length || open.length >= 2) return;
+    const lv: BotLevel = bots[turn] === 'serius' ? 'serius' : 'santai';
+    const t = setTimeout(() => flip(memoryPick(deck, seen.current, done, open, lv)), 750);
+    return () => clearTimeout(t);
+  }, [turn, open, done]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div>
       <ProgressBar value={done.size / deck.length} />
@@ -44,7 +53,7 @@ export function MemoryMech({ players, seed, count, onDone }: MechProps) {
       <div className="mgrid">
         {deck.map((ic, i) => {
           const shown = open.includes(i) || done.has(i);
-          return <button key={i} className={`mcard ${shown ? 'up' : ''} ${done.has(i) ? 'matched' : ''}`} onClick={() => flip(i)} aria-label={shown ? ic : 'Kartu tertutup'}>{shown ? <Icon name={ic} size={30} /> : <span>?</span>}</button>;
+          return <button key={i} className={`mcard ${shown ? 'up' : ''} ${done.has(i) ? 'matched' : ''}`} onClick={() => { if (!bots?.[turn]) flip(i); }} aria-label={shown ? ic : 'Kartu tertutup'}>{shown ? <Icon name={ic} size={30} /> : <span>?</span>}</button>;
         })}
       </div>
       <div className="gap"><Scoreboard players={players} scores={scores} turn={turn} /></div>
@@ -77,7 +86,7 @@ function ReflexSolo({ count, onDone }: MechProps) {
       {(phase === 'idle' || (phase === 'res' && i + 1 < count)) && <Button size="lg" className="gap" onClick={() => { if (phase === 'res') setI(i + 1); begin(); }}>{phase === 'idle' ? 'Mulai' : 'Berikutnya'}</Button>}</div>
   );
 }
-function ReflexDuel({ players, count, onDone }: MechProps) {
+function ReflexDuel({ players, count, onDone, bots }: MechProps) {
   const [phase, setPhase] = useState<'idle' | 'wait' | 'go' | 'result'>('idle');
   const [round, setRound] = useState(0);
   const [scores, setScores] = useState<[number, number]>([0, 0]);
@@ -100,8 +109,13 @@ function ReflexDuel({ players, count, onDone }: MechProps) {
     if (phase === 'wait') finishRound(p === 0 ? 1 : 0, `${players[p]} menyentuh terlalu cepat! Poin untuk ${players[p === 0 ? 1 : 0]}.`);
     else if (phase === 'go') finishRound(p, `${players[p]} menang! ${Math.round(performance.now() - t0.current)} ms`);
   };
+  useEffect(() => { // bot menyentuh setelah waktu reaksi manusiawi
+    if (phase !== 'go') return;
+    const ts = ([0, 1] as const).filter((p) => bots?.[p]).map((p) => setTimeout(() => tap(p), reflexMs(bots?.[p] === 'serius' ? 'serius' : 'santai')));
+    return () => ts.forEach(clearTimeout);
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
   const half = (p: 0 | 1) => (
-    <button className={`rhalf ${phase === 'go' ? 'go' : phase === 'wait' ? 'wait' : ''}`} style={p === 1 ? { transform: 'rotate(180deg)' } : undefined} onPointerDown={() => tap(p)} aria-label={`Area ${players[p]}`}>
+    <button className={`rhalf ${phase === 'go' ? 'go' : phase === 'wait' ? 'wait' : ''}`} style={p === 1 ? { transform: 'rotate(180deg)' } : undefined} onPointerDown={() => { if (!bots?.[p]) tap(p); }} aria-label={`Area ${players[p]}`}>
       <b>{players[p]}</b><span>{scores[p]}</span>
     </button>
   );
@@ -120,7 +134,7 @@ function ReflexDuel({ players, count, onDone }: MechProps) {
 const Mark = ({ v }: { v: Cell }) => v === 1 ? <svg viewBox="0 0 24 24" width="44" height="44" aria-label="X"><path d="M5 5l14 14M19 5L5 19" stroke="var(--blue)" strokeWidth="4" strokeLinecap="round" /></svg>
   : v === 2 ? <svg viewBox="0 0 24 24" width="44" height="44" aria-label="O"><circle cx="12" cy="12" r="7" fill="none" stroke="var(--red)" strokeWidth="4" /></svg> : null;
 
-export function TicTacToeMech({ players, count, onDone }: MechProps) {
+export function TicTacToeMech({ players, count, onDone, bots }: MechProps) {
   const [board, setBoard] = useState<Cell[]>(Array(9).fill(0) as Cell[]);
   const [round, setRound] = useState(0);
   const [turn, setTurn] = useState<1 | 2>(1);
@@ -136,6 +150,11 @@ export function TicTacToeMech({ players, count, onDone }: MechProps) {
     else if (nb.every(Boolean)) setRes('Seri!');
     else setTurn(turn === 1 ? 2 : 1);
   };
+  useEffect(() => { // giliran bot
+    if (res || !bots?.[turn - 1]) return;
+    const t = setTimeout(() => play(tttBot(board, turn, bots[turn - 1] === 'serius' ? 'serius' : 'santai')), 650);
+    return () => clearTimeout(t);
+  }, [board, turn, res]); // eslint-disable-line react-hooks/exhaustive-deps
   const next = () => {
     if (round + 1 >= count) { onDone({ scores, correct: scores[0] + scores[1], total: count }); return; }
     setRound(round + 1); setBoard(Array(9).fill(0) as Cell[]); setRes(null); setTurn(((round + 1) % 2 === 0 ? 1 : 2));
@@ -144,7 +163,7 @@ export function TicTacToeMech({ players, count, onDone }: MechProps) {
     <div>
       <p className="center muted small">Ronde {round + 1}/{count}</p>
       <p className="center"><b>{res ?? `Giliran ${players[turn - 1]} (${turn === 1 ? 'X' : 'O'})`}</b></p>
-      <div className="ttt">{board.map((v, i) => <button key={i} className={`tcell ${w.line.includes(i) ? 'win' : ''}`} onClick={() => play(i)} aria-label={`Petak ${i + 1}`} disabled={!!res || !!v}><Mark v={v} /></button>)}</div>
+      <div className="ttt">{board.map((v, i) => <button key={i} className={`tcell ${w.line.includes(i) ? 'win' : ''}`} onClick={() => { if (!bots?.[turn - 1]) play(i); }} aria-label={`Petak ${i + 1}`} disabled={!!res || !!v}><Mark v={v} /></button>)}</div>
       {res && <Button size="lg" className="gap" onClick={next}>{round + 1 >= count ? 'Lihat hasil' : 'Ronde berikutnya'}</Button>}
       {!res && full && null}
       <div className="gap"><Scoreboard players={players} scores={scores} turn={res ? undefined : turn - 1} /></div>
@@ -152,7 +171,7 @@ export function TicTacToeMech({ players, count, onDone }: MechProps) {
   );
 }
 
-export function Connect4Mech({ players, count, onDone }: MechProps) {
+export function Connect4Mech({ players, count, onDone, bots }: MechProps) {
   const [board, setBoard] = useState<Cell[]>(emptyC4());
   const [round, setRound] = useState(0);
   const [turn, setTurn] = useState<1 | 2>(1);
@@ -169,6 +188,11 @@ export function Connect4Mech({ players, count, onDone }: MechProps) {
     else if (nb.every(Boolean)) setRes('Papan penuh — seri!');
     else setTurn(turn === 1 ? 2 : 1);
   };
+  useEffect(() => { // giliran bot
+    if (res || !bots?.[turn - 1]) return;
+    const t = setTimeout(() => drop(c4Bot(board, turn, bots[turn - 1] === 'serius' ? 'serius' : 'santai')), 700);
+    return () => clearTimeout(t);
+  }, [board, turn, res]); // eslint-disable-line react-hooks/exhaustive-deps
   const next = () => {
     if (round + 1 >= count) { onDone({ scores, correct: scores[0] + scores[1], total: count }); return; }
     setRound(round + 1); setBoard(emptyC4()); setRes(null); setTurn((round + 1) % 2 === 0 ? 1 : 2);
@@ -179,7 +203,7 @@ export function Connect4Mech({ players, count, onDone }: MechProps) {
       <p className="center"><b>{res ?? `Giliran ${players[turn - 1]}`}</b> {!res && <span className={`disc d${turn}`} style={{ display: 'inline-block', width: 16, height: 16, verticalAlign: 'middle' }} />}</p>
       <p className="center muted small">Ketuk kolom mana saja untuk menjatuhkan cakram. Susun 4 sejajar!</p>
       <p className="center small c4legend"><span className="dot d1" /> {players[0]} <span className="dot d2" /> {players[1]}</p>
-      <C4Board cells={board} winLine={w.cells} onDrop={drop} disabled={!!res} turn={turn} />
+      <C4Board cells={board} winLine={w.cells} onDrop={(c) => { if (!bots?.[turn - 1]) drop(c); }} disabled={!!res || !!bots?.[turn - 1]} turn={turn} />
       {res && <Button size="lg" className="gap" onClick={next}>{round + 1 >= count ? 'Lihat hasil' : 'Ronde berikutnya'}</Button>}
       <div className="gap"><Scoreboard players={players} scores={scores} turn={res ? undefined : turn - 1} /></div>
     </div>
