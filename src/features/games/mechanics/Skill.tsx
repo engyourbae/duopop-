@@ -7,6 +7,7 @@ import { ANAGRAMS, SENTENCES, WORDS5 } from '../../../data/content/words';
 import { buildItems } from '../engine';
 import { PauseBar, Scoreboard } from './Quiz';
 import { TurnRunner } from './Arcade';
+import { botAnswer, buzzPlan, runnerScore, type BotLevel } from '../versusBots';
 import { usePauseSecs } from '../../../hooks/usePause';
 import { LETTERS, type MechProps } from './types';
 
@@ -65,7 +66,7 @@ function Typing({ seed, secs, end }: { seed: string; secs: number; end: (s: numb
       <input className="input" autoFocus value={v} aria-label="Ketik di sini" autoCapitalize="off" autoCorrect="off" spellCheck={false} onChange={(e) => { if (!t0.current) t0.current = Date.now(); setV(e.target.value); if (e.target.value.length >= text.length) fin(e.target.value); }} placeholder="Mulai mengetik…" /></div>
   );
 }
-export function TypingMech(p: MechProps) { return <TurnRunner players={p.players} xpPer={0.05} hint="Ketik kalimat secepat dan seakurat mungkin." onDone={p.onDone} render={(end, i) => <Typing seed={`${p.seed}:${i}`} secs={Math.max(20, p.secs || 45)} end={end} />} />; }
+export function TypingMech(p: MechProps) { return <TurnRunner bots={p.bots} botScore={(i) => runnerScore('typing', p.bots?.[i] === 'serius' ? 'serius' : 'santai', 45)} players={p.players} xpPer={0.05} hint="Ketik kalimat secepat dan seakurat mungkin." onDone={p.onDone} render={(end, i) => <Typing seed={`${p.seed}:${i}`} secs={Math.max(20, p.secs || 45)} end={end} />} />; }
 
 // ---------- Adu Ketuk ----------
 function Tap({ secs, end }: { secs: number; end: (s: number) => void }) {
@@ -73,7 +74,7 @@ function Tap({ secs, end }: { secs: number; end: (s: number) => void }) {
   const left = useCountdown(secs, 'tap', true, () => end(n));
   return (<div className="center"><h2>{n} ketukan</h2><p className="muted">Sisa {Math.ceil(left)} detik</p><button className="tapbig" onPointerDown={() => setN((x) => x + 1)} aria-label="Ketuk">KETUK!</button></div>);
 }
-export function TapMech(p: MechProps) { return <TurnRunner players={p.players} xpPer={0.5} hint={`Ketuk tombol sebanyak mungkin dalam ${p.secs || 10} detik!`} onDone={p.onDone} render={(end) => <Tap secs={p.secs || 10} end={end} />} />; }
+export function TapMech(p: MechProps) { return <TurnRunner bots={p.bots} botScore={(i) => runnerScore('tap', p.bots?.[i] === 'serius' ? 'serius' : 'santai', p.secs || 10)} players={p.players} xpPer={0.5} hint={`Ketuk tombol sebanyak mungkin dalam ${p.secs || 10} detik!`} onDone={p.onDone} render={(end) => <Tap secs={p.secs || 10} end={end} />} />; }
 
 // ---------- Susun Huruf ----------
 function Anagram({ seed, secs, end }: { seed: string; secs: number; end: (s: number) => void }) {
@@ -96,10 +97,10 @@ function Anagram({ seed, secs, end }: { seed: string; secs: number; end: (s: num
       <div className="row gap"><Button variant="ghost" className="grow" onClick={() => setPicked([])}>Ulangi</Button><Button variant="soft" className="grow" onClick={() => { setScore((s) => Math.max(0, s - 20)); setI(i + 1); setPicked([]); }}>Lewati (−20)</Button></div></div>
   );
 }
-export function AnagramMech(p: MechProps) { return <TurnRunner players={p.players} xpPer={0.1} hint={`Susun huruf menjadi kata. Waktu ${p.secs || 60} detik.`} onDone={p.onDone} render={(end, i) => <Anagram seed={`${p.seed}:${i}`} secs={p.secs || 60} end={end} />} />; }
+export function AnagramMech(p: MechProps) { return <TurnRunner bots={p.bots} botScore={(i) => runnerScore('anagram', p.bots?.[i] === 'serius' ? 'serius' : 'santai', p.secs || 60)} players={p.players} xpPer={0.1} hint={`Susun huruf menjadi kata. Waktu ${p.secs || 60} detik.`} onDone={p.onDone} render={(end, i) => <Anagram seed={`${p.seed}:${i}`} secs={p.secs || 60} end={end} />} />; }
 
 // ---------- Kuis Rebutan (buzzer) ----------
-export function BuzzerMech({ game, players, seed, count, onDone }: MechProps) {
+export function BuzzerMech({ game, players, seed, count, onDone, bots }: MechProps) {
   const items = useMemo(() => buildItems(game, count, seed), [game, count, seed]);
   const pause = usePauseSecs();
   const [i, setI] = useState(0), [shown, setShown] = useState(0), [phase, setPhase] = useState<'read' | 'answer' | 'reveal'>('read');
@@ -115,6 +116,21 @@ export function BuzzerMech({ game, players, seed, count, onDone }: MechProps) {
   }, [phase, item]);
   useEffect(() => { if (phase === 'read' && shown > words.length + 18) { setPhase('reveal'); setChosen(null); setBuzz(-1); } }, [shown, phase, words.length]);
   const left = useCountdown(8, `a${i}-${phase}`, phase === 'answer', () => answer(-1), true);
+  const lvl = (k: number): BotLevel => (bots?.[k] === 'serius' ? 'serius' : 'santai');
+  const plans = useRef<Record<string, { at: number | null }>>({});
+  useEffect(() => { // bot menekan bel sesuai rencananya untuk soal ini
+    if (phase !== 'read' || !item || !bots) return;
+    for (let k = 0; k < players.length; k++) {
+      if (!bots[k]) continue;
+      const key = `${i}:${k}`, pl = (plans.current[key] ??= buzzPlan(lvl(k), words.length));
+      if (pl.at !== null && shown >= pl.at) { setBuzz(k); setEarly(shown < words.length); setPhase('answer'); sfx.tick(); break; }
+    }
+  }, [shown, phase, i]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { // bot yang menekan bel menjawab setelah berpikir sebentar
+    if (phase !== 'answer' || !item || buzz < 0 || !bots?.[buzz]) return;
+    const t = setTimeout(() => answer(botAnswer(lvl(buzz), item.correct, item.options.length)), 1200 + Math.random() * 1500);
+    return () => clearTimeout(t);
+  }, [phase, buzz, i]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!item) return null;
   const answer = (c: number) => {
     const ok = c === item.correct, add = ok ? 2 + (early ? 1 : 0) : -1;
@@ -127,7 +143,7 @@ export function BuzzerMech({ game, players, seed, count, onDone }: MechProps) {
       <div className="qbox" style={{ minHeight: 110 }}>{words.slice(0, phase === 'read' ? shown : words.length).join(' ')}{phase === 'read' && shown < words.length ? ' …' : ''}</div>
       {phase === 'answer' && <><p className="center"><b>{players[buzz]}</b> menjawab — {Math.ceil(left)} dtk</p>{item.options.map((o, k) => <button key={k} className="opt" onClick={() => answer(k)}><span className="k">{LETTERS[k]}</span>{o}</button>)}</>}
       {phase === 'reveal' && <><div className="expl"><b>{chosen === null || buzz < 0 ? 'Tidak ada yang menekan bel. ' : chosen === item.correct ? `${players[buzz]} benar! ` : `${players[buzz]} salah. `}</b>Jawaban: {item.options[item.correct]}. {item.explanation}</div><PauseBar key={i} secs={pause} onNext={next} label={i + 1 >= items.length ? 'Selesai' : 'Lanjut'} /></>}
-      {phase === 'read' && <div className="buzzgrid">{players.map((p, k) => <button key={k} className="buzzbtn" style={{ background: ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414'][k % 4], color: k % 4 === 3 ? '#17140e' : '#fff' }} onPointerDown={() => { setBuzz(k); setEarly(shown < words.length); setPhase('answer'); sfx.tick(); }}>{p}<small>BEL</small></button>)}</div>}
+      {phase === 'read' && <div className="buzzgrid">{players.map((p, k) => <button key={k} className="buzzbtn" style={{ background: ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414'][k % 4], color: k % 4 === 3 ? '#17140e' : '#fff' }} onPointerDown={() => { if (bots?.[k]) return; setBuzz(k); setEarly(shown < words.length); setPhase('answer'); sfx.tick(); }}>{p}<small>{bots?.[k] ? 'BOT' : 'BEL'}</small></button>)}</div>}
       <div className="gap"><Scoreboard players={players} scores={scores} turn={buzz >= 0 ? buzz : undefined} /></div></div>
   );
 }
