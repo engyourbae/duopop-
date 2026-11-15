@@ -4,7 +4,7 @@ import { Button, Modal, Select } from '../../../components/ui';
 import { mono } from '../../../utils/monoSound';
 import { sfx } from '../../../utils/sound';
 import {
-  BID_STEPS, CHALLENGES, FINISH_ROUND, MV, alive, canBuild, hotelCount, houseCount, canMortgage, canSell, canUnmortgage, challengeXp, monopoly, netWorth, ownedBy, tradeMove, unmortCost, validTrade,
+  BID_STEPS, CHALLENGES, FINISH_ROUND, FORCE_BOT_MIN, FORCE_MAX, MV, isLocked, mvForce, alive, canBuild, hotelCount, houseCount, canMortgage, canSell, canUnmortgage, challengeXp, monopoly, netWorth, ownedBy, tradeMove, unmortCost, validTrade,
   mvBid, mvBuild, mvMort, mvSell, mvUnmort, type MonoEv, type MonoState,
 } from '../engines/monopoly';
 import { botMove } from '../engines/monopolyBot';
@@ -258,12 +258,6 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
   }, [s.moves, busy, tumble, autoplay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const me = viewer, tile = s.pos[actor] as number, tl = TILES[tile] as Tile, myCash = s.cash[me] as number;
-  // Uang kurang untuk membeli petak kosong → otomatis dilelang (seperti bot), setelah jeda singkat supaya pemain sempat membaca.
-  useEffect(() => {
-    if (!can || s.phase !== 'buy' || myCash >= tl.price) return;
-    const t = setTimeout(() => mv.current(MV.AUCTION), 1300);
-    return () => clearTimeout(t);
-  }, [s.moves, can, s.phase]); // eslint-disable-line react-hooks/exhaustive-deps
   const send = (m: number) => { if (can) mv.current(m); };
   const okMove = (m: number) => monopoly.apply(s, m) !== null;
   const lim = MODES[s.mode].rounds, cur = actor;
@@ -284,7 +278,8 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
     const afford = myCash >= tl.price;
     panel = <div className="mn-act turn"><h4>Beli {tl.name}?</h4><Deed t={tile} s={s} names={names} />
       <div className="mn-row"><Button disabled={!afford} onClick={() => send(MV.BUY)}>Beli {money(tl.price)}</Button><Button variant="soft" onClick={() => send(MV.AUCTION)}>Lelang</Button></div>
-      {!afford && <p className="muted center">Uangmu kurang, petak ini otomatis dilelang…</p>}</div>;
+      {!afford && <div className="mn-row"><Button size="sm" variant="soft" onClick={() => setSheet('aset')}>Jual / gadai aset dulu</Button></div>}
+      {!afford && <p className="muted center">Uangmu kurang {money(tl.price - myCash)}. Jual bangunan atau gadai aset dulu, atau pilih Lelang.</p>}</div>;
   } else if (s.phase === 'auction' && s.auction) {
     const a = s.auction, at = TILES[a.tile] as Tile;
     panel = <div className="mn-act turn"><div className="mn-auc"><small>LELANG · {at.name} (harga {money(at.price)})</small><div className="bid">{money(a.bid)}</div><small>{a.top >= 0 ? `Tertinggi: ${nm(names, a.top)}` : 'Belum ada penawaran'}</small></div>
@@ -365,8 +360,10 @@ function TradeSheet({ s, me, names, onClose, onSend }: { s: MonoState; me: numbe
   const others = alive(s).filter((i) => i !== me);
   const [to, setTo] = useState(others[0] ?? 0), [give, setGive] = useState(-1), [get, setGet] = useState(-1), [cash, setCash] = useState(0);
   const mine = ownedBy(s, me), theirs = ownedBy(s, to);
-  const opt = (ids: number[]) => [{ value: '-1', label: '(tidak ada)' }, ...ids.map((t) => ({ value: String(t), label: `${tn(t)}${s.mort[t] ? ' (gadai)' : ''}` }))];
+  const opt = (ids: number[]) => [{ value: '-1', label: '(tidak ada)' }, ...ids.map((t) => ({ value: String(t), label: `${tn(t)}${s.mort[t] ? ' (gadai)' : ''}${isLocked(s, t) ? ' (terkunci 3 putaran)' : ''}` }))];
   const ok = validTrade(s, me, to, give, get, cash);
+  const botOwner = !!s.bot?.[to], [extra, setExtra] = useState(FORCE_MAX), minX = botOwner ? FORCE_BOT_MIN : FORCE_MAX, ex = Math.min(FORCE_MAX, Math.max(minX, extra));
+  const fk = ex / 25, fp = get >= 0 ? (TILES[get] as Tile).price + ex : 0, forceOk = get >= 0 && monopoly.apply(s, mvForce(get, fk)) !== null;
   return (
     <Modal open title="Ajukan dagang" onClose={onClose}>
       <Select label="Dagang dengan" value={String(to)} options={others.map((i) => ({ value: String(i), label: nm(names, i) }))} onChange={(v) => { setTo(Number(v)); setGet(-1); }} />
@@ -374,6 +371,10 @@ function TradeSheet({ s, me, names, onClose, onSend }: { s: MonoState; me: numbe
       <div className="gap"><Select label="Aku minta" value={String(get)} options={opt(theirs)} onChange={(v) => setGet(Number(v))} /></div>
       <div className="mn-row gap"><Button size="sm" variant="soft" onClick={() => setCash(Math.max(-1000, cash - 25))}>-25</Button><b className="center" style={{ flex: 2 }}>{cash === 0 ? 'Tanpa uang' : cash > 0 ? `Aku bayar ${money(cash)}` : `Aku terima ${money(-cash)}`}</b><Button size="sm" variant="soft" onClick={() => setCash(Math.min(1000, cash + 25))}>+25</Button></div>
       <p className="small muted">Petak yang ada bangunannya tidak bisa didagangkan. {nm(names, to)} akan memilih terima atau tolak.</p>
+      {get >= 0 && <div className="gap"><p className="small"><b>Beli paksa</b> {tn(get)}: harga + {money(ex)} = <b>{money(fp)}</b>. Pemilik tidak bisa menolak.{botOwner ? ' Pemilik bot rela melepas mulai harga + ' + money(FORCE_BOT_MIN) + '.' : ' Pemain manusia: harga tetap maksimal (+' + money(FORCE_MAX) + ').'}</p>
+        {botOwner && <div className="mn-row"><Button size="sm" variant="soft" onClick={() => setExtra(Math.max(minX, ex - 25))}>-25</Button><b className="center" style={{ flex: 2 }}>Tambahan {money(ex)}</b><Button size="sm" variant="soft" onClick={() => setExtra(Math.min(FORCE_MAX, ex + 25))}>+25</Button></div>}
+        <Button size="lg" variant="danger" disabled={!forceOk} onClick={() => onSend(mvForce(get, fk))}>Beli paksa {money(fp)}</Button>
+        {!forceOk && <p className="small muted">Tidak bisa: uang kurang, petak ada bangunan, atau baru dibeli/dijual (terkunci 3 putaran).</p>}</div>}
       <Button size="lg" disabled={!ok} onClick={() => onSend(tradeMove(to, give < 0 ? 40 : give, get < 0 ? 40 : get, Math.abs(cash) / 25, cash < 0))}>Kirim tawaran</Button>
     </Modal>
   );
@@ -421,7 +422,7 @@ export function MonopolyMech({ game, players, seed, onDone }: MechProps) {
       <div className="mn-pick gap"><span className="small">Lawan AI:</span>{Array.from({ length: maxBots + 1 }, (_, k) => k).filter((k) => humans + k >= 2).map((k) => <button key={k} className={`chip ${pick === k ? 'on' : ''}`} onClick={() => setPick(k)}>{k}</button>)}</div>
       <div className="mn-pick gap"><span className="small">Tingkat AI:</span><button className={`chip ${lvl === 0 ? 'on' : ''}`} onClick={() => setLvl(0)}>Santai</button><button className={`chip ${lvl === 1 ? 'on' : ''}`} onClick={() => setLvl(1)}>Cerdas</button></div>
       <div className="mn-pick gap">{Array.from({ length: humans + pick }, (_, i) => <span key={i} title={PAWN_NAME[PAWNS[i % 6] as string]} className="mn-pawnpick"><PawnArt kind={PAWNS[i % 6] as string} color={PCOL[i % 6] as string} size={34} /></span>)}</div>
-      <Button size="lg" className="gap" onClick={() => { const n = Math.max(pick, humans === 1 ? 1 : 0); setBots(n); setS(monopoly.init(humans + n, engSeed)); }}>Mulai</Button>
+      <Button size="lg" className="gap" onClick={() => { const n = Math.max(pick, humans === 1 ? 1 : 0); setBots(n); setS({ ...monopoly.init(humans + n, engSeed), bot: Array.from({ length: humans + n }, (_, i) => i >= humans) }); }}>Mulai</Button>
     </div>
   );
   const actor = monopoly.actor(s), humanActor = actor < humans;
