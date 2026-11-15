@@ -10,6 +10,8 @@ export interface Room {
   code: string; hostUid: string; gameId: string; seed: string; count: number; secs: number; pause?: number; auto?: boolean;
   status: 'lobby' | 'playing' | 'finished'; round: number;
   players: Record<string, { name: string }>; starts: Record<string, Timestamp | null>;
+  /** Pemain yang menyerah/keluar di tengah permainan. */
+  quit?: Record<string, boolean>;
 }
 export interface RoomAnswer { uid: string; round: number; choice: number; at: Timestamp | null; text?: string }
 export interface RoomScore { uid: string; score: number; at: Timestamp | null }
@@ -48,6 +50,17 @@ export async function exitRoom(code: string, uid: string): Promise<void> {
   if (!r.players[uid]) return;
   if (r.hostUid === uid) { await updateDoc(ref, { status: 'finished' }); await cleanupRoom(code); return; }
   if (r.status === 'lobby') await leaveRoom(code, uid);
+}
+/** Menyerah di tengah permainan: pemain ditandai kalah. Bila host yang menyerah, ruang langsung selesai (lawan menang); selain itu host menyelesaikan ruangnya. */
+export async function forfeitRoom(code: string, uid: string): Promise<void> {
+  const ref = doc(db(), 'rooms', code);
+  const s = await getDoc(ref);
+  if (!s.exists()) return;
+  const r = s.data() as Room;
+  if (r.status !== 'playing' || !r.players[uid]) return;
+  const host = r.hostUid === uid;
+  await updateDoc(ref, { [`quit.${uid}`]: true, ...(host ? { status: 'finished' } : {}) });
+  if (host) setTimeout(() => { void cleanupRoom(code).catch(() => undefined); }, 45000);
 }
 export const startRoom = (code: string) => updateDoc(doc(db(), 'rooms', code), { status: 'playing', round: 0, 'starts.0': serverTimestamp() });
 export const nextRound = (code: string, round: number, total: number) =>
