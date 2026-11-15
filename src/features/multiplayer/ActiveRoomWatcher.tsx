@@ -26,7 +26,7 @@ export function ActiveRoomWatcher() {
     void import('../../services/rooms').then((r) => {
       if (dead) return;
       off = r.watchRoom(code, (rm) => {
-        if (!rm || !rm.players[me.uid] || rm.status === 'finished') { if (!window.location.hash.includes('/ruang/')) clearActiveRoom(); setStatus(null); return; }
+        if (!rm || !rm.players[me.uid] || rm.status === 'finished' || rm.quit?.[me.uid]) { if (!window.location.hash.includes('/ruang/')) clearActiveRoom(); setStatus(null); return; }
         setStatus(rm.status);
         if (prev.current === 'lobby' && rm.status === 'playing' && !window.location.hash.includes('/ruang/')) nav(`/ruang/${code}`);
         prev.current = rm.status;
