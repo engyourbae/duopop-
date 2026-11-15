@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Badge, Button, Card, ErrorState, Header, Spinner, useToast } from '../../components/ui';
+import { Badge, Button, Card, ErrorState, Header, Spinner, useConfirm, useToast } from '../../components/ui';
 import { ShareSheet } from '../../components/Share';
 import { RequireAuth } from '../auth/Guards';
 import { useAuth } from '../auth/AuthContext';
@@ -44,6 +44,16 @@ function RoomInner() {
   const { me } = useAuth();
   const nav = useNavigate();
   const toast = useToast();
+  const ask = useConfirm();
+  const iQuit = useRef(false);
+  const leave = () => {
+    void ask({ title: 'Menyerah & keluar?', text: 'Kamu dianggap kalah: pemain lain otomatis menang dan kamu keluar ke lobi.', ok: 'Menyerah & keluar', danger: true }).then(async (y) => {
+      if (!y || !me) return;
+      iQuit.current = true;
+      try { await (await svc()).forfeitRoom(code, me.uid); } catch (e) { iQuit.current = false; toast(explainError(e), 'err'); return; }
+      clearActiveRoom(); nav('/lobi');
+    });
+  };
   const [room, setRoom] = useState<Room | null | undefined>(undefined);
   const [answers, setAnswers] = useState<RoomAnswer[]>([]);
   const [scoreDocs, setScoreDocs] = useState<RoomScore[]>([]);
@@ -76,14 +86,14 @@ function RoomInner() {
   // catat ruang aktif agar pemain yang meminimalkan layar tetap ikut saat host menekan Mulai
   useEffect(() => {
     if (!room || !me) return;
-    if (room.players[me.uid] && room.status !== 'finished') setActiveRoom(code); else clearActiveRoom();
+    if (room.players[me.uid] && room.status !== 'finished' && !room.quit?.[me.uid]) setActiveRoom(code); else clearActiveRoom();
   }, [room?.status, room?.players, me?.uid, code]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- skor per jenis ----
   const board = useMemo(() => (game && kind === 'board' ? replayBoard(game.mechanic as 'tictactoe' | 'connect4', [...lite].sort((a, b) => a.round - b.round)) : null), [lite, game, kind]);
   const turn = useMemo(() => (game && kind === 'turn' && room ? replayTurns(TURN_ENGINES[game.mechanic] as never, uids, (game.mechanic === 'uno' ? unoSeed(game.bank, room.seed) : modeSeed(game, room.seed)), [...lite].sort((a, b) => a.round - b.round || (a.atMs ?? 0) - (b.atMs ?? 0))) : null), [lite, game, kind, room?.seed, uids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
   const turnWin = turn && game ? (TURN_ENGINES[game.mechanic] as unknown as { winner: (s: unknown) => number }).winner(turn.s) : -1;
-  const scores: Record<string, number> = useMemo(() => {
+  const baseScores: Record<string, number> = useMemo(() => {
     if (!room) return {};
     if (kind === 'turn' && game?.mechanic === 'monopoly' && turn) { const sc = monoScores(turn.s as MonoState); return Object.fromEntries(uids.map((u, i) => [u, sc[i] ?? 0])); }
     if (kind === 'turn') return Object.fromEntries(uids.map((u, i) => [u, turnWin === i ? 1 : 0]));
@@ -91,6 +101,13 @@ function RoomInner() {
     if (kind === 'board') return Object.fromEntries(uids.map((u, i) => [u, board?.winner === i + 1 ? 1 : 0]));
     return Object.fromEntries(uids.map((u) => [u, scoreDocs.find((s) => s.uid === u)?.score ?? 0]));
   }, [room, kind, rounds, lite, startsMs, uids, board, scoreDocs, turnWin, turn, game]);
+  // Pemain yang menyerah dihitung kalah (0); saat ruang selesai, pemain lain otomatis menang.
+  const scores: Record<string, number> = useMemo(() => {
+    const q = room?.quit; if (!q || !room) return baseScores;
+    const out = { ...baseScores };
+    for (const u of uids) { if (q[u]) out[u] = 0; else if (room.status === 'finished') out[u] = Math.max(1, out[u] ?? 0); }
+    return out;
+  }, [baseScores, room, uids]);
 
   const finalScores = room?.status === 'finished' ? (frozen.current ?? (Object.keys(scores).length ? (frozen.current = scores) : scores)) : scores;
   // Host membersihkan ruang 45 dtk setelah selesai (atau saat keluar dari layar hasil)
@@ -98,7 +115,7 @@ function RoomInner() {
     if (!room || room.status !== 'finished' || !isHost) return;
     const run = () => { void svc().then((r) => r.cleanupRoom(code)).catch(() => undefined); };
     const t = setTimeout(run, 45000);
-    return () => { clearTimeout(t); run(); };
+    return () => { clearTimeout(t); if (!iQuit.current) run(); };
   }, [room?.status, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
   // ---- otomatis: mulai ruang cepat, selesaikan papan/adu skor ----
   useEffect(() => {
@@ -111,6 +128,17 @@ function RoomInner() {
     if (!room || !isHost || room.status !== 'playing') return;
     if ((kind === 'board' && board?.over) || (kind === 'turn' && turnWin >= 0) || raceAllIn) { const t = setTimeout(() => { void svc().then((r) => r.finishRoom(code)).catch(() => undefined); }, 2200); return () => clearTimeout(t); }
   }, [board?.over, turnWin, raceAllIn, room?.status, isHost, kind]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- ada pemain menyerah: host menyelesaikan ruang (game giliran langsung; lainnya bila tersisa <= 1 pemain) ----
+  const quitIds = Object.keys(room?.quit ?? {}).filter((u) => room?.players[u]);
+  useEffect(() => {
+    if (!room || !isHost || room.status !== 'playing' || !quitIds.length) return;
+    if (kind !== 'turn' && uids.length - quitIds.length > 1) return;
+    const t = setTimeout(() => { void svc().then((r) => r.finishRoom(code)).catch(() => undefined); }, 1200);
+    return () => clearTimeout(t);
+  }, [quitIds.join('|'), room?.status, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
+  // pemain yang sudah menyerah tidak boleh masuk lagi ke ruang ini
+  useEffect(() => { if (room?.quit && me && room.quit[me.uid]) { clearActiveRoom(); nav('/lobi'); } }, [room?.quit, me?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- ronde sinkron ----
   const round = room?.round ?? 0;
@@ -145,7 +173,7 @@ function RoomInner() {
   if (room === null || !me || !game) return <ErrorState text="Ruang tidak ditemukan atau sudah dihapus." onRetry={() => nav('/lobi')} />;
   if (!room.players[me.uid]) return <ErrorState text="Kamu belum bergabung di ruang ini. Buka Lobi lalu masukkan kodenya." onRetry={() => nav(`/lobi/${code}`)} />;
   const link = `${location.origin}${location.pathname}#/lobi/${room.code}`;
-  const ranked = uids.map((u) => ({ uid: u, name: room.players[u]?.name ?? '?', score: finalScores[u] ?? 0 })).sort((a, b) => b.score - a.score);
+  const ranked = uids.map((u) => ({ uid: u, name: `${room.players[u]?.name ?? '?'}${room.quit?.[u] ? ' (menyerah)' : ''}`, score: finalScores[u] ?? 0 })).sort((a, b) => b.score - a.score);
   const act = async (f: () => Promise<unknown>) => { try { await f(); } catch (e) { toast(explainError(e), 'err'); } };
   const myIdx = uids.indexOf(me.uid);
 
@@ -185,10 +213,10 @@ function RoomInner() {
     const M = MECH[game.mechanic] as ((p: MechProps) => ReactElement | null) | undefined;
     const mine = scoreDocs.find((s) => s.uid === me.uid);
     if (!mine && M) return (
-      <div className="page"><Header title={game.title} /><p className="muted small center">Semua pemain memainkan game ini bersamaan. Skor tertinggi menang.</p>
+      <div className="page"><Header title={game.title} back={leave} /><p className="muted small center">Semua pemain memainkan game ini bersamaan. Skor tertinggi menang.</p>
         <M game={game} players={[me.displayName]} seed={room.seed} count={room.count} secs={room.secs || 20} onDone={(o) => void act(async () => (await svc()).submitScore(code, me.uid, o.raceScore ?? o.scores[0] ?? o.correct))} /></div>);
     return (
-      <div className="page"><Header title="Menunggu pemain lain" /><p className="muted center">Skormu terkirim: <b>{mine?.score ?? 0}</b></p>
+      <div className="page"><Header title="Menunggu pemain lain" back={leave} /><p className="muted center">Skormu terkirim: <b>{mine?.score ?? 0}</b></p>
         {ranked.map((p) => <div key={p.uid} className="score-row"><span>{p.name}</span><span>{scoreDocs.some((s) => s.uid === p.uid) ? p.score : 'bermain…'}</span></div>)}
         {isHost && <Button className="gap" variant="soft" onClick={() => void act(async () => (await svc()).finishRoom(code))}>Akhiri sekarang</Button>}</div>);
   }
@@ -196,14 +224,14 @@ function RoomInner() {
     const eng = TURN_ENGINES[game.mechanic] as unknown as { actor: (s: unknown) => number; apply: (s: unknown, m: number) => unknown; jump?: (s: unknown, p: number, m: number) => unknown };
     const active = eng.actor(turn.s) === myIdx && turnWin < 0;
     const onMove = (m: number) => { if (!(active ? eng.apply(turn.s, m) : eng.jump?.(turn.s, myIdx, m))) { if (game.mechanic !== 'uno') sfx.wrong(); return; } if (game.mechanic === 'uno') cardSound(); void act(async () => (await svc()).submitAnswer(code, me.uid, turn.count, m)); };
-    return <div className="page"><Header title={game.title} /><TurnBoard kind={game.mechanic} state={turn.s} viewer={myIdx} names={names} onMove={onMove} active={active} /></div>;
+    return <div className="page"><Header title={game.title} back={leave} /><TurnBoard kind={game.mechanic} state={turn.s} viewer={myIdx} names={names} onMove={onMove} active={active} /></div>;
   }
   if (kind === 'board' && board) {
     const turnUid = uids[board.moves % 2], myTurn = turnUid === me.uid && !board.over;
     const play = (v: number) => { if (!myTurn) return; void act(async () => (await svc()).submitAnswer(code, me.uid, board.moves, v)); };
     const mark = (c: number) => (c === 1 ? 'X' : c === 2 ? 'O' : '');
     return (
-      <div className="page"><Header title={game.title} /><RulesPeek rules={game.rules} defaultOpen />
+      <div className="page"><Header title={game.title} back={leave} /><RulesPeek rules={game.rules} defaultOpen />
         <p className="center"><b>{board.over ? (board.draw ? 'Seri!' : `${names[board.winner - 1]} menang!`) : myTurn ? 'Giliranmu!' : `Giliran ${room.players[turnUid ?? '']?.name ?? ''}`}</b></p>
         <p className="center muted small">{names[0]} = {game.mechanic === 'tictactoe' ? 'X' : 'merah'} · {names[1]} = {game.mechanic === 'tictactoe' ? 'O' : 'kuning'}</p>
         {game.mechanic === 'tictactoe' ? <div className="ttt">{board.cells.map((c, i) => <button key={i} className={`tcell ${board.winLine.includes(i) ? 'win' : ''}`} disabled={!myTurn || !!c} onClick={() => play(i)} aria-label={`Petak ${i + 1}`}><b style={{ fontSize: '2rem', color: c === 1 ? 'var(--blue)' : 'var(--red)' }}>{mark(c)}</b></button>)}</div>
@@ -218,7 +246,7 @@ function RoomInner() {
   const earlier = answers.filter((a) => a.round < round && a.text).sort((a, b) => a.round - b.round).map((a) => a.text as string);
   const nameOf = (u: string) => room.players[u]?.name ?? '?';
   return (
-    <div className="page"><Header title={room.count >= 999 ? `Ronde ${round + 1} · tanpa batas` : `Ronde ${round + 1}/${rounds.length}`} />
+    <div className="page"><Header title={room.count >= 999 ? `Ronde ${round + 1} · tanpa batas` : `Ronde ${round + 1}/${rounds.length}`} back={leave} />
       {isHost && room.count >= 999 && <div className="center"><Button size="sm" variant="ghost" onClick={() => void act(async () => (await svc()).finishRoom(code))}>Akhiri permainan</Button></div>}
       <RulesPeek rules={game.rules} />
       <div className={`timer ${left < 4 ? 'low' : ''}`}><div style={{ width: `${(left / room.secs) * 100}%` }} /></div>
