@@ -3,17 +3,30 @@ import { Button } from '../../../components/ui';
 import { useCountdown } from '../../../hooks/useCountdown';
 import { beep, sfx } from '../../../utils/sound';
 import { STROOP } from '../logic';
+import { runnerScore } from '../versusBots';
 import type { MechProps, Outcome } from './types';
 import { Emo } from '../../../components/Emo';
 
 /** Menjalankan game arkade satu pemain secara bergiliran untuk 1–4 pemain, lalu merangkum skor. */
-export function TurnRunner({ players, hint, xpPer, render, onDone }: { players: string[]; hint: string; xpPer: number; render: (end: (score: number) => void, idx: number) => ReactNode; onDone: (o: Outcome) => void }) {
+export function TurnRunner({ players, hint, xpPer, render, onDone, bots, botScore }: { players: string[]; hint: string; xpPer: number; render: (end: (score: number) => void, idx: number) => ReactNode; onDone: (o: Outcome) => void; bots?: (string | null)[]; botScore?: (idx: number) => number }) {
   const [i, setI] = useState(0);
   const [phase, setPhase] = useState<'ready' | 'play' | 'after'>('ready');
   const [scores, setScores] = useState<number[]>([]);
   const ended = useRef(false);
   const end = useCallback((s: number) => { if (ended.current) return; ended.current = true; setScores((p) => [...p, s]); setPhase('after'); }, []);
   const last = scores[scores.length - 1] ?? 0;
+  const botTurn = !!bots?.[i] && !!botScore;
+  useEffect(() => { // giliran bot: 'bermain' sebentar lalu skornya masuk
+    if (!botTurn || phase !== 'ready') return;
+    const t = setTimeout(() => { ended.current = true; setScores((p) => [...p, (botScore as (n: number) => number)(i)]); setPhase('after'); }, 1300);
+    return () => clearTimeout(t);
+  }, [botTurn, phase, i]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { // setelah skor bot tampil, lanjut ke pemain berikutnya
+    if (!botTurn || phase !== 'after' || i + 1 >= players.length) return;
+    const t = setTimeout(() => { setI(i + 1); setPhase('ready'); }, 1600);
+    return () => clearTimeout(t);
+  }, [botTurn, phase, i, players.length]);
+  if (phase === 'ready' && botTurn) return <div className="card center gap"><div className="avatar" style={{ margin: '0 auto 8px' }}>{(players[i] ?? '?').slice(0, 1).toUpperCase()}</div><h2>{players[i]} sedang bermain…</h2></div>;
   if (phase === 'ready') return (
     <div className="card center gap"><div className="avatar" style={{ margin: '0 auto 8px' }}>{(players[i] ?? '?').slice(0, 1).toUpperCase()}</div>
       <h2>{players.length > 1 ? `Giliran ${players[i]}` : 'Siap?'}</h2><p className="muted">{hint}</p>
@@ -54,7 +67,7 @@ function Whack({ secs, end }: { secs: number; end: (s: number) => void }) {
         </button>))}</div></div>
   );
 }
-export function WhackMech(p: MechProps) { return <TurnRunner players={p.players} xpPer={2} hint={`Ketuk tikus secepatnya. Waktu ${p.secs} detik.`} onDone={p.onDone} render={(end) => <Whack secs={p.secs} end={end} />} />; }
+export function WhackMech(p: MechProps) { return <TurnRunner bots={p.bots} botScore={(i) => runnerScore('whack', p.bots?.[i] === 'serius' ? 'serius' : 'santai', p.secs || 30)} players={p.players} xpPer={2} hint={`Ketuk tikus secepatnya. Waktu ${p.secs} detik.`} onDone={p.onDone} render={(end) => <Whack secs={p.secs} end={end} />} />; }
 
 // ---------- Tebak Warna (Stroop) ----------
 function Stroop({ secs, end }: { secs: number; end: (s: number) => void }) {
