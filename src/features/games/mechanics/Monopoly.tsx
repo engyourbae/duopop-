@@ -362,7 +362,7 @@ function TradeSheet({ s, me, names, onClose, onSend }: { s: MonoState; me: numbe
   const mine = ownedBy(s, me), theirs = ownedBy(s, to);
   const opt = (ids: number[]) => [{ value: '-1', label: '(tidak ada)' }, ...ids.map((t) => ({ value: String(t), label: `${tn(t)}${s.mort[t] ? ' (gadai)' : ''}${isLocked(s, t) ? ' (terkunci 3 putaran)' : ''}` }))];
   const ok = validTrade(s, me, to, give, get, cash);
-  const botOwner = !!s.bot?.[to], [extra, setExtra] = useState(FORCE_MAX), minX = botOwner ? FORCE_BOT_MIN : FORCE_MAX, ex = Math.min(FORCE_MAX, Math.max(minX, extra));
+  const botOwner = !!s.bot?.[to], [extra, setExtra] = useState(FORCE_MAX), [showForce, setShowForce] = useState(false), [sure, setSure] = useState(false), minX = botOwner ? FORCE_BOT_MIN : FORCE_MAX, ex = Math.min(FORCE_MAX, Math.max(minX, extra));
   const fk = ex / 25, fp = get >= 0 ? (TILES[get] as Tile).price + ex : 0, forceOk = get >= 0 && monopoly.apply(s, mvForce(get, fk)) !== null;
   return (
     <Modal open title="Ajukan dagang" onClose={onClose}>
@@ -371,11 +371,14 @@ function TradeSheet({ s, me, names, onClose, onSend }: { s: MonoState; me: numbe
       <div className="gap"><Select label="Aku minta" value={String(get)} options={opt(theirs)} onChange={(v) => setGet(Number(v))} /></div>
       <div className="mn-row gap"><Button size="sm" variant="soft" onClick={() => setCash(Math.max(-1000, cash - 25))}>-25</Button><b className="center" style={{ flex: 2 }}>{cash === 0 ? 'Tanpa uang' : cash > 0 ? `Aku bayar ${money(cash)}` : `Aku terima ${money(-cash)}`}</b><Button size="sm" variant="soft" onClick={() => setCash(Math.min(1000, cash + 25))}>+25</Button></div>
       <p className="small muted">Petak yang ada bangunannya tidak bisa didagangkan. {nm(names, to)} akan memilih terima atau tolak.</p>
-      {get >= 0 && <div className="gap"><p className="small"><b>Beli paksa</b> {tn(get)}: harga + {money(ex)} = <b>{money(fp)}</b>. Pemilik tidak bisa menolak.{botOwner ? ' Pemilik bot rela melepas mulai harga + ' + money(FORCE_BOT_MIN) + '.' : ' Pemain manusia: harga tetap maksimal (+' + money(FORCE_MAX) + ').'}</p>
-        {botOwner && <div className="mn-row"><Button size="sm" variant="soft" onClick={() => setExtra(Math.max(minX, ex - 25))}>-25</Button><b className="center" style={{ flex: 2 }}>Tambahan {money(ex)}</b><Button size="sm" variant="soft" onClick={() => setExtra(Math.min(FORCE_MAX, ex + 25))}>+25</Button></div>}
-        <Button size="lg" variant="danger" disabled={!forceOk} onClick={() => onSend(mvForce(get, fk))}>Beli paksa {money(fp)}</Button>
-        {!forceOk && <p className="small muted">Tidak bisa: uang kurang, petak ada bangunan, atau baru dibeli/dijual (terkunci 3 putaran).</p>}</div>}
       <Button size="lg" disabled={!ok} onClick={() => onSend(tradeMove(to, give < 0 ? 40 : give, get < 0 ? 40 : get, Math.abs(cash) / 25, cash < 0))}>Kirim tawaran</Button>
+      {get >= 0 && <div className="gap">
+        <Button size="sm" variant="ghost" onClick={() => { setShowForce(!showForce); setSure(false); }}>{showForce ? 'Sembunyikan beli paksa ▴' : 'Opsi beli paksa ▾'}</Button>
+        {showForce && <div className="gap"><p className="small"><b>Beli paksa</b> {tn(get)}: harga + {money(ex)} = <b>{money(fp)}</b>. Pemilik tidak bisa menolak.{botOwner ? ' Pemilik bot rela melepas mulai harga + ' + money(FORCE_BOT_MIN) + '.' : ' Pemain manusia: harga tetap maksimal (+' + money(FORCE_MAX) + ').'}</p>
+          {botOwner && <div className="mn-row"><Button size="sm" variant="soft" onClick={() => { setExtra(Math.max(minX, ex - 25)); setSure(false); }}>-25</Button><b className="center" style={{ flex: 2 }}>Tambahan {money(ex)}</b><Button size="sm" variant="soft" onClick={() => { setExtra(Math.min(FORCE_MAX, ex + 25)); setSure(false); }}>+25</Button></div>}
+          {sure ? <div className="mn-row"><Button variant="danger" disabled={!forceOk} onClick={() => onSend(mvForce(get, fk))}>Ya, beli paksa {money(fp)}</Button><Button variant="ghost" onClick={() => setSure(false)}>Batal</Button></div>
+            : <Button size="sm" variant="danger" disabled={!forceOk} onClick={() => setSure(true)}>Beli paksa {money(fp)}</Button>}
+          {!forceOk && <p className="small muted">Tidak bisa: uang kurang, petak ada bangunan, atau baru dibeli/dijual (terkunci 3 putaran).</p>}</div>}</div>}
     </Modal>
   );
 }
