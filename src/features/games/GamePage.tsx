@@ -73,6 +73,8 @@ export const MECH: Record<string, (p: MechProps) => ReactElement | null> = {
   whack: WhackMech, stroop: StroopMech, simon: SimonMech, snake: SnakeMech, flappy: FlappyMech, catch: CatchMech,
 };
 
+/** Game versus yang punya lawan bot di mode solo. */
+const BOT_MECHS = ['uno', 'gaple', 'ladder', 'rps', 'tictactoe', 'connect4', 'reflex', 'buzzer', 'memorymatch', 'typing', 'tapbattle', 'anagram', 'whack'];
 export default function GamePage() {
   const { id = '' } = useParams();
   const game = gameById(id);
@@ -115,8 +117,8 @@ export default function GamePage() {
   }, [game?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!game || !d || !cfg) return <EmptyState icon="search" title="Game tidak ditemukan" action={<Link to="/game"><Button>Lihat semua game</Button></Link>} />;
   const eg = withVariant(game, variant);
-  // UNO solo: pemain 1 manusia, sisanya bot (santai / serius / campur)
-  const botSpec: (string | null)[] = names.map((_, i) => (game.mechanic === 'uno' && bot && i > 0 ? (bot === 'campur' ? (i % 2 === 1 ? 'santai' : 'serius') : bot) : null));
+  // Game bergiliran (UNO, Gaple, Ular Tangga) solo: pemain 1 manusia, sisanya bot (santai / serius / campur)
+  const botSpec: (string | null)[] = names.map((_, i) => (BOT_MECHS.includes(game.mechanic) && bot && i > 0 ? (bot === 'campur' ? (i % 2 === 1 ? 'santai' : 'serius') : bot) : null));
   const playNames = names.map((n, i) => (botSpec[i] ? `Bot ${i} (${botSpec[i]})` : n));
   const daily = game.id === 'harian';
   const quizLike = ['mcq', 'tf', 'era', 'flag'].includes(game.mechanic) && !daily;
@@ -168,10 +170,10 @@ export default function GamePage() {
               {Array.from({ length: game.maxPlayers - game.minPlayers + 1 }, (_, k) => game.minPlayers + k).map((n) => (
                 <button key={n} className={`chip ${names.length === n ? 'on' : ''}`} onClick={() => setNames(Array.from({ length: n }, (_, i) => names[i] ?? `Pemain ${i + 1}`))}>{n}</button>))}
             </div>)}
-          {game.mechanic === 'uno' && (
+          {BOT_MECHS.includes(game.mechanic) && (
             <div className="gap">
               <div className="row wrap gap"><span className="small">Lawan bot:</span>{([['', 'Tanpa bot'], ['santai', 'Bot santai'], ['serius', 'Bot serius'], ['campur', 'Campur']] as const).map(([k, t]) => <button key={k} className={`chip ${bot === k ? 'on' : ''}`} onClick={() => setBot(k)}>{t}</button>)}</div>
-              {bot && <p className="small muted">Kamu pemain 1, pemain lain dimainkan bot. Santai: main acak dan kadang lalai. Serius: menghitung tiap langkah, tapi tetap bisa kamu kalahkan.</p>}
+              {bot && <p className="small muted">Kamu pemain 1, pemain lain dimainkan bot. {game.mechanic === 'ladder' ? 'Ular Tangga murni dadu, jadi santai dan serius sama saja.' : 'Santai: sering salah dan tidak teliti. Serius: lebih cermat, tapi tetap bisa kamu kalahkan.'}</p>}
             </div>)}
           {names.map((n, i) => botSpec[i] ? <p key={i} className="small muted">Pemain {i + 1}: Bot {botSpec[i]}</p> : <label key={i} className="field gap"><span>{game.id === 'tim' ? `Nama tim ${i + 1}` : `Nama pemain ${i + 1}`}</span><input value={n} maxLength={20} onChange={(e) => setN(i, e.target.value)} /></label>)}
           {game.variants && game.variants.length > 1 && (game.variants.length > 6 ? <div className="gap"><Select label="Topik / varian" value={variant} onChange={pickVariant} options={game.variants.map((v) => ({ value: v.id, label: vLabel(v) }))} /></div> : <div className="row wrap gap"><span className="small">Varian:</span>{game.variants.map((v) => <button key={v.id} className={`chip ${variant === v.id || variant.startsWith(`${v.id}-`) || variant.startsWith(`${v.id}@`) ? 'on' : ''}`} onClick={() => pickVariant(v.id)}>{vLabel(v)}</button>)}</div>)}
