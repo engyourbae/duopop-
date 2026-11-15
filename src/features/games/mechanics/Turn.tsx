@@ -272,11 +272,23 @@ export function TurnMech({ game, players, seed, onDone, bots }: MechProps) {
   const view = hidden || humans.length === 1 ? viewer : cur;
   useEffect(() => { if (w >= 0 && !done.current) { done.current = true; if (game.mechanic !== 'uno') sfx.win(); setTimeout(() => onDone({ scores: players.map((_, i) => (i === w ? 1 : 0)), correct: 1, total: 1, headline: `${players[w]} menang!`, xp: 60 }), 1400); } }); // eslint-disable-line react-hooks/exhaustive-deps
   const after = (n: unknown) => { const a = eng.actor(n); if (hidden && eng.winner(n) < 0 && !isBot(a) && a !== viewer) setCovered(true); };
-  // Giliran bot: berpikir sebentar lalu bermain.
+  // Giliran bot: berpikir sebentar lalu bermain (UNO, Gaple, Ular Tangga).
   useEffect(() => {
-    if (covered || w >= 0 || !isBot(cur) || game.mechanic !== 'uno') return;
+    if (covered || w >= 0 || !isBot(cur)) return;
     const lvl = (bots?.[cur] === 'serius' ? 'serius' : 'santai') as BotLevel;
-    const tm = setTimeout(() => { const n = eng.apply(s, unoBot(s as UnoState, lvl)); if (n) { setS(n); after(n); } }, 700 + Math.random() * 700);
+    const pick = (): number | null => {
+      if (game.mechanic === 'uno') return unoBot(s as UnoState, lvl);
+      if (game.mechanic === 'ladder') return MOVE_ROLL;
+      if (game.mechanic === 'gaple') {
+        const g = s as GapleState, hand = g.hands[g.cur] as number[], opts: { m: number; sc: number }[] = [];
+        hand.forEach((t, i) => ([0, 1] as const).forEach((sd) => { if (canPlay(g, t, sd)) { const [a, b] = pips(t); opts.push({ m: gaplePlay(i, sd), sc: a + b + (a === b ? 3 : 0) }); } }));
+        if (!opts.length) return GAPLE_PASS;
+        return lvl === 'serius' ? opts.reduce((x, y) => (y.sc > x.sc ? y : x)).m : (opts[Math.floor(Math.random() * opts.length)] as { m: number }).m;
+      }
+      return null;
+    };
+    const delay = game.mechanic === 'ladder' ? 1900 + Math.random() * 600 : 700 + Math.random() * 700; // ular tangga: tunggu animasi bidak selesai
+    const tm = setTimeout(() => { const m = pick(); if (m === null) return; const n = eng.apply(s, m); if (n) { setS(n); after(n); } }, delay);
     return () => clearTimeout(tm);
   }, [s, covered]); // eslint-disable-line react-hooks/exhaustive-deps
   const move = (m: number) => {
