@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { Button, ProgressBar } from '../../../components/ui';
 import { sfx } from '../../../utils/sound';
 import { rpsOutcome } from '../logic';
+import { rpsBot } from '../versusBots';
 import { Scoreboard } from './Quiz';
 import { Cover } from './Social';
 import type { MechProps } from './types';
@@ -65,10 +66,12 @@ export function RpsArena({ names, picks, streaks, onReveal }: { names: string[];
 }
 
 /** Suit lokal 2–8 pemain: pilih bergantian (layar ditutup), lalu adu tangan beranimasi. */
-export function RpsMech({ players, count, onDone }: MechProps) {
+export function RpsMech({ players, count, onDone, bots }: MechProps) {
+  const humans = players.filter((_, i) => !bots?.[i]).length; // satu manusia + bot: tidak perlu layar serah-terima
   const [round, setRound] = useState(0);
   const [voter, setVoter] = useState(0);
-  const [covered, setCovered] = useState(true);
+  const [covered, setCovered] = useState(humans > 1);
+  const [hist, setHist] = useState<number[][]>([]); // pilihan semua pemain di ronde-ronde yang sudah lewat (untuk bot)
   const [picks, setPicks] = useState<number[]>([]);
   const [scores, setScores] = useState<number[]>(() => players.map(() => 0));
   const [streaks, setStreaks] = useState<number[]>(() => players.map(() => 0));
@@ -77,22 +80,27 @@ export function RpsMech({ players, count, onDone }: MechProps) {
   const revealing = picks.length === players.length;
   const out = revealing ? rpsOutcome(picks) : null;
   const shownScores = revealed && out ? scores.map((v, k) => v + (out.pts[k] ?? 0)) : scores;
-  const choose = (c: number) => { sfx.tick(); setPicks([...picks, c]); setVoter(voter + 1); setCovered(true); };
+  const choose = (c: number) => { sfx.tick(); setPicks([...picks, c]); setVoter(voter + 1); setCovered(humans > 1); };
+  useEffect(() => { // bot memilih setelah jeda singkat, hanya berdasarkan ronde yang sudah lewat
+    if (revealing || !bots?.[voter]) return;
+    const t = setTimeout(() => choose(rpsBot(hist.map((rd) => rd.filter((_, j) => j !== voter)), bots[voter] === 'serius' ? 'serius' : 'santai')), 600);
+    return () => clearTimeout(t);
+  }, [voter, picks.length, round]); // eslint-disable-line react-hooks/exhaustive-deps
   const next = () => {
     if (!out) return;
     const ns = scores.map((v, k) => v + (out.pts[k] ?? 0));
     const nd = decisive + (out.status.includes('win') ? 1 : 0);
     if (round + 1 >= count) { onDone({ scores: ns, correct: nd, total: count, headline: `${nd} dari ${count} ronde ada pemenangnya` }); return; }
     setStreaks(streaks.map((s, k) => (out.status[k] === 'win' ? s + 1 : out.status[k] === 'draw' ? s : 0)));
-    setScores(ns); setDecisive(nd); setRound(round + 1); setVoter(0); setCovered(true); setPicks([]); setRevealed(false);
+    setHist([...hist, picks]); setScores(ns); setDecisive(nd); setRound(round + 1); setVoter(0); setCovered(humans > 1); setPicks([]); setRevealed(false);
   };
   return (
     <div>
       <ProgressBar value={round / count} />
       <p className="muted small gap">Ronde {round + 1}/{count}</p>
       <div className="qbox">{revealing ? 'Adu tangan!' : 'Pilih senjatamu!'}</div>
-      {!revealing && covered && <Cover name={players[voter] ?? ''} onGo={() => setCovered(false)} hint="Pilihanmu disembunyikan dari pemain lain." />}
-      {!revealing && !covered && (
+      {!revealing && covered && !bots?.[voter] && <Cover name={players[voter] ?? ''} onGo={() => setCovered(false)} hint="Pilihanmu disembunyikan dari pemain lain." />}
+      {!revealing && !covered && !bots?.[voter] && (
         <div>
           <p className="center muted small">Giliran <b>{players[voter]}</b> memilih</p>
           <div className="rps-pick">{HANDS.map((h, k) => <button key={k} className="opt rps-opt" onClick={() => choose(k)}><span className="rps-e"><HandArt kind={k} px={64} /></span>{h.n}</button>)}</div>
