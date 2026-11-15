@@ -38,6 +38,7 @@ function Shell() {
     document.documentElement.dataset.accent = p.theme;
     document.documentElement.classList.toggle('no-anim', !p.settings.animations);
   }, [p.settings.theme, p.settings.animations, p.theme]);
+  const inGame = /^\/(game|ruang)\/[^/]+/.test(loc.pathname); // di dalam game: layar penuh, tanpa menu bawah
   const nav: [string, string, string][] = [['/', 'home', 'Beranda'], ['/game', 'grid', 'Game'], ['/teman', 'users', 'Teman'], ['/profil', 'user', 'Profil']];
   return (
     <>
@@ -45,8 +46,8 @@ function Shell() {
       <GlobalWatchers />
       <ActiveRoomWatcher />
       <UpdateBanner />
-      <main className="app"><Suspense fallback={<Spinner />}><Outlet /></Suspense></main>
-      <nav className="nav" aria-label="Navigasi utama"><div className="nav-in">{nav.map(([to, ic, l]) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}><Icon name={ic} /><span>{l}</span></NavLink>)}</div></nav>
+      <main className="app" style={inGame ? { paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' } : undefined}><Suspense fallback={<Spinner />}><Outlet /></Suspense></main>
+      {!inGame && (<nav className="nav" aria-label="Navigasi utama"><div className="nav-in">{nav.map(([to, ic, l]) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}><Icon name={ic} /><span>{l}</span></NavLink>)}</div></nav>)}
     </>
   );
 }
