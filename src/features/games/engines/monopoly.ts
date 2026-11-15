@@ -39,6 +39,10 @@ export interface MonoState {
   dice: [number, number];
   chance: number[]; chest: number[]; ci: number; ki: number;
   auction: Auction | null; trade: Trade | null; debt: Debt | null; tradedTurn: boolean;
+  /** Kunci jual-beli per petak: baru boleh diperjualbelikan lagi saat round >= lock[t]. */
+  lock: number[];
+  /** Opsional (diisi UI): kursi mana yang bot. Pemilik bot lebih murah dibeli paksa. */
+  bot?: boolean[];
   win: number; ev: MonoEv[]; log: MonoEv[]; stats: Stats[];
   /** Mode Bursa: event pasar aktif (-1 = tidak ada), sisa putarannya, dan jackpot Parkir Bebas. */
   mk: number; mkLeft: number; pot: number;
@@ -49,6 +53,13 @@ export const FINISH_ROUND = 40;
 export const mvBuild = (t: number) => 100 + t, mvSell = (t: number) => 200 + t, mvMort = (t: number) => 300 + t, mvUnmort = (t: number) => 400 + t, mvBid = (k: number) => 500 + k;
 export const BID_STEPS = [10, 50, 100];
 export const TRADE_BASE = 1_000_000;
+/** Beli paksa: harga petak + tambahan (maks 700jt untuk pemilik manusia; pemilik bot rela mulai +500jt). */
+export const FORCE_BASE = 2_000_000, FORCE_MAX = 700, FORCE_BOT_MIN = 500, LOCK_ROUNDS = 3;
+export const mvForce = (t: number, k: number) => FORCE_BASE + t * 32 + k; // k = tambahan / 25
+export function decodeForce(m: number): { t: number; k: number } | null {
+  const c = m - FORCE_BASE; if (c < 0) return null; const t = Math.floor(c / 32), k = c % 32; return t < 40 && k <= FORCE_MAX / 25 ? { t, k } : null;
+}
+export const isLocked = (s: MonoState, t: number) => s.round < (s.lock?.[t] ?? 0);
 /** Penawaran dagang dikemas jadi satu bilangan bulat: tujuan, petak diberikan/diminta (40 = tidak ada), uang (kelipatan 25). */
 export function tradeMove(to: number, give: number, get: number, cashStep: number, receive: boolean): number {
   return TRADE_BASE + (((to * 2 + (receive ? 1 : 0)) * 41 + cashStep) * 41 + give) * 41 + get;
@@ -122,8 +133,8 @@ const noBuildings = (s: MonoState, t: number) => { const g = TILES[t]!.group; re
 export function validTrade(s: MonoState, from: number, to: number, give: number, get: number, cash: number): boolean {
   if (from === to || s.out[from] || s.out[to] || to < 0 || to >= s.n) return false;
   if (give < 0 && get < 0 && cash === 0) return false;
-  if (give >= 0 && (s.owner[give] !== from || !noBuildings(s, give))) return false;
-  if (get >= 0 && (s.owner[get] !== to || !noBuildings(s, get))) return false;
+  if (give >= 0 && (s.owner[give] !== from || !noBuildings(s, give) || isLocked(s, give))) return false;
+  if (get >= 0 && (s.owner[get] !== to || !noBuildings(s, get) || isLocked(s, get))) return false;
   if (cash > 0 && (s.cash[from] as number) < cash) return false;
   if (cash < 0 && (s.cash[to] as number) < -cash) return false;
   return true;
@@ -151,7 +162,7 @@ const clone = (s: MonoState): MonoState => ({
   ...s, cash: s.cash.slice(), pos: s.pos.slice(), jail: s.jail.slice(), free: s.free.slice(), out: s.out.slice(),
   owner: s.owner.slice(), lvl: s.lvl.slice(), mort: s.mort.slice(), dice: [s.dice[0], s.dice[1]], ev: [],
   auction: s.auction ? { ...s.auction, passed: s.auction.passed.slice() } : null, trade: s.trade ? { ...s.trade } : null, debt: s.debt ? { ...s.debt } : null,
-  stats: s.stats.map((x) => ({ ...x })), log: s.log.slice(),
+  stats: s.stats.map((x) => ({ ...x })), log: s.log.slice(), lock: (s.lock ?? Array(40).fill(0)).slice(),
 });
 const ev = (s: MonoState, e: MonoEv) => { s.ev.push(e); };
 const nextAlive = (s: MonoState, from: number) => { for (let k = 1; k <= s.n; k++) { const i = (from + k) % s.n; if (!s.out[i]) return i; } return from; };
@@ -289,6 +300,7 @@ function handle(s: MonoState, m: number): boolean {
       if (!validTrade(s, tr.from, tr.to, tr.give, tr.get, tr.cash)) return false;
       if (tr.give >= 0) s.owner[tr.give] = tr.to;
       if (tr.get >= 0) s.owner[tr.get] = tr.from;
+      if (tr.give >= 0) s.lock[tr.give] = s.round + LOCK_ROUNDS; if (tr.get >= 0) s.lock[tr.get] = s.round + LOCK_ROUNDS;
       s.cash[tr.from] = (s.cash[tr.from] as number) - tr.cash; s.cash[tr.to] = (s.cash[tr.to] as number) + tr.cash;
       (s.stats[tr.from] as Stats).trades++; (s.stats[tr.to] as Stats).trades++;
       ev(s, { t: 'trade', from: tr.from, to: tr.to, ok: true, offer: false }); s.phase = tr.back; s.trade = null; return true;
@@ -315,6 +327,16 @@ function handle(s: MonoState, m: number): boolean {
       s.mort[t] = false; s.cash[p] = (s.cash[p] as number) - unmortCost(t); ev(s, { t: 'mort', who: p, tile: t, on: false }); return true;
     }
     return false;
+  }
+  if (m >= FORCE_BASE) { // beli paksa: harga + tambahan, pemilik tidak bisa menolak
+    const d = decodeForce(m); if (!d || (ph !== 'roll' && ph !== 'end')) return false;
+    const tl = TILES[d.t]!, q = s.owner[d.t] as number; if (!isOwnable(tl) || q < 0 || q === p || s.out[q]) return false;
+    if (isLocked(s, d.t) || !noBuildings(s, d.t)) return false;
+    const extra = d.k * 25, minExtra = s.bot?.[q] ? FORCE_BOT_MIN : FORCE_MAX, amt = tl.price + extra;
+    if (extra < minExtra || extra > FORCE_MAX || (s.cash[p] as number) < amt) return false;
+    s.cash[p] = (s.cash[p] as number) - amt; s.cash[q] = (s.cash[q] as number) + amt; s.owner[d.t] = p; s.lock[d.t] = s.round + LOCK_ROUNDS; s.tradedTurn = true;
+    (s.stats[p] as Stats).trades++; (s.stats[q] as Stats).trades++; (s.stats[p] as Stats).bought++;
+    ev(s, { t: 'cash', who: p, amt: -amt }); ev(s, { t: 'cash', who: q, amt }); ev(s, { t: 'trade', from: p, to: q, ok: true, offer: false }); return true;
   }
   if (m >= TRADE_BASE) {
     const d = decodeTrade(m); if (!d || (ph !== 'roll' && ph !== 'end') || !validTrade(s, p, d.to, d.give, d.get, d.cash)) return false;
@@ -365,7 +387,7 @@ export const monopoly: TurnEngine<MonoState> = {
     return {
       n, seed, mode, cash: Array(n).fill(c0), pos: Array(n).fill(0), jail: Array(n).fill(0), free: Array(n).fill(0), out: Array(n).fill(false),
       owner: Array(40).fill(-1), lvl: Array(40).fill(0), mort: Array(40).fill(false), cur: 0, phase: 'roll', dbl: 0, again: false, round: 1, moves: 0, resume: 0, mul: 1,
-      dice: [1, 1], chance: shuffle(ids, r), chest: shuffle(ids, r), ci: 0, ki: 0, auction: null, trade: null, debt: null, tradedTurn: false,
+      dice: [1, 1], chance: shuffle(ids, r), chest: shuffle(ids, r), ci: 0, ki: 0, auction: null, trade: null, debt: null, tradedTurn: false, lock: Array(40).fill(0),
       win: -1, ev: [], log: [], stats: Array.from({ length: n }, () => emptyStats(c0)), mk: -1, mkLeft: 0, pot: 0,
     };
   },
