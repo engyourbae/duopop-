@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import '../../../styles/monopoly.css';
 import { Button, Modal, Select } from '../../../components/ui';
 import { mono } from '../../../utils/monoSound';
@@ -364,22 +364,46 @@ function TradeSheet({ s, me, names, onClose, onSend }: { s: MonoState; me: numbe
   const ok = validTrade(s, me, to, give, get, cash);
   const botOwner = !!s.bot?.[to], [extra, setExtra] = useState(FORCE_MAX), [showForce, setShowForce] = useState(false), [sure, setSure] = useState(false), minX = botOwner ? FORCE_BOT_MIN : FORCE_MAX, ex = Math.min(FORCE_MAX, Math.max(minX, extra));
   const fk = ex / 25, fp = get >= 0 ? (TILES[get] as Tile).price + ex : 0, forceOk = get >= 0 && monopoly.apply(s, mvForce(get, fk)) !== null;
+  const box: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 12, padding: 14, borderRadius: 16, border: '2px solid rgba(0,0,0,.15)', background: 'rgba(255,255,255,.55)' };
+  const full = (node: ReactNode) => <div style={{ display: 'flex' }}>{node}</div>;
   return (
     <Modal open title="Ajukan dagang" onClose={onClose}>
-      <Select label="Dagang dengan" value={String(to)} options={others.map((i) => ({ value: String(i), label: nm(names, i) }))} onChange={(v) => { setTo(Number(v)); setGet(-1); }} />
-      <div className="gap"><Select label="Aku berikan" value={String(give)} options={opt(mine)} onChange={(v) => setGive(Number(v))} /></div>
-      <div className="gap"><Select label="Aku minta" value={String(get)} options={opt(theirs)} onChange={(v) => setGet(Number(v))} /></div>
-      <div className="mn-row gap"><Button size="sm" variant="soft" onClick={() => setCash(Math.max(-1000, cash - 25))}>-25</Button><b className="center" style={{ flex: 2 }}>{cash === 0 ? 'Tanpa uang' : cash > 0 ? `Aku bayar ${money(cash)}` : `Aku terima ${money(-cash)}`}</b><Button size="sm" variant="soft" onClick={() => setCash(Math.min(1000, cash + 25))}>+25</Button></div>
-      <p className="small muted">Petak yang ada bangunannya tidak bisa didagangkan. {nm(names, to)} akan memilih terima atau tolak.</p>
-      <Button size="lg" disabled={!ok} onClick={() => onSend(tradeMove(to, give < 0 ? 40 : give, get < 0 ? 40 : get, Math.abs(cash) / 25, cash < 0))}>Kirim tawaran</Button>
-      {get >= 0 && <div className="gap">
-        <Button size="sm" variant="ghost" onClick={() => { setShowForce(!showForce); setSure(false); }}>{showForce ? 'Sembunyikan beli paksa ▴' : 'Opsi beli paksa ▾'}</Button>
-        {showForce && <div className="gap"><p className="small"><b>Beli paksa</b> {tn(get)}: harga + {money(ex)} = <b>{money(fp)}</b>. Pemilik tidak bisa menolak.{botOwner ? ' Pemilik bot rela melepas mulai harga + ' + money(FORCE_BOT_MIN) + '.' : ' Pemain manusia: harga tetap maksimal (+' + money(FORCE_MAX) + ').'}</p>
-          {botOwner && <div className="mn-row"><Button size="sm" variant="soft" onClick={() => { setExtra(Math.max(minX, ex - 25)); setSure(false); }}>-25</Button><b className="center" style={{ flex: 2 }}>Tambahan {money(ex)}</b><Button size="sm" variant="soft" onClick={() => { setExtra(Math.min(FORCE_MAX, ex + 25)); setSure(false); }}>+25</Button></div>}
-          {sure ? <div className="mn-row"><Button variant="danger" disabled={!forceOk} onClick={() => onSend(mvForce(get, fk))}>Ya, beli paksa {money(fp)}</Button><Button variant="ghost" onClick={() => setSure(false)}>Batal</Button></div>
-            : <Button size="sm" variant="danger" disabled={!forceOk} onClick={() => setSure(true)}>Beli paksa {money(fp)}</Button>}
-          {!forceOk && <p className="small muted">Tidak bisa: uang kurang, petak ada bangunan, atau baru dibeli/dijual (terkunci 3 putaran).</p>}</div>}</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingBottom: 28 }}>
+        <div style={box}>
+          <Select label="Dagang dengan" value={String(to)} options={others.map((i) => ({ value: String(i), label: nm(names, i) }))} onChange={(v) => { setTo(Number(v)); setGet(-1); setShowForce(false); setSure(false); }} />
+          <Select label="Aku berikan" value={String(give)} options={opt(mine)} onChange={(v) => setGive(Number(v))} />
+          <Select label="Aku minta" value={String(get)} options={opt(theirs)} onChange={(v) => { setGet(Number(v)); setSure(false); }} />
+        </div>
+        <div style={box}>
+          <b style={{ fontSize: '.8rem', letterSpacing: '.06em', textTransform: 'uppercase' }}>Uang</b>
+          <TradeStep label={cash === 0 ? 'Tanpa uang' : cash > 0 ? `Aku bayar ${money(cash)}` : `Aku terima ${money(-cash)}`} onMinus={() => setCash(Math.max(-1000, cash - 25))} onPlus={() => setCash(Math.min(1000, cash + 25))} />
+          <p className="small muted" style={{ margin: 0 }}>Petak yang ada bangunannya tidak bisa didagangkan. {nm(names, to)} akan memilih terima atau tolak.</p>
+        </div>
+        {full(<Button size="lg" className="grow" disabled={!ok} onClick={() => onSend(tradeMove(to, give < 0 ? 40 : give, get < 0 ? 40 : get, Math.abs(cash) / 25, cash < 0))}>Kirim tawaran</Button>)}
+        {get >= 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: 12, borderTop: '2px dashed rgba(0,0,0,.18)', paddingTop: 16 }}>
+          {full(<Button size="sm" variant="ghost" className="grow" onClick={() => { setShowForce(!showForce); setSure(false); }}>{showForce ? 'Sembunyikan beli paksa ▴' : 'Opsi beli paksa ▾'}</Button>)}
+          {showForce && <div style={{ ...box, border: '2px solid rgba(220,60,30,.45)', background: 'rgba(220,60,30,.07)' }}>
+            <b>Beli paksa {tn(get)}</b>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}><span className="small muted">Harga + {money(ex)}</span><b style={{ fontSize: '1.3rem' }}>{money(fp)}</b></div>
+            <p className="small muted" style={{ margin: 0 }}>Pemilik tidak bisa menolak.{botOwner ? ' Pemilik bot rela melepas mulai harga + ' + money(FORCE_BOT_MIN) + '.' : ' Pemain manusia: harga tetap maksimal (+' + money(FORCE_MAX) + ').'}</p>
+            {botOwner && <TradeStep label={`Tambahan ${money(ex)}`} onMinus={() => { setExtra(Math.max(minX, ex - 25)); setSure(false); }} onPlus={() => { setExtra(Math.min(FORCE_MAX, ex + 25)); setSure(false); }} />}
+            {sure
+              ? <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>{full(<Button variant="danger" className="grow" disabled={!forceOk} onClick={() => onSend(mvForce(get, fk))}>Ya, beli {money(fp)}</Button>)}{full(<Button variant="ghost" className="grow" onClick={() => setSure(false)}>Batal</Button>)}</div>
+              : full(<Button variant="danger" className="grow" disabled={!forceOk} onClick={() => setSure(true)}>Beli paksa {money(fp)}</Button>)}
+            {!forceOk && <p className="small muted" style={{ margin: 0 }}>Tidak bisa: uang kurang, petak ada bangunan, atau baru dibeli/dijual (terkunci 3 putaran).</p>}
+          </div>}
+        </div>}
+      </div>
     </Modal>
+  );
+}
+function TradeStep({ label, onMinus, onPlus }: { label: string; onMinus: () => void; onPlus: () => void }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '84px 1fr 84px', gap: 10, alignItems: 'center' }}>
+      <div style={{ display: 'flex' }}><Button size="sm" variant="soft" className="grow" onClick={onMinus}>−25</Button></div>
+      <b style={{ textAlign: 'center' }}>{label}</b>
+      <div style={{ display: 'flex' }}><Button size="sm" variant="soft" className="grow" onClick={onPlus}>+25</Button></div>
+    </div>
   );
 }
 
