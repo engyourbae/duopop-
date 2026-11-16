@@ -6,7 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { GAMES, withVariant } from '../games/registry';
 import { defaultsFor } from '../games/GamePage';
 import { UnoRules, isUnoCustom } from '../games/mechanics/UnoRules';
-import { MonoCash, baseOf, cashOf, withCash } from '../games/mechanics/MonoCash';
+import { MonoCash, baseOf, rebase } from '../games/mechanics/MonoCash';
 import { DIFF_LABEL, poolStats } from '../games/engine';
 import type { Difficulty } from '../../types';
 import { useProgress } from '../progression/store';
@@ -91,7 +91,7 @@ function LobbyInner() {
   useEffect(() => { const dd = game ? defaultsFor(game) : null; if (dd) { setCount(dd.count); setSecs(dd.secs || 20); } if (!game?.variants?.some((v) => v.id === variant || variant.startsWith(`${v.id}-`) || variant.startsWith(`${v.id}@`))) setVariant(game?.variants?.[0]?.id ?? ''); setDiff('semua'); }, [gid]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const f = () => setSearching(true); window.addEventListener('duopop:search-again', f); return () => window.removeEventListener('duopop:search-again', f); }, []);
   if (!me || !game || !d) return null;
-  const pickVariant = (id: string) => { setVariant(id === 'custom' ? 'custom-s' : game?.mechanic === 'monopoly' ? withCash(id, cashOf(variant)) : id); setDiff('semua'); };
+  const pickVariant = (id: string) => { setVariant(id === 'custom' ? 'custom-s' : game?.mechanic === 'monopoly' ? rebase(id, variant) : id); setDiff('semua'); };
   const vLabel = (v: { id: string; label: string }) => { const s = statsAll?.[v.id]; return s ? `${v.label} · ${s.unlimited ? 'tanpa batas' : `maks ${s.total} soal`}` : v.label; };
   const fit = Number.isFinite(avail) ? d.counts.filter((c) => c <= avail || c >= 999) : d.counts;
   const shownCounts = fit.length ? fit : [Math.max(1, avail)];
