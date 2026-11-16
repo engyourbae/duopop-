@@ -33,6 +33,8 @@ export type MonoEv =
 
 export interface MonoState {
   n: number; seed: string; mode: ModeKey;
+  /** Batas putaran (0 = tanpa batas, main sampai tinggal satu pemain). Kosong = ikut mode. */
+  limit?: number;
   cash: number[]; pos: number[]; jail: number[]; free: number[]; out: boolean[];
   owner: number[]; lvl: number[]; mort: boolean[];
   cur: number; phase: Phase; dbl: number; again: boolean; round: number; moves: number; resume: number; mul: number;
@@ -72,11 +74,13 @@ export function decodeTrade(m: number): { to: number; give: number; get: number;
   return { to, give: give === 40 ? -1 : give, get: get === 40 ? -1 : get, cash: (receive ? -1 : 1) * step * 25 };
 }
 
+/** Batas putaran efektif: pilihan ruang/permainan, atau bawaan mode (0 = tanpa batas). */
+export const roundLimit = (s: MonoState): number => s.limit ?? MODES[s.mode].rounds;
 export const modeSeed = (g: { mechanic: string; bank?: string }, seed: string) => (g.mechanic === 'monopoly' ? `${seed}~${g.bank ?? 'klasik'}` : seed);
-/** Seed ruang: "<seed>~<mode>" atau "<seed>~<mode>@<uang awal dalam juta>" (uang awal bebas dari mode). */
-const parseSeed = (raw: string): { seed: string; mode: ModeKey; cash?: number } => {
-  const i = raw.lastIndexOf('~'), m = i >= 0 ? raw.slice(i + 1) : '', [mk = '', c = ''] = m.split('@'), cash = Number(c);
-  return { seed: i >= 0 ? raw.slice(0, i) : raw, mode: (mk in MODES ? mk : 'klasik') as ModeKey, cash: c !== '' && Number.isFinite(cash) && cash >= 100 && cash <= 20000 ? Math.round(cash) : undefined };
+/** Seed ruang: "<seed>~<mode>" atau "<seed>~<mode>@<uang awal dalam juta>:<batas putaran, 0 = tanpa batas>" (uang awal dan putaran bebas dari mode). */
+const parseSeed = (raw: string): { seed: string; mode: ModeKey; cash?: number; limit?: number } => {
+  const i = raw.lastIndexOf('~'), m = i >= 0 ? raw.slice(i + 1) : '', [mc = '', rr = ''] = m.split(':'), [mk = '', c = ''] = mc.split('@'), cash = Number(c), lm = Number(rr);
+  return { seed: i >= 0 ? raw.slice(0, i) : raw, mode: (mk in MODES ? mk : 'klasik') as ModeKey, cash: c !== '' && Number.isFinite(cash) && cash >= 100 && cash <= 20000 ? Math.round(cash) : undefined, limit: rr !== '' && Number.isInteger(lm) && lm >= 0 && lm <= 1000 ? lm : undefined };
 };
 export const rollDice = (seed: string, moves: number): [number, number] => {
   const r = rng(seedFrom(`mono:${seed}:${moves}`));
@@ -249,7 +253,7 @@ function nextTurn(s: MonoState, byLimit = false) {
   const nx = nextAlive(s, prev);
   if (nx <= prev) { s.round++; marketTick(s); }
   s.cur = nx; s.dbl = 0; s.again = false; s.tradedTurn = false; s.phase = 'roll'; s.mul = 1;
-  const lim = MODES[s.mode].rounds;
+  const lim = roundLimit(s);
   if (lim > 0 && s.round > lim) finishByWorth(s);
 }
 function finishByWorth(s: MonoState) {
@@ -374,7 +378,7 @@ function handle(s: MonoState, m: number): boolean {
       if (s.resume > 0) { const st = s.resume; s.resume = 0; rollMove(s, p, st); } else afterLand(s);
       return true;
     }
-    case MV.FINISH: if (ph !== 'end' || s.mode !== 'klasik' || s.round < FINISH_ROUND) return false; finishByWorth(s); return true;
+    case MV.FINISH: if (ph !== 'end' || roundLimit(s) !== 0 || s.round < FINISH_ROUND) return false; finishByWorth(s); return true;
     case MV.BANKRUPT: if (ph !== 'debt') return false; bankrupt(s, p); return true;
   }
   return false;
@@ -382,10 +386,10 @@ function handle(s: MonoState, m: number): boolean {
 
 export const monopoly: TurnEngine<MonoState> = {
   init(n, raw) {
-    const { seed, mode, cash: custom } = parseSeed(raw), cfg = MODES[mode], c0 = custom ?? cfg.cash; applyBoard(mode);
+    const { seed, mode, cash: custom, limit } = parseSeed(raw), cfg = MODES[mode], c0 = custom ?? cfg.cash; applyBoard(mode);
     const r = rng(seedFrom(`monodeck:${seed}`)), ids = Array.from({ length: 16 }, (_, i) => i);
     return {
-      n, seed, mode, cash: Array(n).fill(c0), pos: Array(n).fill(0), jail: Array(n).fill(0), free: Array(n).fill(0), out: Array(n).fill(false),
+      n, seed, mode, limit: limit ?? cfg.rounds, cash: Array(n).fill(c0), pos: Array(n).fill(0), jail: Array(n).fill(0), free: Array(n).fill(0), out: Array(n).fill(false),
       owner: Array(40).fill(-1), lvl: Array(40).fill(0), mort: Array(40).fill(false), cur: 0, phase: 'roll', dbl: 0, again: false, round: 1, moves: 0, resume: 0, mul: 1,
       dice: [1, 1], chance: shuffle(ids, r), chest: shuffle(ids, r), ci: 0, ki: 0, auction: null, trade: null, debt: null, tradedTurn: false, lock: Array(40).fill(0),
       win: -1, ev: [], log: [], stats: Array.from({ length: n }, () => emptyStats(c0)), mk: -1, mkLeft: 0, pot: 0,
