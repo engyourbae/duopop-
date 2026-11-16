@@ -8,7 +8,7 @@ import { DIFF_LABEL, poolStats, rankPlayers, xpForResult } from './engine';
 import { gameById, GROUP_LABEL, withVariant } from './registry';
 import { TurnMech } from './mechanics/Turn';
 import { UnoRules, isUnoCustom } from './mechanics/UnoRules';
-import { MonoCash, cashOf, withCash } from './mechanics/MonoCash';
+import { MonoCash, rebase } from './mechanics/MonoCash';
 import { MonopolyMech } from './mechanics/Monopoly';
 import { AnagramMech, BuzzerMech, TapMech, TypingMech, WordleMech } from './mechanics/Skill';
 import { QuizMech, OrderMech, EstimateMech, CluesMech } from './mechanics/Quiz';
@@ -152,7 +152,7 @@ export default function GamePage() {
   if (phase === 'setup') {
     const setN = (i: number, v: string) => setNames(names.map((n, k) => (k === i ? v : n)));
     const canMulti = game.maxPlayers > 1 && !daily && game.id !== 'tim';
-    const pickVariant = (id: string) => { setVariant(id === 'custom' ? 'custom-s' : game.mechanic === 'monopoly' ? withCash(id, cashOf(variant)) : id); setDiff('semua'); };
+    const pickVariant = (id: string) => { setVariant(id === 'custom' ? 'custom-s' : game.mechanic === 'monopoly' ? rebase(id, variant) : id); setDiff('semua'); };
     const vLabel = (v: { id: string; label: string }) => { const s = statsAll?.[v.id]; return s ? `${v.label} · ${s.unlimited ? 'tanpa batas' : `maks ${s.total} soal`}` : v.label; };
     const fit = Number.isFinite(avail) ? d.counts.filter((c) => c <= avail || c >= 999) : d.counts;
     const shownCounts = fit.length ? fit : [Math.max(1, avail)];
