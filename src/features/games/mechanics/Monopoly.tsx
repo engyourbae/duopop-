@@ -4,7 +4,7 @@ import { Button, Modal, Select } from '../../../components/ui';
 import { mono } from '../../../utils/monoSound';
 import { sfx } from '../../../utils/sound';
 import {
-  BID_STEPS, CHALLENGES, FINISH_ROUND, FORCE_BOT_MIN, FORCE_MAX, MV, isLocked, mvForce, alive, canBuild, hotelCount, houseCount, canMortgage, canSell, canUnmortgage, challengeXp, monopoly, netWorth, ownedBy, tradeMove, unmortCost, validTrade,
+  BID_STEPS, CHALLENGES, FINISH_ROUND, FORCE_BOT_MIN, FORCE_MAX, MV, isLocked, mvForce, roundLimit, alive, canBuild, hotelCount, houseCount, canMortgage, canSell, canUnmortgage, challengeXp, monopoly, netWorth, ownedBy, tradeMove, unmortCost, validTrade,
   mvBid, mvBuild, mvMort, mvSell, mvUnmort, type MonoEv, type MonoState,
 } from '../engines/monopoly';
 import { botMove } from '../engines/monopolyBot';
@@ -260,7 +260,7 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
   const me = viewer, tile = s.pos[actor] as number, tl = TILES[tile] as Tile, myCash = s.cash[me] as number;
   const send = (m: number) => { if (can) mv.current(m); };
   const okMove = (m: number) => monopoly.apply(s, m) !== null;
-  const lim = MODES[s.mode].rounds, cur = actor;
+  const lim = roundLimit(s), cur = actor;
   const botTag = (i: number) => !!bots?.[i];
 
   // Panel aksi
@@ -298,7 +298,7 @@ export function MonopolyView({ s, viewer, names, onMove, active, bots, autoplay 
   } else {
     panel = <div className="mn-act turn"><h4>Selesaikan giliranmu</h4><p className="muted">Bangun, gadai, atau berdagang dulu bila perlu.</p>
       <Button size="lg" onClick={() => send(MV.END)}>Selesai Giliran</Button>
-      {s.mode === 'klasik' && s.round >= FINISH_ROUND && <Button size="sm" variant="ghost" onClick={() => send(MV.FINISH)}>Akhiri game & hitung kekayaan</Button>}</div>;
+      {lim === 0 && s.round >= FINISH_ROUND && <Button size="sm" variant="ghost" onClick={() => send(MV.FINISH)}>Akhiri game & hitung kekayaan</Button>}</div>;
   }
   const manage = can && ['roll', 'end', 'buy', 'debt'].includes(s.phase), tradeOk = can && (s.phase === 'roll' || s.phase === 'end') && alive(s).length > 1;
   const tileHint = (t: number): string => { const k = (TILES[t] as Tile).kind; return k === 'go' ? 'Lewati MULAI untuk menerima gaji.' : k === 'jail' ? 'Sekadar lewat bila tidak sedang ditahan.' : k === 'park' ? (MODES[s.mode].pot ? `Ambil jackpot Parkir Bebas (sekarang ${money(s.pot)}). Pajak dan denda masuk ke sini.` : 'Istirahat. Tidak terjadi apa-apa.') : k === 'gojail' ? 'Mendarat di sini = langsung masuk penjara.' : k === 'tax' ? `Bayar ${money(t === 4 ? 200 : 100)} ke bank.` : k === 'chance' ? 'Ambil satu kartu Kejutan.' : 'Ambil satu kartu Kas Warga.'; };
