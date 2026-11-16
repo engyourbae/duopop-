@@ -1,6 +1,6 @@
 import { rng, seedFrom } from '../../../utils/rng';
 import { GROUPS, GROUP_TILES, MODES, RAILS, TILES, UTILS, marketPct } from './monopolyData';
-import { BID_STEPS, MV, alive, canBuild, canSell, canUnmortgage, fullSet, monopoly, mvBid, mvBuild, mvForce, mvMort, mvSell, mvUnmort, ownedBy, rentFor, tradeMove, unmortCost, validTrade, type MonoState } from './monopoly';
+import { BID_STEPS, MV, alive, canBuild, canSell, canUnmortgage, fullSet, monopoly, mvBid, mvBuild, mvForce, roundLimit, mvMort, mvSell, mvUnmort, ownedBy, rentFor, tradeMove, unmortCost, validTrade, type MonoState } from './monopoly';
 /** Nilai sebuah petak bagi pemain p: harga + bonus bila membantu melengkapi set warna. */
 function worth(s: MonoState, p: number, t: number): number {
   const tl = TILES[t]!;
@@ -119,7 +119,7 @@ export function smartMove(s: MonoState): number {
   const a = monopoly.actor(s), r = rng(seedFrom(`bot:${s.seed}:${s.moves}`)), cash = s.cash[a] as number;
   const ok = (m: number) => monopoly.apply(s, m) !== null;
   const first = (c: number[], fb: number) => c.find(ok) ?? fb;
-  const mine = ownedBy(s, a), lim = MODES[s.mode].rounds, left = lim > 0 ? lim - s.round : 99;
+  const mine = ownedBy(s, a), lim = roundLimit(s), left = lim > 0 ? lim - s.round : 99;
 
   if (s.phase === 'auction' && s.auction) {
     const au = s.auction, v = worth2(s, a, au.tile) * 1.05, picks: number[] = [];
