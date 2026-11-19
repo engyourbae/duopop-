@@ -92,10 +92,13 @@ export const JAIL_FEE = 50, JAIL_POS = 10, MAX_HOUSES = 32, MAX_HOTELS = 12;
 export const PCOL = ['#e0401f', '#2a4bff', '#0f8f5f', '#ffc414', '#9c36b5', '#12b5cb'];
 export const PAWNS = ['becak', 'pinisi', 'garuda', 'motor', 'kucing', 'tumpeng'] as const;
 export const PAWN_NAME: Record<string, string> = { becak: 'Becak', pinisi: 'Kapal Pinisi', garuda: 'Garuda', motor: 'Motor', kucing: 'Kucing', tumpeng: 'Tumpeng' };
-/** Satuan dasar = juta rupiah. 1.000 juta = 1 M (miliar), 1.000.000 juta = 1 T (triliun). */
+/** Batas uang awal yang boleh diisi bebas (dalam juta): Rp100jt sampai 1.000 Kd. */
+export const CASH_MIN = 100, CASH_MAX = 1_000_000_000_000;
+/** Satuan dasar = juta rupiah. 1.000 juta = 1 M (miliar), 1.000.000 juta = 1 T (triliun), 1.000.000.000 juta = 1 Kd (kuadriliun). */
 export const money = (n: number): string => {
   const a = Math.abs(n), sign = n < 0 ? '-' : '';
   const f = (v: number) => v.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+  if (a >= 1_000_000_000) return `${sign}Rp${f(a / 1_000_000_000)} Kd`;
   if (a >= 1_000_000) return `${sign}Rp${f(a / 1_000_000)} T`;
   if (a >= 1000) return `${sign}Rp${f(a / 1000)} M`;
   return `${sign}Rp${f(a)}jt`;
