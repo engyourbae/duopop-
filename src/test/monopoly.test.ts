@@ -4,6 +4,7 @@ import { replayTurns } from '../features/games/engines/types';
 import { TILES, GROUPS, CHANCE, CHEST, GROUP_TILES, MODES, MARKET, cardText, money } from '../features/games/engines/monopolyData';
 import { GAMES, gameById, withVariant } from '../features/games/registry';
 import { roomCapacity, roomKind } from '../features/multiplayer/rounds';
+import { parseAmount, toJuta, fromJuta, withCash, cashOf } from '../features/games/mechanics/MonoCash';
 
 const fresh = (n = 3, mode = 'klasik', seed = 't') => monopoly.init(n, `${seed}~${mode}`);
 const patch = (s: MonoState, p: Partial<MonoState>): MonoState => ({ ...s, cash: s.cash.slice(), pos: s.pos.slice(), jail: s.jail.slice(), free: s.free.slice(), owner: s.owner.slice(), lvl: s.lvl.slice(), mort: s.mort.slice(), ...p });
@@ -132,6 +133,26 @@ describe('format uang', () => {
   it('juta, miliar, triliun', () => {
     expect(money(60)).toBe('Rp60jt'); expect(money(1000)).toBe('Rp1 M'); expect(money(1500)).toBe('Rp1,5 M'); expect(money(3000)).toBe('Rp3 M');
     expect(money(1050)).toBe('Rp1,05 M'); expect(money(2000000)).toBe('Rp2 T'); expect(money(-250)).toBe('-Rp250jt');
+  });
+});
+
+describe('uang awal bebas (JT, M, T, Kd)', () => {
+  it('seed membawa uang awal bebas; di luar batas kembali ke bawaan mode', () => {
+    expect(monopoly.init(2, 'x~klasik@2500').cash).toEqual([2500, 2500]);
+    expect(monopoly.init(2, 'x~bursa@5000000:50').cash[0]).toBe(5000000); expect(monopoly.init(2, 'x~bursa@5000000:50').limit).toBe(50);
+    expect(monopoly.init(2, 'x~klasik@1000000000').cash[0]).toBe(1000000000);
+    expect(monopoly.init(2, 'x~klasik@50').cash[0]).toBe(1500); expect(monopoly.init(2, 'x~klasik@2000000000000').cash[0]).toBe(1500);
+    expect(monopoly.init(2, 'x~klasik@2500').stats[0]!.maxCash).toBe(2500);
+  });
+  it('isian angka dan satuan menjadi juta rupiah', () => {
+    expect(parseAmount('2,5')).toBe(2.5); expect(parseAmount('2.5')).toBe(2.5); expect(parseAmount('1.500')).toBe(1500); expect(parseAmount('1.500,5')).toBe(1500.5);
+    expect(parseAmount('')).toBeNull(); expect(parseAmount('abc')).toBeNull(); expect(parseAmount('0')).toBeNull(); expect(parseAmount('-3')).toBeNull(); expect(parseAmount('1,')).toBe(1);
+    expect(toJuta(750, 'jt')).toBe(750); expect(toJuta(2.5, 'm')).toBe(2500); expect(toJuta(1.5, 't')).toBe(1500000); expect(toJuta(0.5, 'kd')).toBe(500000000);
+    expect(fromJuta(500)).toEqual({ text: '500', unit: 'jt' }); expect(fromJuta(1500)).toEqual({ text: '1,5', unit: 'm' }); expect(fromJuta(2000000)).toEqual({ text: '2', unit: 't' });
+  });
+  it('varian membawa uang awal dan format uang sampai kuadriliun', () => {
+    expect(withCash('klasik', 2500)).toBe('klasik@2500'); expect(withCash('bursa@1000:50', 2500)).toBe('bursa@2500:50'); expect(cashOf('klasik@2500')).toBe(2500);
+    expect(money(1000000000)).toBe('Rp1 Kd'); expect(money(2500000000)).toBe('Rp2,5 Kd'); expect(money(1500000)).toBe('Rp1,5 T');
   });
 });
 
