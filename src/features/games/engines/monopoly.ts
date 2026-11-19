@@ -1,6 +1,6 @@
 import { rng, seedFrom, shuffle } from '../../../utils/rng';
 import type { TurnEngine } from './types';
-import { CHANCE, CHEST, GROUPS, GROUP_TILES, JAIL_FEE, JAIL_POS, MAX_HOTELS, MAX_HOUSES, MODES, RAILS, MARKET, applyBoard, marketPct, TAX_AMT, TILES, UTILS, isOwnable, type Card, type ModeKey } from './monopolyData';
+import { CASH_MAX, CASH_MIN, CHANCE, CHEST, GROUPS, GROUP_TILES, JAIL_FEE, JAIL_POS, MAX_HOTELS, MAX_HOUSES, MODES, RAILS, MARKET, applyBoard, marketPct, TAX_AMT, TILES, UTILS, isOwnable, type Card, type ModeKey } from './monopolyData';
 
 export type Phase = 'roll' | 'buy' | 'auction' | 'debt' | 'end' | 'trade';
 export interface Auction { tile: number; bid: number; top: number; turn: number; passed: boolean[] }
@@ -77,10 +77,10 @@ export function decodeTrade(m: number): { to: number; give: number; get: number;
 /** Batas putaran efektif: pilihan ruang/permainan, atau bawaan mode (0 = tanpa batas). */
 export const roundLimit = (s: MonoState): number => s.limit ?? MODES[s.mode].rounds;
 export const modeSeed = (g: { mechanic: string; bank?: string }, seed: string) => (g.mechanic === 'monopoly' ? `${seed}~${g.bank ?? 'klasik'}` : seed);
-/** Seed ruang: "<seed>~<mode>" atau "<seed>~<mode>@<uang awal dalam juta>:<batas putaran, 0 = tanpa batas>" (uang awal dan putaran bebas dari mode). */
+/** Seed ruang: "<seed>~<mode>" atau "<seed>~<mode>@<uang awal dalam juta>:<batas putaran, 0 = tanpa batas>" (uang awal dan putaran bebas dari mode; uang awal boleh Rp100jt sampai 1.000 Kd, lihat CASH_MIN/CASH_MAX). */
 const parseSeed = (raw: string): { seed: string; mode: ModeKey; cash?: number; limit?: number } => {
   const i = raw.lastIndexOf('~'), m = i >= 0 ? raw.slice(i + 1) : '', [mc = '', rr = ''] = m.split(':'), [mk = '', c = ''] = mc.split('@'), cash = Number(c), lm = Number(rr);
-  return { seed: i >= 0 ? raw.slice(0, i) : raw, mode: (mk in MODES ? mk : 'klasik') as ModeKey, cash: c !== '' && Number.isFinite(cash) && cash >= 100 && cash <= 20000 ? Math.round(cash) : undefined, limit: rr !== '' && Number.isInteger(lm) && lm >= 0 && lm <= 1000 ? lm : undefined };
+  return { seed: i >= 0 ? raw.slice(0, i) : raw, mode: (mk in MODES ? mk : 'klasik') as ModeKey, cash: c !== '' && Number.isFinite(cash) && cash >= CASH_MIN && cash <= CASH_MAX ? Math.round(cash) : undefined, limit: rr !== '' && Number.isInteger(lm) && lm >= 0 && lm <= 1000 ? lm : undefined };
 };
 export const rollDice = (seed: string, moves: number): [number, number] => {
   const r = rng(seedFrom(`mono:${seed}:${moves}`));
